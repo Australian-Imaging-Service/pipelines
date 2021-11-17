@@ -28,9 +28,4 @@ metadata = {
 
 task = BidsFormat.wrap_app(
     docker_image,
-    input_paths=[i[0] for i in INPUTS])
-
-
-if __name__ == '__main__':
-    from ais_pipelines.utils import deploy_pipeline
-    deploy_pipeline(task, **metadata)
+    inputs=[i[0] for i in INPUTS])
