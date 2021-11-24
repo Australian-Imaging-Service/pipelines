@@ -11,62 +11,68 @@ DOCKER_REGISTRY = 'docker.io'
 AIS_DOCKER_ORG = 'australianimagingservice'
 
 
-@click.command()
-@click.option('module_path',
-              help="""The relative path to a module in the 'ais_pipelines' package containing a
+@click.command(help="""The relative path to a module in the 'ais_pipelines' package containing a
         member called `task`, a Pydra task or function that takes a name and
         inputs and returns a workflow, and another called  `metadata`,
-        a dictionary withthe following items:
+        a dictionary with the following items:
 
-            name : str
-                Name of the pipeline
-            pydra_task : pydra.task
-                The pydra task to be wrapped for the XNAT container service
-            inputs : list[XnatViaCS.InputArg or tuple]
-                Inputs to be provided to the container
-            outputs : list[XnatViaCS.OutputArg or tuple]
-                Outputs from the container 
-            parameters : list[str]
-                Parameters to be exposed in the CS command
-            description : str
-                User-facing description of the pipeline
-            version : str
-                Version string for the wrapped pipeline
-            requirements : list[tuple[str, str]]
-                Name and version of the Neurodocker requirements to add to the image
-            packages : list[tuple[str, str]]
-                Name and version of the Python PyPI packages to add to the image
-            maintainer : str
-                The name and email of the developer creating the wrapper (i.e. you)
-            info_url : str
-                URI explaining in detail what the pipeline does
-            frequency : Clinical
-                Frequency of the pipeline to generate (can be either 'dataset' or 'session' currently)""")
+            name : str\n
+                Name of the pipeline\n
+            pydra_task : pydra.task\n
+                The pydra task to be wrapped for the XNAT container service\n
+            inputs : list[XnatViaCS.InputArg or tuple]\n
+                Inputs to be provided to the container\n
+            outputs : list[XnatViaCS.OutputArg or tuple]\n
+                Outputs from the container\n
+            parameters : list[str]\n
+                Parameters to be exposed in the CS command\n
+            description : str\n
+                User-facing description of the pipeline\n
+            version : str\n
+                Version string for the wrapped pipeline\n
+            requirements : list[tuple[str, str]]\n
+                Name and version of the Neurodocker requirements to add to the image\n
+            packages : list[tuple[str, str]]\n
+                Name and version of the Python PyPI packages to add to the image\n
+            maintainer : str\n
+                The name and email of the developer creating the wrapper (i.e. you)\n
+            info_url : str\n
+                URI explaining in detail what the pipeline does\n
+            frequency : Clinical\n
+                Frequency of the pipeline to generate (can be either 'dataset' or 'session' currently)\n""")
+@click.argument('module_path')
 @click.option('--registry', default=DOCKER_REGISTRY,
               help="The Docker registry to deploy the pipeline to")
 @click.option('--loglevel', default='info',
               help="The level to display logs at")
-def deploy(module_path, registry, loglevel):
+@click.option('--build_dir', default=None, type=str,
+              help="Specify the directory to build the Docker image in")
+def deploy(module_path, registry, loglevel, build_dir):
     """Creates a Docker image that wraps a Pydra task so that it can
     be run in XNAT's container service, then pushes it to AIS's Docker Hub
     organisation for deployment
     """
 
-    logging.basicConfig(loglevel)
+    logging.basicConfig(level=getattr(logging, loglevel.upper()))
 
     full_module_path = 'ais_pipelines.' + module_path
     module = import_module(full_module_path)
 
-    build_dir = Path(tempfile.mkdtemp())
+    if build_dir is None:
+        build_dir = tempfile.mkdtemp()
+    build_dir = Path(build_dir)
+    build_dir.mkdir(exist_ok=True)
 
     name = module.metadata['name']
     version = module.metadata['version']
 
-    image_tag = f"{AIS_DOCKER_ORG}/{name}:{version}"
+    image_tag = f"{AIS_DOCKER_ORG}/{name.lower().replace('-', '_')}:{version}"
+
+    task_location = full_module_path + ':task'
 
     json_config = XnatViaCS.generate_json_config(
         pipeline_name=name,
-        pydra_task=module.task,
+        task_location=task_location,
         image_tag=image_tag,
         inputs=module.metadata['inputs'],
         outputs=module.metadata['outputs'],
@@ -78,6 +84,7 @@ def deploy(module_path, registry, loglevel):
         info_url=module.metadata['info_url'])
 
     build_dir = XnatViaCS.generate_dockerfile(
+        task_location=task_location,
         json_config=json_config,
         maintainer=module.metadata['maintainer'],
         build_dir=build_dir,

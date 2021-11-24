@@ -21,7 +21,7 @@ setup(
     long_description=open('README.rst').read(),
     install_requires=requirements,
     entry_points={
-        'console_scripts': ['arcana = arcana2.core.entrypoint:MainCmd.run']},
+        'console_scripts': ['deploy_ais = ais_pipelines.entrypoint:deploy']},
     classifiers=(
         ["Development Status :: 4 - Beta",
          "Intended Audience :: Healthcare Industry",
