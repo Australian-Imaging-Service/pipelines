@@ -2,7 +2,6 @@ from arcana2.data.sets.bids import BidsFormat
 from arcana2.data.spaces.clinical import Clinical
 from arcana2.data.types.general import directory
 from arcana2.data.types.neuroimaging import nifti_gz
-from ais_pipelines.utils import test_data_dir
 
 
 MRIQC_VERSION = '0.16.1'
