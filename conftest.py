@@ -19,9 +19,20 @@ sch.setFormatter(formatter)
 logger.addHandler(sch)
 
 
+TEST_DATA_DIR = Path(__file__).parent / 'tests' / 'data'
+
 @pytest.fixture
 def test_data_dir():
-    return Path(__file__).parent / 'tests' / 'data'
+    return TEST_DATA_DIR
+
+
+@pytest.fixture
+def work_dir():
+    # We need to use a directory in the repository tree to make sure it is
+    # available from Docker on Mac (and Windows?) where only certain directories
+    # are accessible
+    yield TEST_DATA_DIR / 'work_dir'
+    # shutil.rmtree(work_dir)
 
 # For debugging in IDE's don't catch raised exceptions and let the IDE
 # break at it
