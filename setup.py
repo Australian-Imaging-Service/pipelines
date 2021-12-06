@@ -8,12 +8,12 @@ with open(str(Path(__file__).parent / 'requirements.txt')) as f:
 
 
 setup(
-    name='ais_pipleines',
+    name='ais',
     version=0.1,
     author='Thomas G. Close',
     author_email='tom.g.close@gmail.com',
     packages=find_packages(exclude=['tests']),
-    url='https://github.com/australian-imaging-service/ais_pipelines',
+    url='https://github.com/australian-imaging-service/ais',
     license='Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License',
     description=(
         'Scripts to generate containerised analysis pipelines for the '
@@ -21,7 +21,7 @@ setup(
     long_description=open('README.rst').read(),
     install_requires=requirements,
     entry_points={
-        'console_scripts': ['deploy_ais = ais_pipelines.entrypoint:deploy']},
+        'console_scripts': ['deploy_ais = ais.entrypoint:deploy']},
     classifiers=(
         ["Development Status :: 4 - Beta",
          "Intended Audience :: Healthcare Industry",

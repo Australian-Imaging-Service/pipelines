@@ -11,7 +11,7 @@ DOCKER_REGISTRY = 'docker.io'
 AIS_DOCKER_ORG = 'australianimagingservice'
 
 
-@click.command(help="""The relative path to a module in the 'ais_pipelines' package containing a
+@click.command(help="""The relative path to a module in the 'ais' package containing a
         member called `task`, a Pydra task or function that takes a name and
         inputs and returns a workflow, and another called  `metadata`,
         a dictionary with the following items:
@@ -55,7 +55,7 @@ def deploy(module_path, registry, loglevel, build_dir):
 
     logging.basicConfig(level=getattr(logging, loglevel.upper()))
 
-    full_module_path = 'ais_pipelines.' + module_path
+    full_module_path = 'ais.' + module_path
     module = import_module(full_module_path)
 
     if build_dir is None:
@@ -88,8 +88,10 @@ def deploy(module_path, registry, loglevel, build_dir):
         json_config=json_config,
         maintainer=module.metadata['maintainer'],
         build_dir=build_dir,
-        requirements=module.metadata['requirements'],
-        packages=module.metadata['packages'])
+        base_image=module.metadata.get('base_image'),
+        requirements=module.metadata.get('requirements'),
+        packages=module.metadata.get('packages'),
+        package_manager=module.metadata.get('package_manager'))
 
     logging.info("Generated dockerfile and XNAT command configuration in %s",
                  build_dir)
@@ -109,6 +111,7 @@ def deploy(module_path, registry, loglevel, build_dir):
 
     logging.info("Pushed %s pipeline to %s Docker Hub organsation",
                  name, DOCKER_REGISTRY)
-    
+
+
 if __name__ == '__main__':
     deploy()
