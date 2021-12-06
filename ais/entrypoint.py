@@ -70,17 +70,27 @@ def deploy(module_path, registry, loglevel, build_dir):
 
     task_location = full_module_path + ':task'
 
+    frequency = module.metadata['frequency']
+    inputs = module.metadata['inputs']
+    outputs = module.metadata['outputs']
+    
+    if isinstance(inputs, dict):
+        inputs = [t + (frequency,) for t in inputs.items()]
+
+    if isinstance(outputs, dict):
+        outputs = list(outputs.items())
+
     json_config = XnatViaCS.generate_json_config(
         pipeline_name=name,
         task_location=task_location,
         image_tag=image_tag,
-        inputs=module.metadata['inputs'],
-        outputs=module.metadata['outputs'],
+        inputs=inputs,
+        outputs=outputs,
         parameters=module.metadata['parameters'],
         description=module.metadata['description'],
         version=version,
         registry=registry,
-        frequency=module.metadata['frequency'],
+        frequency=frequency,
         info_url=module.metadata['info_url'])
 
     build_dir = XnatViaCS.generate_dockerfile(

@@ -35,7 +35,7 @@ metadata = {
 
 task = BidsFormat.wrap_app(
     'mriqc',
-    docker_image_executable(docker_image),
+    'mriqc',  # Extracted using `docker_image_executable(docker_image)`
     inputs=INPUTS)
 
 
