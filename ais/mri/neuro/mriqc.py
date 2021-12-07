@@ -1,8 +1,7 @@
-from arcana2.data.sets.bids import BidsFormat
+from arcana2.data.sets.bids import BidsApp
 from arcana2.data.spaces.clinical import Clinical
 from arcana2.data.types.general import directory
 from arcana2.data.types.neuroimaging import nifti_gz
-from ais.utils import docker_image_executable
 
 
 WRAPPER_VERSION = '0.1.0'
@@ -33,14 +32,8 @@ metadata = {
     'frequency': Clinical.session}
 
 
-task = BidsFormat.wrap_app(
-    'mriqc',
-    'mriqc',  # Extracted using `docker_image_executable(docker_image)`
-    inputs=INPUTS)
-
-
-docker_task = BidsFormat.wrap_app(
-    'mriqc_docker',
-    docker_image,
+task = BidsApp(
+    image=docker_image,
+    executable='mriqc',  # Extracted using `docker_image_executable(docker_image)`
     inputs=INPUTS,
-    container_type='docker')
+    outputs=OUTPUTS)

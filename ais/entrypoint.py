@@ -103,9 +103,6 @@ def deploy(module_path, registry, loglevel, build_dir):
         packages=module.metadata.get('packages'),
         package_manager=module.metadata.get('package_manager'))
 
-    logging.info("Generated dockerfile and XNAT command configuration in %s",
-                 build_dir)
-
     dc = docker.from_env()
     try:
         dc.images.build(path=str(build_dir), tag=image_tag)
@@ -114,8 +111,7 @@ def deploy(module_path, registry, loglevel, build_dir):
         logging.error('\n'.join(l.get('stream', '') for l in e.build_log))
         raise
 
-    logging.info("Generated dockerfile and XNAT command configuration for %s "
-                 "pipeline in %s", name, build_dir)
+    logging.info("Built docker image %s", name)
 
     dc.images.push(image_tag)
 

@@ -21,7 +21,7 @@ args = parser.parse_args()
 
 project = args.project  # + datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
 
-TEST_DICOM_DATA = Path(__file__).parent.parent / 'tests' / 'data' / 'ses-01-dicom'
+TEST_DICOM_DATA = Path(__file__).parent.parent / 'tests' / 'data' / 'dicom' / 'ses-01'
 
 with xnat.connect(server=args.xnat_server, user=args.alias, password=args.secret) as login:
     login.put(f'/data/archive/projects/{project}')

@@ -26,3 +26,4 @@ def docker_image_executable(image_tag):
         executable = image_attrs['Cmd']
 
     return executable
+    
