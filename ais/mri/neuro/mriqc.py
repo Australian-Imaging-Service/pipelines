@@ -4,11 +4,11 @@ from arcana2.data.types.general import directory
 from arcana2.data.types.neuroimaging import nifti_gz
 
 
-WRAPPER_VERSION = '0.1.0'
+WRAPPER_VERSION = '0.1.1'
 MRIQC_VERSION = '0.16.1'
 
 INPUTS = [('T1w', 'anat/T1w', nifti_gz)]
-OUTPUTS = [('mriqc', '.', directory)]
+OUTPUTS = [('mriqc', '', directory)]
 PARAMETERS = []
 
 docker_image = f"poldracklab/mriqc:{MRIQC_VERSION}"
