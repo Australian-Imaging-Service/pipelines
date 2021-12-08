@@ -1,13 +1,13 @@
 from arcana2.data.sets.bids import BidsApp
 from arcana2.data.spaces.clinical import Clinical
 from arcana2.data.types.general import directory
-from arcana2.data.types.neuroimaging import nifti_gz
+from arcana2.data.types.neuroimaging import niftix_gz
 
 
 WRAPPER_VERSION = '0.1.1'
 MRIQC_VERSION = '0.16.1'
 
-INPUTS = [('T1w', 'anat/T1w', nifti_gz)]
+INPUTS = [('T1w', 'anat/T1w', niftix_gz)]
 OUTPUTS = [('mriqc', '', directory)]
 PARAMETERS = []
 
@@ -23,9 +23,9 @@ metadata = {
     'outputs': OUTPUTS,
     'parameters': PARAMETERS,
     'version': WRAPPER_VERSION,
-    'pkg_version': MRIQC_VERSION,
-    'requirements': [],
-    'packages': [],
+    'app_version': MRIQC_VERSION,
+    'packages': [],  # [('dcm2niix', '1.0.20201102')],
+    'python_packages': [],
     'base_image': f'poldracklab/mriqc:{MRIQC_VERSION}',
     'maintainer': 'thomas.close@sydney.edu.au',
     'info_url': 'http://mriqc.readthedocs.io',

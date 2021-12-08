@@ -30,9 +30,9 @@ AIS_DOCKER_ORG = 'australianimagingservice'
                 User-facing description of the pipeline\n
             version : str\n
                 Version string for the wrapped pipeline\n
-            requirements : list[tuple[str, str]]\n
-                Name and version of the Neurodocker requirements to add to the image\n
             packages : list[tuple[str, str]]\n
+                Name and version of the Neurodocker requirements to add to the image\n
+            python_packages : list[tuple[str, str]]\n
                 Name and version of the Python PyPI packages to add to the image\n
             maintainer : str\n
                 The name and email of the developer creating the wrapper (i.e. you)\n
@@ -91,8 +91,8 @@ def deploy(module_path, registry, loglevel, build_dir):
         maintainer=module.metadata['maintainer'],
         build_dir=build_dir,
         base_image=module.metadata.get('base_image'),
-        requirements=module.metadata.get('requirements'),
         packages=module.metadata.get('packages'),
+        python_packages=module.metadata.get('python_packages'),
         package_manager=module.metadata.get('package_manager'))
 
     dc = docker.from_env()

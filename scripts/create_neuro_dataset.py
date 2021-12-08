@@ -21,7 +21,7 @@ args = parser.parse_args()
 
 project = args.project  # + datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
 
-TEST_DICOM_DATA = Path(__file__).parent.parent / 'tests' / 'data' / 'dicom' / 'ses-01'
+TEST_DATA = Path(__file__).parent.parent / 'tests' / 'data'
 
 with xnat.connect(server=args.xnat_server, user=args.alias, password=args.secret) as login:
     login.put(f'/data/archive/projects/{project}')
@@ -43,13 +43,22 @@ with xnat.connect(server=args.xnat_server, user=args.alias, password=args.secret
         # Create scan
         xscan = xclasses.MrScanData(id=i, type=name2path(sname),
                                     parent=xsession)
-        # Create the resource
-        xresource = xscan.create_resource('DICOM')
+        # Create the DICOM resource
+        dicom_xresource = xscan.create_resource('DICOM')
         # Create the dummy files
-        sdir = TEST_DICOM_DATA / sname
+        sdir = TEST_DATA / 'dicom' / 'ses-01' / sname
         for fname in sdir.iterdir():
             if not str(fname).startswith('.'):
-                xresource.upload(str(sdir / fname), str(fname))
+                dicom_xresource.upload(str(sdir / fname), str(fname))
+
+        # Create the NIFTI resource
+        niftix_gz_xresource = xscan.create_resource('niftix_gz')
+        basename = TEST_DATA / 'nifti' / 'ses-01' / sname
+        niftix_gz_xresource.upload(str(basename) + '.nii.gz',
+                                   sname + '.nii.gz')
+        niftix_gz_xresource.upload(str(basename) + '.json',
+                                   sname + '.json')
+        
 
     # Trigger DICOM header parsing
     login.put(f'/data/experiments/{xsession.id}?pullDataFromHeaders=true')
