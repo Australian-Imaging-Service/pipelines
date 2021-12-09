@@ -5,7 +5,7 @@ from ais.mri.neuro.mriqc import INPUTS, metadata, task
 
 
 
-def test_mriqc(test_data_dir: Path, work_dir: Path):
+def test_mriqc_task(test_data_dir: Path, work_dir: Path):
 
     kwargs = {}
     for inpt, dtype in INPUTS.items():
