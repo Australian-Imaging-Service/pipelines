@@ -9,11 +9,10 @@ from arcana2.core.utils import name2path
 parser = ArgumentParser()
 parser.add_argument('xnat_server',
                     help="The XNAT server to push the test dataset to")
-parser.add_argument('dataset_name',
-                    help="The name of the dataset to create")
+parser.add_argument('project',
+                    help="The name of the project to create")
 parser.add_argument('alias', help="Username or token alias to access server with")
 parser.add_argument('secret', help="Password or token secret to access server with")
-parser.add_argument('--project', default='TEST', help="Project name")
 parser.add_argument('--scans', nargs='+', help="Scans to upload",
                     default=['anat__l__t1w', 'anat__l__t2w', 'func__l__bold'])
 args = parser.parse_args()
@@ -39,17 +38,20 @@ with xnat.connect(server=args.xnat_server, user=args.alias, password=args.secret
     xsession = xclasses.MrSessionData(label=session_label,
                                       parent=xsubject)
 
-    for i, sname in enumerate(args.scans, start=1):
+    for sname in args.scans:
         # Create scan
-        xscan = xclasses.MrScanData(id=i, type=name2path(sname),
-                                    parent=xsession)
+        dicom_dir = TEST_DATA / 'dicom' / 'ses-01' / sname
+        with open(next(dicom_dir.iterdir()), 'rb') as f:
+            dcm = pydicom.dcmread(f)
+        xscan = xclasses.MrScanData(
+            id=dcm.SeriesNumber, type=dcm.SeriesDescription, parent=xsession)
         # Create the DICOM resource
         dicom_xresource = xscan.create_resource('DICOM')
         # Create the dummy files
-        sdir = TEST_DATA / 'dicom' / 'ses-01' / sname
-        for fname in sdir.iterdir():
-            if not str(fname).startswith('.'):
-                dicom_xresource.upload(str(sdir / fname), str(fname))
+        
+        for fpath in dicom_dir.iterdir():
+            if not fpath.name.startswith('.'):
+                dicom_xresource.upload(str(fpath), str(fpath.name))
 
         # Create the NIFTI resource
         niftix_gz_xresource = xscan.create_resource('niftix_gz')

@@ -4,14 +4,15 @@ from arcana2.data.types.general import directory
 from arcana2.data.types.neuroimaging import niftix_gz
 
 
-WRAPPER_VERSION = '0.1.1'
+AIS_VERSION = '0.1.3'
 MRIQC_VERSION = '0.16.1'
 
-INPUTS = [('T1w', 'anat/T1w', niftix_gz)]
-OUTPUTS = [('mriqc', '', directory)]
-PARAMETERS = []
+BIDS_INPUTS = [('T1w', niftix_gz, 'anat/T1w')]
+BIDS_OUTPUTS = [('mriqc', directory)]
+BIDS_PARAMETERS = []
 
 docker_image = f"poldracklab/mriqc:{MRIQC_VERSION}"
+
 
 metadata = {
     'name': "mriqc",
@@ -19,10 +20,10 @@ metadata = {
         "MRIQC extracts no-reference IQMs (image quality metrics) from "
         "structural (T1w and T2w) and functional MRI (magnetic resonance "
         "imaging) data."),
-    'inputs': INPUTS,
-    'outputs': OUTPUTS,
-    'parameters': PARAMETERS,
-    'version': WRAPPER_VERSION,
+    'inputs': [i[:2] for i in BIDS_INPUTS],
+    'outputs': [o[:2] for o in BIDS_OUTPUTS],
+    'parameters': [p[0] for p in BIDS_PARAMETERS],
+    'version': AIS_VERSION,
     'app_version': MRIQC_VERSION,
     'packages': [],  # [('dcm2niix', '1.0.20201102')],
     'python_packages': [],
@@ -35,5 +36,5 @@ metadata = {
 task = BidsApp(
     image=docker_image,
     executable='mriqc',  # Extracted using `docker_image_executable(docker_image)`
-    inputs=INPUTS,
-    outputs=OUTPUTS)
+    inputs=BIDS_INPUTS,
+    outputs=BIDS_OUTPUTS)
