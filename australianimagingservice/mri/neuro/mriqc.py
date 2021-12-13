@@ -4,7 +4,7 @@ from arcana2.data.types.general import directory
 from arcana2.data.types.neuroimaging import niftix_gz
 
 
-AIS_VERSION = '0.1.3'
+AIS_VERSION = '0.1.4'
 MRIQC_VERSION = '0.16.1'
 
 BIDS_INPUTS = [('T1w', niftix_gz, 'anat/T1w')]

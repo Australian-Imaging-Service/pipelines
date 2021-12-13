@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 from arcana2.core.utils import path2name
-from ais.mri.neuro.mriqc import INPUTS, metadata, task
+from australianimagingservice.mri.neuro.mriqc import INPUTS, metadata, task
 
 
 
