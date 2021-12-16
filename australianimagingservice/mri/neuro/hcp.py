@@ -18,7 +18,7 @@ docker_image = f"bids/hcppipelines:{VERSION}"
 
 task = BidsApp(
     image=docker_image,
-    executable='mriqc',  # Extracted using `docker_image_executable(docker_image)`
+    executable='/run.py',  # Extracted using 'extract_executable' CL tool
     inputs=BIDS_INPUTS,
     outputs=BIDS_OUTPUTS)
 

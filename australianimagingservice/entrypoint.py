@@ -7,7 +7,6 @@ import click
 import docker.errors
 from arcana2.data.repositories.xnat.cs import XnatViaCS
 from arcana2.core.utils import get_pkg_name
-from .utils import docker_image_executable
 
 DOCKER_REGISTRY = 'docker.io'
 AIS_DOCKER_ORG = 'australianimagingservice'
