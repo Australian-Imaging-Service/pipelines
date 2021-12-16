@@ -14,7 +14,7 @@ parser.add_argument('project',
 parser.add_argument('alias', help="Username or token alias to access server with")
 parser.add_argument('secret', help="Password or token secret to access server with")
 parser.add_argument('--scans', nargs='+', help="Scans to upload",
-                    default=['anat__l__t1w', 'anat__l__t2w', 'func__l__bold'])
+                    default=['T1w', 'T2w', 'fMRI'])
 args = parser.parse_args()
 
 
