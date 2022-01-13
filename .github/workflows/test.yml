@@ -1,0 +1,10 @@
+name: Test Pipelines
+on:
+  push:
+    branches:
+      - master
+jobs:
+  Echo-Test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Testing out GH actions"
