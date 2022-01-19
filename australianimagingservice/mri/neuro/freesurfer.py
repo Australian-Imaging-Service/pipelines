@@ -1,5 +1,5 @@
 from arcana2.data.stores.bids import BidsApp
-from arcana2.data.spaces.clinical import Clinical
+from arcana2.data.dimensions.clinical import Clinical
 from arcana2.data.types.general import directory
 from arcana2.data.types.neuroimaging import niftix_gz
 
@@ -23,7 +23,7 @@ task = BidsApp(
 
 
 spec = {
-    'package_name': "freesurver",
+    'package_name': "freesurfer",
     'description': (
         ""),
     'commands': [

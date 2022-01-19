@@ -22,7 +22,7 @@ setup(
     install_requires=requirements,
     entry_points={
         'console_scripts': ['deploy_ais = australianimagingservice.entrypoint:deploy',
-                            'extract_executable = australianimagingservice.entrypoint:extract_executable']},
+                            'detect_docker_exec = australianimagingservice.entrypoint:detect_docker_executable']},
     classifiers=(
         ["Development Status :: 4 - Beta",
          "Intended Audience :: Healthcare Industry",

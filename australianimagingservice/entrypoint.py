@@ -132,7 +132,7 @@ def deploy(module_path, registry, loglevel, build_dir):
 
 @click.command(help="""Extract the executable from a Docker image""")
 @click.argument('image_tag')
-def extract_executable(image_tag):
+def detect_docker_executable(image_tag):
     """Pulls a given Docker image tag and inspects the image to get its
     entrypoint/cmd
 

@@ -10,13 +10,14 @@ AIS_VERSION = '0.1.5'
 BIDS_INPUTS = [('T1w', niftix_gz, 'anat/T1w'),
                ('T2w', niftix_gz, 'anat/T2w'),
                ('fMRI', niftix_gz, 'func/bold')]
-BIDS_OUTPUTS = [('mriqc', directory)]
+BIDS_OUTPUTS = [('mriqc', directory, None)]
 BIDS_PARAMETERS = []
 
 docker_image = f"poldracklab/mriqc:{VERSION}"
 
 
 task = BidsApp(
+    app_name='mriqc',
     image=docker_image,
     executable='mriqc',  # Extracted using `docker_image_executable(docker_image)`
     inputs=BIDS_INPUTS,
