@@ -17,13 +17,6 @@ BIDS_PARAMETERS = []
 docker_image = f":{VERSION}"
 
 
-task = BidsApp(
-    image=docker_image,
-    executable='',  # Extracted using `docker_image_executable(docker_image)`
-    inputs=BIDS_INPUTS,
-    outputs=BIDS_OUTPUTS)
-
-
 spec = {
     'package_name': "ants_cortical_thickness",
     'description': (
@@ -41,3 +34,11 @@ spec = {
     'maintainer': 'thomas.close@sydney.edu.au',
     'info_url': '',
     'frequency': Clinical.session}
+
+
+task = BidsApp(
+    app_name=spec['package_name'],
+    image=docker_image,
+    executable='',  # Extracted using `docker_image_executable(docker_image)`
+    inputs=BIDS_INPUTS,
+    outputs=BIDS_OUTPUTS)
