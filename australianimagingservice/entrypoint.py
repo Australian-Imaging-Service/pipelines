@@ -5,8 +5,8 @@ import shutil
 from importlib import import_module
 import click
 import docker.errors
-from arcana2.data.stores.xnat.cs import XnatViaCS
-from arcana2.core.utils import get_pkg_name
+from arcana.data.stores.xnat.cs import XnatViaCS
+from arcana.core.utils import get_pkg_name
 
 DOCKER_REGISTRY = 'docker.io'
 AIS_DOCKER_ORG = 'australianimagingservice'

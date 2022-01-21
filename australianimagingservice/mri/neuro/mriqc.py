@@ -1,7 +1,7 @@
-from arcana2.data.stores.bids import BidsApp
-from arcana2.data.dimensions.clinical import Clinical
-from arcana2.data.types.general import directory
-from arcana2.data.types.neuroimaging import niftix_gz
+from arcana.data.stores.bids import BidsApp
+from arcana.data.dimensions.clinical import Clinical
+from arcana.data.types.general import directory
+from arcana.data.types.neuroimaging import niftix_gz
 
 
 VERSION = '0.16.1'

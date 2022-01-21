@@ -1,7 +1,7 @@
-from arcana2.data.stores.bids import BidsApp
-from arcana2.data.spaces.clinical import Clinical
-from arcana2.data.types.general import directory
-from arcana2.data.types.neuroimaging import niftix_gz
+from arcana.data.stores.bids import BidsApp
+from arcana.data.spaces.clinical import Clinical
+from arcana.data.types.general import directory
+from arcana.data.types.neuroimaging import niftix_gz
 
 
 AIS_VERSION = '0.1'
