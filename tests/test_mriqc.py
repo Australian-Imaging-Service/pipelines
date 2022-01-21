@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from arcana2.core.utils import resolve_class
+from arcana.core.utils import resolve_class
 from australianimagingservice.mri.neuro.mriqc import spec
 
 

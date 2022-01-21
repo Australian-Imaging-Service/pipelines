@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 import xnat
 import pydicom
-from arcana2.core.utils import name2path
+from arcana.core.utils import name2path
 
 
 parser = ArgumentParser()
