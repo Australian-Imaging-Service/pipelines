@@ -1,5 +1,5 @@
 from arcana.data.stores.bids import BidsApp
-from arcana.data.spaces.clinical import Clinical
+from arcana.data.dimensions.clinical import Clinical
 from arcana.data.types.general import directory
 from arcana.data.types.neuroimaging import niftix_gz
 
