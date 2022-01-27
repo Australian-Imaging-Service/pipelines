@@ -124,6 +124,7 @@ def main(args):
     sys.path.insert(0, BASE_DIR)
 
     output_dir = args[0]
+    os.makedirs(output_dir, exist_ok=True)
 
     for dirpath, _, filenames in os.walk(os.path.join(BASE_DIR, "australianimagingservice")):
         for fn in filenames:

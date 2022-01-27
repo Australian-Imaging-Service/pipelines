@@ -1,0 +1,68 @@
+name: generate docs
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'australianimagingservice/**'
+      - 'docs_scripts/**'
+      - 'docs/**'
+  repository_dispatch:  # Allow access tokens which have write access to this repo to trigger this action
+  workflow_dispatch:  # Allow manual triggering by a user with write access to this repo
+
+jobs:
+  generate:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive  # Fetch Hugo themes (true OR recursive)
+          fetch-depth: 1    # Fetch all history for .GitInfo and .Lastmod
+          path: pipelines_root
+
+      # TODO: Need a unique key we can pass, but as we're targetting
+      # arcana@master, this is not trivial.
+      #
+      # - name: Cache dependencies
+      #   uses: actions/cache@v1
+      #   with:
+      #     path: ~/.local/lib
+      #     key: ${{ runner.os }}-python-${{ hashFiles('**/package-lock.json') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-python-
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8' # Version range or exact version of a Python version to use, using SemVer'
+
+      - name: Install python dependencies
+        run: pip install -r ./pipelines_root/docs_scripts/requirements.txt
+
+      - name: Generate pipeline docs
+        run: python docs_scripts/generate_pipeline_docs.py docs/pipelines
+        working-directory: ./pipelines_root
+
+      - name: Remove /docs/pipelines/ from .gitignore
+        run: sed -i 's^/docs/pipelines/^^' .gitignore
+        working-directory: ./pipelines_root
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/master'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./pipelines_root
+          publish_branch: docs
+          enable_jekyll: true  # This branch isn't actually fed to GH pages
+
+      # It's possible, likely even, that we'll trigger unnecessary docs
+      # rebuilds with this. Running this properly as a separate workflow
+      # only when real docs changes occur would require using a PAT.
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.GITHUBPAGES_KEY }}
+          repository: Australian-Imaging-Service/Australian-Imaging-Service.github.io
+          event-type: Rebuild docs
