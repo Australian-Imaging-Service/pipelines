@@ -6,4 +6,5 @@ __pycache__
 .DS_Store
 
 # Automatically generated
-/docs/pipelines/
+/docs/pipelines/*
+!/docs/pipelines/_index.md

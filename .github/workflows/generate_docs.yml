@@ -45,7 +45,7 @@ jobs:
         working-directory: ./pipelines_root
 
       - name: Remove /docs/pipelines/ from .gitignore
-        run: sed -i 's^/docs/pipelines/^^' .gitignore
+        run: sed -i 's%^/docs/pipelines/\*$%%' .gitignore
         working-directory: ./pipelines_root
 
       - name: Deploy

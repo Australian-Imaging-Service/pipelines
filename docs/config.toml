@@ -1,4 +1,4 @@
 [module]
 [[module.mounts]]
 source = ""
-target = "content/docs"
+target = "content/user_docs"
