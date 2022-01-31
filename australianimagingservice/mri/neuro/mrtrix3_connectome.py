@@ -1,5 +1,5 @@
 from arcana.data.stores.bids import BidsApp
-from arcana.data.spaces.clinical import Clinical
+from arcana.data.dimensions.clinical import Clinical
 from arcana.data.types.general import directory
 from arcana.data.types.neuroimaging import niftix_gz
 
@@ -13,13 +13,6 @@ BIDS_OUTPUTS = [('mrtrix_connectome', directory)]
 BIDS_PARAMETERS = []
 
 docker_image = f":{VERSION}"
-
-
-task = BidsApp(
-    image=docker_image,
-    executable='',  # Extracted using `docker_image_executable(docker_image)`
-    inputs=BIDS_INPUTS,
-    outputs=BIDS_OUTPUTS)
 
 
 spec = {
@@ -39,3 +32,11 @@ spec = {
     'maintainer': 'thomas.close@sydney.edu.au',
     'info_url': '',
     'frequency': Clinical.session}
+
+
+task = BidsApp(
+    app_name=spec['package_name'],
+    image=docker_image,
+    executable='',  # Extracted using `docker_image_executable(docker_image)`
+    inputs=BIDS_INPUTS,
+    outputs=BIDS_OUTPUTS)
