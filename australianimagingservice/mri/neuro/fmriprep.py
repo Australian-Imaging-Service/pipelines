@@ -27,7 +27,7 @@ spec = {
          'outputs': [o[:2] for o in BIDS_OUTPUTS],
          'parameters': [p[0] for p in BIDS_PARAMETERS]}],
     'version': AIS_VERSION,
-    'app_version': VERSION,
+    'pkg_version': VERSION,
     'packages': [],  # [('dcm2niix', '1.0.20201102')],
     'python_packages': [],
     'base_image': docker_image,

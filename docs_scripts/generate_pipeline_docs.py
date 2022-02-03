@@ -81,8 +81,8 @@ def parse_bids_app(path, output_dir):
         tbl_info = MarkdownTable(f, "Key", "Value")
         if "version" in metadata:
             tbl_info.write_row("Version", metadata["version"])
-        if "app_version" in metadata:
-            tbl_info.write_row("App version", metadata["app_version"])
+        if "pkg_version" in metadata:
+            tbl_info.write_row("App version", metadata["pkg_version"])
         if task.image:
             tbl_info.write_row("Image", escaped(task.image))
         if "base_image" in metadata and task.image != metadata["base_image"]:
