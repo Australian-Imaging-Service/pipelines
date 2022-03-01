@@ -8,3 +8,4 @@ __pycache__
 # Automatically generated
 /docs/pipelines/*
 !/docs/pipelines/_index.md
+test-data

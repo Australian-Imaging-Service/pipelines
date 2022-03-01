@@ -1,7 +1,7 @@
 from arcana.data.stores.bids import BidsApp
-from arcana.data.dimensions.clinical import Clinical
-from arcana.data.types.general import directory
-from arcana.data.types.neuroimaging import niftix_gz
+from arcana.data.spaces.medicalimaging import ClinicalTrial
+from arcana.data.formats.common import directory
+from arcana.data.formats.medicalimaging import niftix_gz
 
 
 AIS_VERSION = '0.1'
@@ -33,7 +33,7 @@ spec = {
     'base_image': docker_image,
     'maintainer': 'thomas.close@sydney.edu.au',
     'info_url': '',
-    'frequency': Clinical.session}
+    'frequency': ClinicalTrial.session}
 
 
 task = BidsApp(
