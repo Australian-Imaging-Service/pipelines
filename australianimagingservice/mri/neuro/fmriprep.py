@@ -1,5 +1,5 @@
 from arcana.data.stores.bids import BidsApp
-from arcana.data.spaces.medicalimaging import ClinicalTrial
+from arcana.data.spaces.medicalimaging import Clinical
 from arcana.data.formats.common import directory
 from arcana.data.formats.medicalimaging import niftix_gz
 
@@ -33,7 +33,7 @@ spec = {
     'base_image': docker_image,
     'maintainer': 'thomas.close@sydney.edu.au',
     'info_url': '',
-    'frequency': ClinicalTrial.session}
+    'frequency': Clinical.session}
 
 
 task = BidsApp(

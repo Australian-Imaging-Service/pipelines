@@ -1,5 +1,5 @@
 from arcana.data.stores.bids import BidsApp
-from arcana.data.spaces.medicalimaging import ClinicalTrial
+from arcana.data.spaces.medicalimaging import Clinical
 from arcana.data.formats.common import directory
 from arcana.data.formats.medicalimaging import niftix_gz
 
@@ -25,7 +25,7 @@ mriqc = BidsApp(
 
 spec = {
     'commands': [
-        {'task_location': __name__ + ':mriqc',
+        {'pydra_task': __name__ + ':mriqc',
          'inputs': [i[:2] for i in BIDS_INPUTS],
          'outputs': [o[:2] for o in BIDS_OUTPUTS],
          'parameters': [p[0] for p in BIDS_PARAMETERS]}],
@@ -40,5 +40,5 @@ spec = {
     'base_image': docker_image,
     'authors': ['thomas.close@sydney.edu.au'],
     'info_url': 'http://mriqc.readthedocs.io',
-    'frequency': ClinicalTrial.session}
+    'frequency': Clinical.session}
 
