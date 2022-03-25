@@ -1,0 +1,18 @@
+package_name: mrtrix_connectome
+description: ''
+commands:
+  - pydra_task: task
+    inputs:
+      - [ 'T1w', 'niftix_gz', 'anat/T1w' ]
+      - [ 'dMRI', 'niftix_gz', 'dwi/dwi' ]
+    outputs:
+      - [ 'mrtrix_connectome', 'directory' ]
+    parameters: [ ]
+version: 0.1.4
+pkg_version: &pkg_version ''
+packages: [ ]  # [('dcm2niix', '1.0.20201102')]
+python_packages: [ ]
+base_image: !join [ ':', *pkg_version ]
+maintainer: 'thomas.close@sydney.edu.au'
+info_url: ''
+frequency: 'Clinical.session'

@@ -1,0 +1,20 @@
+package_name: fmriprep
+description: ''
+commands:
+  - pydra_task: task
+    inputs:
+      - [ 'T1w', 'niftix_gz', 'anat/T1w' ]
+      - [ 'T2w', 'niftix_gz', 'anat/T2w' ]
+      - [ 'fMRI', 'niftix_gz', 'func/bold' ]
+      - [ 'dMRI', 'niftix_gz', 'dwi/dwi' ]
+    outputs:
+      - [ 'fmriprep', 'directory' ]
+    parameters: [ ]
+version: 0.1
+pkg_version: &pkg_version ''
+packages: [ ]  # [('dcm2niix', '1.0.20201102')]
+python_packages: [ ]
+base_image: !join [ ':', *pkg_version ]
+maintainer: 'thomas.close@sydney.edu.au'
+info_url: ''
+frequency: 'Clinical.session'

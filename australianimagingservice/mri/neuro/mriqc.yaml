@@ -1,0 +1,23 @@
+package_name: mriqc
+description: ''
+commands:
+  - pydra_task: 'mriqc:mriqc'
+    inputs:
+      - [ 'T1w', 'niftix_gz', 'anat/T1w' ]
+      - [ 'T2w', 'niftix_gz', 'anat/T2w' ]
+      - [ 'fMRI', 'niftix_gz', 'func/bold' ]
+    outputs:
+      - [ 'mriqc', 'directory' ]
+    parameters: [ ]
+    description: >-
+      MRIQC extracts no-reference IQMs (image quality metrics) from
+      structural (T1w and T2w) and functional MRI (magnetic resonance
+      imaging) data.
+version: 0.1
+pkg_version: &pkg_version '0.16.1'
+packages: [ ]  # [('dcm2niix', '1.0.20201102')]
+python_packages: [ ]
+base_image: !join [ 'poldracklab/mriqc:', *pkg_version ]
+maintainer: 'thomas.close@sydney.edu.au'
+info_url: 'http://mriqc.readthedocs.io'
+frequency: 'Clinical.session'
