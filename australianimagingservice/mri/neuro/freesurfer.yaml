@@ -1,18 +1,26 @@
-package_name: freesurfer
-description: ''
-commands:
-  - pydra_task: task
-    inputs:
-      - [ 'T1w', 'niftix_gz', 'anat/T1w' ]
-      - [ 'T2w', 'niftix_gz', 'anat/T2w' ]
-    outputs:
-      - [ 'freesurfer', 'directory' ]
-    parameters: [ ]
-version: 0.1
+pkg_name: freesurfer
 pkg_version: &pkg_version ''
-packages: [ ]  # [('dcm2niix', '1.0.20201102')]
-python_packages: [ ]
+wrapper_version: '1'
+authors:
+  - thomas.close@sydney.edu.au
 base_image: !join [ ':', *pkg_version ]
-maintainer: 'thomas.close@sydney.edu.au'
 info_url: ''
-frequency: 'Clinical.session'
+docker_org: australianimagingservice
+docker_registry: ghrc.io
+package_manager: apt
+packages: [ ]
+extra_labels:
+arcana_extras: [ ]
+commands:
+  - pipeline_name: Freesurfer
+    pydra_task: task
+    description: ''
+    version: 1
+    info_url: ''
+    inputs: [ ]
+#      - [ 'T1w', medimage:NiftiGz, 'anat/T1w' ]
+#      - [ 'T2w', medimage:NiftiGz, 'anat/T2w' ]
+    outputs: [ ]
+#      - [ 'freesurfer', 'directory' ]
+    parameters: [ ]
+    frequency: session

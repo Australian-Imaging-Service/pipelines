@@ -1,23 +1,30 @@
-package_name: mriqc
-description: ''
+pkg_name: mriqc
+pkg_version: &pkg_version '0.16.1'
+wrapper_version: '1'
+authors:
+  - thomas.close@sydney.edu.au
+base_image: !join [ 'poldracklab/mriqc:', *pkg_version ]
+info_url: https://mriqc.readthedocs.io
+docker_org: australianimagingservice
+docker_registry: ghrc.io
+package_manager: apt
+packages: [ ]
+extra_labels:
+arcana_extras: [ ]
 commands:
-  - pydra_task: 'mriqc:mriqc'
-    inputs:
-      - [ 'T1w', 'niftix_gz', 'anat/T1w' ]
-      - [ 'T2w', 'niftix_gz', 'anat/T2w' ]
-      - [ 'fMRI', 'niftix_gz', 'func/bold' ]
-    outputs:
-      - [ 'mriqc', 'directory' ]
-    parameters: [ ]
+  - pipeline_name: mriqc
+    pydra_task: 'mriqc:mriqc'
     description: >-
       MRIQC extracts no-reference IQMs (image quality metrics) from
       structural (T1w and T2w) and functional MRI (magnetic resonance
       imaging) data.
-version: 0.1
-pkg_version: &pkg_version '0.16.1'
-packages: [ ]  # [('dcm2niix', '1.0.20201102')]
-python_packages: [ ]
-base_image: !join [ 'poldracklab/mriqc:', *pkg_version ]
-maintainer: 'thomas.close@sydney.edu.au'
-info_url: 'http://mriqc.readthedocs.io'
-frequency: 'Clinical.session'
+    version: 1
+    info_url: ''
+    inputs: [ ]
+    #      - [ 'T1w', medimage:NiftiGz, 'anat/T1w' ]
+    #      - [ 'T2w', medimage:NiftiGz, 'anat/T2w' ]
+    #      - [ 'fMRI', medimage:NiftiGz, 'func/bold' ]
+    outputs: [ ]
+    #      - [ 'mriqc', 'directory' ]
+    parameters: [ ]
+    frequency: session
