@@ -1,16 +1,16 @@
 from arcana.data.stores.bids import BidsApp
-from arcana.data.spaces.medicalimaging import Clinical
+from arcana.data.spaces.medimage import Clinical
 from arcana.data.formats.common import directory
-from arcana.data.formats.medicalimaging import niftix_gz
+from arcana.data.formats.medimage import NiftiXGz
 
 
 AIS_VERSION = '0.1'
 VERSION = ''
 
-BIDS_INPUTS = [('T1w', niftix_gz, 'anat/T1w'),
-               ('T2w', niftix_gz, 'anat/T2w'),
-               ('fMRI', niftix_gz, 'func/bold'),
-               ('dMRI', niftix_gz, 'dwi/dwi')]
+BIDS_INPUTS = [('T1w', NiftiXGz, 'anat/T1w'),
+               ('T2w', NiftiXGz, 'anat/T2w'),
+               ('fMRI', NiftiXGz, 'func/bold'),
+               ('dMRI', NiftiXGz, 'dwi/dwi')]
 BIDS_OUTPUTS = [('fibre_density_and_cross_section', directory)]
 BIDS_PARAMETERS = []
 

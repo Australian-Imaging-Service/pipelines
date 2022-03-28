@@ -1,14 +1,14 @@
 from arcana.data.stores.bids import BidsApp
-from arcana.data.spaces.medicalimaging import Clinical
+from arcana.data.spaces.medimage import Clinical
 from arcana.data.formats.common import directory
-from arcana.data.formats.medicalimaging import niftix_gz
+from arcana.data.formats.medimage import NiftiXGz
 
 
 VERSION = '0.16.1'
 
-BIDS_INPUTS = [('T1w', niftix_gz, 'anat/T1w'),
-               ('T2w', niftix_gz, 'anat/T2w'),
-               ('fMRI', niftix_gz, 'func/bold')]
+BIDS_INPUTS = [('T1w', NiftiXGz, 'anat/T1w'),
+               ('T2w', NiftiXGz, 'anat/T2w'),
+               ('fMRI', NiftiXGz, 'func/bold')]
 BIDS_OUTPUTS = [('mriqc', directory, None)]
 BIDS_PARAMETERS = []
 
