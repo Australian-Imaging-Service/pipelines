@@ -1,6 +1,5 @@
-from arcana.data.stores.bids import BidsApp
-from arcana.data.spaces.medimage import Clinical
-from arcana.data.formats.common import directory
+from arcana.tasks.bids import BidsApp
+from arcana.data.formats.common import Directory
 from arcana.data.formats.medimage import NiftiXGz
 
 
@@ -9,7 +8,7 @@ VERSION = ''
 
 BIDS_INPUTS = [('T1w', NiftiXGz, 'anat/T1w'),
                ('dMRI', NiftiXGz, 'dwi/dwi')]
-BIDS_OUTPUTS = [('mrtrix_connectome', directory)]
+BIDS_OUTPUTS = [('mrtrix_connectome', Directory)]
 BIDS_PARAMETERS = []
 
 docker_image = f":{VERSION}"
@@ -31,7 +30,7 @@ spec = {
     'base_image': docker_image,
     'maintainer': 'thomas.close@sydney.edu.au',
     'info_url': '',
-    'frequency': Clinical.session}
+    'frequency': 'session'}
 
 
 task = BidsApp(

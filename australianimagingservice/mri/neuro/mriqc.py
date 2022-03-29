@@ -1,6 +1,5 @@
-from arcana.data.stores.bids import BidsApp
-from arcana.data.spaces.medimage import Clinical
-from arcana.data.formats.common import directory
+from arcana.tasks.bids import BidsApp
+from arcana.data.formats.common import Directory
 from arcana.data.formats.medimage import NiftiXGz
 
 
@@ -9,7 +8,7 @@ VERSION = '0.16.1'
 BIDS_INPUTS = [('T1w', NiftiXGz, 'anat/T1w'),
                ('T2w', NiftiXGz, 'anat/T2w'),
                ('fMRI', NiftiXGz, 'func/bold')]
-BIDS_OUTPUTS = [('mriqc', directory, None)]
+BIDS_OUTPUTS = [('mriqc', Directory, None)]
 BIDS_PARAMETERS = []
 
 docker_image = f"poldracklab/mriqc:{VERSION}"
@@ -40,5 +39,5 @@ spec = {
     'base_image': docker_image,
     'authors': ['thomas.close@sydney.edu.au'],
     'info_url': 'http://mriqc.readthedocs.io',
-    'frequency': Clinical.session}
+    'frequency': 'session'}
 
