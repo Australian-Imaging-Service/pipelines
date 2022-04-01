@@ -1,13 +1,13 @@
 from arcana.tasks.bids import BidsApp
 from arcana.data.formats.common import Directory
-from arcana.data.formats.medimage import NiftiXGz
+from arcana.data.formats.medimage import NiftiGzX
 
 
 AIS_VERSION = '0.1.4'
 VERSION = ''
 
-BIDS_INPUTS = [('T1w', NiftiXGz, 'anat/T1w'),
-               ('dMRI', NiftiXGz, 'dwi/dwi')]
+BIDS_INPUTS = [('T1w', NiftiGzX, 'anat/T1w'),
+               ('dMRI', NiftiGzX, 'dwi/dwi')]
 BIDS_OUTPUTS = [('mrtrix_connectome', Directory)]
 BIDS_PARAMETERS = []
 

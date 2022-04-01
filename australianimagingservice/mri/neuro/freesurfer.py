@@ -1,14 +1,14 @@
 from arcana.tasks.bids import BidsApp
 from arcana.data.spaces.medimage import Clinical
 from arcana.data.formats.common import Directory
-from arcana.data.formats.medimage import NiftiXGz
+from arcana.data.formats.medimage import NiftiGzX
 
 
 AIS_VERSION = '0.1'
 VERSION = ''
 
-BIDS_INPUTS = [('T1w', NiftiXGz, 'anat/T1w'),
-               ('T2w', NiftiXGz, 'anat/T2w')]
+BIDS_INPUTS = [('T1w', NiftiGzX, 'anat/T1w'),
+               ('T2w', NiftiGzX, 'anat/T2w')]
 BIDS_OUTPUTS = [('freesurfer', Directory)]
 BIDS_PARAMETERS = []
 

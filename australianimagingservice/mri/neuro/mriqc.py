@@ -1,13 +1,13 @@
 from arcana.tasks.bids import BidsApp
 from arcana.data.formats.common import Directory
-from arcana.data.formats.medimage import NiftiXGz
+from arcana.data.formats.medimage import NiftiGzX
 
 
 VERSION = '0.16.1'
 
-BIDS_INPUTS = [('T1w', NiftiXGz, 'anat/T1w'),
-               ('T2w', NiftiXGz, 'anat/T2w'),
-               ('fMRI', NiftiXGz, 'func/bold')]
+BIDS_INPUTS = [('T1w', NiftiGzX, 'anat/T1w'),
+               ('T2w', NiftiGzX, 'anat/T2w'),
+               ('fMRI', NiftiGzX, 'func/bold')]
 BIDS_OUTPUTS = [('mriqc', Directory, None)]
 BIDS_PARAMETERS = []
 

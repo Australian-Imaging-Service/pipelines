@@ -1,15 +1,15 @@
 from arcana.tasks.bids import BidsApp
 from arcana.data.formats.common import Directory
-from arcana.data.formats.medimage import NiftiXGz
+from arcana.data.formats.medimage import NiftiGzX
 
 
 AIS_VERSION = '0.1'
 VERSION = ''
 
-BIDS_INPUTS = [('T1w', NiftiXGz, 'anat/T1w'),
-               ('T2w', NiftiXGz, 'anat/T2w'),
-               ('fMRI', NiftiXGz, 'func/bold'),
-               ('dMRI', NiftiXGz, 'dwi/dwi')]
+BIDS_INPUTS = [('T1w', NiftiGzX, 'anat/T1w'),
+               ('T2w', NiftiGzX, 'anat/T2w'),
+               ('fMRI', NiftiGzX, 'func/bold'),
+               ('dMRI', NiftiGzX, 'dwi/dwi')]
 BIDS_OUTPUTS = [('ants_cortical_thickness', Directory)]
 BIDS_PARAMETERS = []
 
