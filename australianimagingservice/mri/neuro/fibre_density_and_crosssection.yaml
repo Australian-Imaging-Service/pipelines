@@ -1,0 +1,28 @@
+pkg_name: fibre_density_and_crosssection
+pkg_version: &pkg_version ''
+wrapper_version: '1'
+authors:
+  - thomas.close@sydney.edu.au
+base_image: !join [ ':', *pkg_version ]
+info_url: ''
+docker_org: australianimagingservice
+docker_registry: ghrc.io
+package_manager: apt
+packages: [ ]
+extra_labels:
+arcana_extras: [ ]
+commands:
+  - pipeline_name: fibre_density_and_crosssection
+    pydra_task: task
+    description: ''
+    version: 1
+    info_url: ''
+    inputs: [ ]
+#      - [ 'T1w', medimage:NiftiGz, 'anat/T1w' ]
+#      - [ 'T2w', medimage:NiftiGz, 'anat/T2w' ]
+#      - [ 'fMRI', medimage:NiftiGz, 'func/bold' ]
+#      - [ 'dMRI', medimage:NiftiGz, 'dwi/dwi' ]
+    outputs: [ ]
+#      - [ 'fibre_density_and_cross_section', 'directory' ]
+    parameters: [ ]
+    frequency: session
