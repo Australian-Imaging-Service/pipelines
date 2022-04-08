@@ -22,7 +22,7 @@ jobs:
           fetch-depth: 1    # Fetch all history for .GitInfo and .Lastmod
           path: pipelines_root
 
-      # TODO: Need a unique key we can pass, but as we're targetting
+      # TODO: Need a unique key we can pass, but as we're targeting
       # arcana@master, this is not trivial.
       #
       # - name: Cache dependencies
@@ -41,7 +41,7 @@ jobs:
         run: pip install -r ./pipelines_root/docs_scripts/requirements.txt
 
       - name: Generate pipeline docs
-        run: python docs_scripts/generate_pipeline_docs.py docs/pipelines
+        run: arcana deploy docs --flatten . docs/pipelines
         working-directory: ./pipelines_root
 
       - name: Remove /docs/pipelines/ from .gitignore
