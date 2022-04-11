@@ -13,18 +13,18 @@ extra_labels:
 arcana_extras: [ ]
 commands:
   - pipeline_name: mriqc
-    pydra_task: 'mriqc:mriqc'
+    pydra_task: 'australianimagingservice.mri.neuro.mriqc:mriqc'
     description: >-
       MRIQC extracts no-reference IQMs (image quality metrics) from
       structural (T1w and T2w) and functional MRI (magnetic resonance
       imaging) data.
     version: 1
     info_url: ''
-    inputs: [ ]
-    #      - [ 'T1w', medimage:NiftiGz, 'anat/T1w' ]
-    #      - [ 'T2w', medimage:NiftiGz, 'anat/T2w' ]
-    #      - [ 'fMRI', medimage:NiftiGz, 'func/bold' ]
-    outputs: [ ]
-    #      - [ 'mriqc', 'directory' ]
+    inputs:
+      - [ 'T1w', medimage:NiftiGz, 'anat/T1w' ]
+      - [ 'T2w', medimage:NiftiGz, 'anat/T2w' ]
+      - [ 'fMRI', medimage:NiftiGz, 'func/bold' ]
+    outputs:
+      - [ 'mriqc', 'directory' ]
     parameters: [ ]
     frequency: session
