@@ -1,6 +1,6 @@
 from arcana.data.formats.common import Directory
 from arcana.data.formats.medimage import NiftiGzX
-from arcana.data.stores.bids import BidsApp
+from arcana.tasks.bids import BidsApp
 
 VERSION = "0.16.1"
 
