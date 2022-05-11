@@ -11,7 +11,7 @@ python_packages:
 commands:
   - name: mriqc
     version: 1
-    workflow: 'australianimagingservice.mri.neuro.mriqc:mriqc'
+    workflow: 'arcana.tasks.bids:bids_app'
     description: >-
       MRIQC extracts no-reference IQMs (image quality metrics) from
       structural (T1w and T2w) and functional MRI (magnetic resonance

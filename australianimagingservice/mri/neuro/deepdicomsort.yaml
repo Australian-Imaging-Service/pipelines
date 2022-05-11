@@ -1,0 +1,26 @@
+pkg_name: deepdicomsort
+pkg_version: &pkg_version '0.1'
+wrapper_version: '1'
+authors:
+  - thomas.close@sydney.edu.au
+base_image: !join [ 'svordt/dds:', *pkg_version ]
+info_url: https://deepdicomsort.com
+package_manager: apt
+system_packages:
+python_packages: ['deepdicomsort4xnat']
+commands:
+  - name: deepdicomsort
+    version: 1
+    workflow: 'deepdicomsort4xnat:DDSWorkflow'
+    description: >-
+      Automatically renames MRI DICOMs following BIDS naming convention
+    inputs:
+      - name: anat/T1w,
+        format: medimage:NiftiGz
+      - name: anat/T2w,
+        format: medimage:NiftiGz
+      - name: func/bold,
+        format: medimage:NiftiGz
+    outputs:
+    parameters:
+    frequency: session
