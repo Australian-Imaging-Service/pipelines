@@ -38,7 +38,7 @@ jobs:
           python-version: '3.8' # Version range or exact version of a Python version to use, using SemVer'
 
       - name: Install python dependencies
-        run: pip install -r ./pipelines_root/docs_scripts/requirements.txt
+        run: pip install -r ./pipelines_root/requirements.txt
 
       - name: Generate pipeline docs
         run: arcana deploy docs --flatten . docs/pipelines
