@@ -13,7 +13,7 @@ commands:
     version: 1
     workflow: arcana.tasks.bids:bids_app
     description: >-
-      fMRIPrep is a functional magnetic resonance imaging (fMRI) data preprocessing
+      `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
       pipeline that is designed to provide an easily accessible, state-of-the-art
       interface that is robust to variations in scan acquisition protocols and that
       requires minimal user input, while providing easily interpretable and comprehensive
@@ -25,10 +25,13 @@ commands:
     inputs: &inputs
       - path: anat/T1w
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
       - path: anat/T2w
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
       - path: func/bold
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
     outputs: &outputs
       - path: fmriprep
         format: common:Directory

@@ -13,11 +13,13 @@ commands:
     version: 1
     workflow: arcana.tasks.bids:bids_app
     description: >-
-      ants_cortical_thickness runs ANTs cortical thickness estimation pipeline on T1w images:
-      antsCorticalThickness.sh (if there is only one T1w file per subject)
+      `ants_cortical_thickness` runs ANTs cortical thickness estimation pipeline on T1w images.
+      Note that only singe point cortical thicknesses (i.e. not longtiduninal) are supported
+      at this stage.
     inputs: &inputs
       - path: anat/T1w
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
     outputs: &outputs
       - path: ants_cortical_thickness
         format: common:Directory

@@ -13,15 +13,17 @@ commands:
     version: 1
     workflow: arcana.tasks.bids:bids_app
     description: >-
-      fibre_density_and_crosssection enables group analysis of diffusion MRI data
+      `fibre_density_and_crosssection` enables group analysis of diffusion MRI data
       by performing a Fixel-Based Analysis (FBA) of Fibre Density,
       Fibre Cross-section and a combined measure (Fibre Density & Cross-section).
     inputs: &inputs
       - path: dwi/dwi
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
     outputs: &outputs
       - path: fibre_density_and_cross_section
         format: common:Directory
+        stored_format: medimage:Dicom
     parameters:
     frequency: session
     configuration:

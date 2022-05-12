@@ -19,10 +19,13 @@ commands:
     inputs: &inputs
       - path: anat/T1w
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
       - path: anat/T2w
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
       - path: func/bold
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
     outputs: &outputs
       - path: mriqc
         format: common:Directory

@@ -13,7 +13,7 @@ commands:
     version: 1
     workflow: arcana.tasks.bids:bids_app
     description: >-
-      Freesurfer reconstructs the surface for each subject individually and then
+      `Freesurfer` reconstructs the surface for each subject individually and then
       creates a study specific template. In case there are multiple sessions the
       Freesurfer longitudinal pipeline is used (creating subject specific templates)
       unless instructed to combine data across sessions.
@@ -21,8 +21,10 @@ commands:
     inputs: &inputs
       - path: anat/T1w
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
       - path: anat/T2w
         format: medimage:NiftiGz
+        stored_format: medimage:Dicom
     outputs: &outputs
       - path: freesurfer
         format: common:Directory

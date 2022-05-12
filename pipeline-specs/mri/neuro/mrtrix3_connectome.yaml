@@ -5,7 +5,6 @@ authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'bids/mrtrix3_connectome:', *pkg_version ]
 info_url: 'https://github.com/BIDS-Apps/MRtrix3_connectome'
-docker_org: australianimagingservice
 package_manager: apt
 system_packages:
 python_packages:
@@ -24,7 +23,7 @@ commands:
         format: medimage:NiftiGz
       - path: dwi/dwi
         format: medimage:NiftiGz
-    outputs: &ouputs
+    outputs: &outputs
       - path: mrtrix_connectome
         format: common:Directory
     parameters:
