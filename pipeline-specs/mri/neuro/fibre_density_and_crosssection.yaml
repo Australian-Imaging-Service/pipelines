@@ -18,7 +18,7 @@ commands:
       Fibre Cross-section and a combined measure (Fibre Density & Cross-section).
     inputs: &inputs
       - path: dwi/dwi
-        format: medimage:NiftiGz
+        format: medimage:MrtrixImage
         stored_format: medimage:Dicom
     outputs: &outputs
       - path: fibre_density_and_cross_section

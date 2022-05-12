@@ -11,7 +11,7 @@ python_packages: ['deepdicomsort4xnat']
 commands:
   - name: deepdicomsort
     version: 1
-    workflow: 'deepdicomsort4xnat:DDSWorkflow'
+    workflow: 'deepdicomsort4xnat:dds4xnat_workflow'
     description: >-
       Automatically renames MRI DICOMs following BIDS naming convention
     inputs:
