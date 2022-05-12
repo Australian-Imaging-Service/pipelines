@@ -35,6 +35,17 @@ def work_dir():
     work_dir = tempfile.mkdtemp()
     yield Path(work_dir)
     # shutil.rmtree(work_dir)
+    
+
+bids_apps_dir = Path(__file__).parent / 'pipeline-specs' / 'mri' / 'neuro' / 'bids'
+
+bids_specs = [str(p.stem) for p in bids_apps_dir.glob('*.yaml')]
+
+
+@pytest.fixture(params=bids_specs)
+def bids_app_spec_path(request):
+    return str(bids_apps_dir / request.param) + '.yaml'
+    
 
 
 # For debugging in IDE's don't catch raised exceptions and let the IDE

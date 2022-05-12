@@ -1,30 +1,19 @@
-from pathlib import Path
-import pytest
 from arcana.test.utils import show_cli_trace
 from arcana.cli.deploy import build
 
-neuro_dir = Path(__file__).parent.parent / 'pipeline-specs' / 'mri' / 'neuro'
 
-specs = [str(p.stem) for p in neuro_dir.glob('*.yaml')]
-
-
-@pytest.fixture(params=specs)
-def spec_path(request):
-    return str(neuro_dir / request.param) + '.yaml'
-
-
-def test_bids_app_build(spec_path, cli_runner, work_dir):
+def test_bids_app_build(bids_app_spec_path, cli_runner, work_dir):
     result = cli_runner(
         build,
-        [spec_path,
-         'docker-specs/mri/neuro',
-         '--build_dir', work_dir,
+        [bids_app_spec_path,
+         'australianimagingservice',
+         '--build_dir', str(work_dir),
          '--use-local-packages', '--raise-errors'])
 
     assert result.exit_code == 0, show_cli_trace(result)
     
     
-def test_bids_app_run(nifti_data, spec_path, cli_runner):
+def test_bids_app_run(nifti_data, bids_app_spec_path, cli_runner):
 
     pass
     # blueprint = TestDatasetBlueprint(
