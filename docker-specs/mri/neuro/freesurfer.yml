@@ -1,26 +1,55 @@
 pkg_name: freesurfer
-pkg_version: &pkg_version ''
-wrapper_version: '1'
+pkg_version: &pkg_version 'v6.0.1-6.1'
+wrapper_version: 1
 authors:
   - thomas.close@sydney.edu.au
-base_image: !join [ ':', *pkg_version ]
-info_url: ''
-docker_org: australianimagingservice
-docker_registry: ghrc.io
+base_image: !join [ 'bids/freesurfer:', *pkg_version ]
+info_url: 'https://github.com/BIDS-Apps/freesurfer'
 package_manager: apt
-packages: [ ]
-extra_labels:
-arcana_extras: [ ]
+system_packages:
+python_packages:
 commands:
-  - pipeline_name: Freesurfer
-    pydra_task: task
-    description: ''
+  - pipeline_name: freesurfer
     version: 1
-    info_url: ''
-    inputs: [ ]
-#      - [ 'T1w', medimage:NiftiGz, 'anat/T1w' ]
-#      - [ 'T2w', medimage:NiftiGz, 'anat/T2w' ]
-    outputs: [ ]
-#      - [ 'freesurfer', 'directory' ]
-    parameters: [ ]
+    workflow: arcana.tasks.bids:bids_app
+    description: >-
+      Freesurfer reconstructs the surface for each subject individually and then
+      creates a study specific template. In case there are multiple sessions the
+      Freesurfer longitudinal pipeline is used (creating subject specific templates)
+      unless instructed to combine data across sessions.
+    version: 1
+    inputs: &inputs
+      - path: anat/T1w
+        format: medimage:NiftiGz
+      - path: anat/T2w
+        format: medimage:NiftiGz
+    outputs: &outputs
+      - path: freesurfer
+        format: common:Directory
+    parameters:
     frequency: session
+    configuration:
+      inputs: *inputs
+      outputs: *outputs
+      executable: /neurodocker/startup.sh /run.py
+
+
+# Parameters
+# ----------
+
+# [--n_cpus N_CPUS]
+# [--stages {autorecon1,autorecon2,autorecon2-cp,autorecon2-wm,autorecon-pial,autorecon3,autorecon-all,all}
+#           [{autorecon1,autorecon2,autorecon2-cp,autorecon2-wm,autorecon-pial,autorecon3,autorecon-all,all} ...]]
+# [--steps {cross-sectional,template,longitudinal}
+#          [{cross-sectional,template,longitudinal} ...]]
+# [--template_name TEMPLATE_NAME] --license_file LICENSE_FILE
+# [--acquisition_label ACQUISITION_LABEL]
+# [--refine_pial_acquisition_label REFINE_PIAL_ACQUISITION_LABEL]
+# [--multiple_sessions {longitudinal,multiday}]
+# [--refine_pial {T2,FLAIR,None,T1only}]
+# [--hires_mode {auto,enable,disable}]
+# [--parcellations {aparc,aparc.a2009s} [{aparc,aparc.a2009s} ...]]
+# [--measurements {area,volume,thickness,thicknessstd,meancurv,gauscurv,foldind,curvind}
+#                 [{area,volume,thickness,thicknessstd,meancurv,gauscurv,foldind,curvind} ...]]
+# [-v] [--bids_validator_config BIDS_VALIDATOR_CONFIG]
+# [--skip_bids_validator] [--3T {true,false}]
