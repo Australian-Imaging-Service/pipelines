@@ -1,4 +1,3 @@
-pkg_name: fmriprep
 pkg_version: &pkg_version '21.0.2'
 wrapper_version: '1'
 authors:

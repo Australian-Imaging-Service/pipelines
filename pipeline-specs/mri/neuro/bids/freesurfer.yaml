@@ -1,6 +1,5 @@
-pkg_name: freesurfer
 pkg_version: &pkg_version 'v6.0.1-6.1'
-wrapper_version: 1
+wrapper_version: '1'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'bids/freesurfer:', *pkg_version ]
