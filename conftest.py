@@ -19,12 +19,12 @@ sch.setFormatter(formatter)
 logger.addHandler(sch)
 
 
-TEST_DATA_DIR = Path(__file__).parent / 'tests' / 'data'
+TEST_NIFTI_DATA_DIR = Path(__file__).parent / 'tests' / 'data' / 'nifti'
 
 
 @pytest.fixture
-def test_data_dir():
-    return TEST_DATA_DIR
+def nifti_data():
+    return TEST_NIFTI_DATA_DIR
 
 
 @pytest.fixture

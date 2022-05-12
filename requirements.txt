@@ -1,3 +1,0 @@
-arcana>=2.0.0.dev1
-docker>=5.0.2
-click
