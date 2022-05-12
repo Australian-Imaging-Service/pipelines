@@ -37,7 +37,7 @@ commands:
     configuration:
       inputs: *inputs
       outputs: *outputs
-      executable: 
+      executable: /opt/conda/bin/fmriprep
 
 
 # Parameters (see https://fmriprep.org/en/latest/usage.html)

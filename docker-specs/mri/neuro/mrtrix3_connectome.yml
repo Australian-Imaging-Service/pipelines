@@ -32,7 +32,7 @@ commands:
     configuration:
       inputs: *inputs
       outputs: *outputs
-      executable: 
+      executable: /mrtrix3_connectome.py
 
 
 # Parameters
