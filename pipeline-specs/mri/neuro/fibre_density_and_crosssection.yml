@@ -9,7 +9,7 @@ package_manager: apt
 system_packages:
 python_packages:
 commands:
-  - pipeline_name: fibre_density_and_crosssection
+  - name: fibre_density_and_crosssection
     version: 1
     workflow: arcana.tasks.bids:bids_app
     description: >-

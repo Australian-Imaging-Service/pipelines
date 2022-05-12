@@ -10,7 +10,7 @@ package_manager: apt
 system_packages:
 python_packages:
 commands:
-  - pipeline_name: mrtrix3_connectome
+  - name: mrtrix3_connectome
     version: 1
     workflow: arcana.tasks.bids:bids_app
     description: >-

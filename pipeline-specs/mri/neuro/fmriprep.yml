@@ -9,7 +9,7 @@ package_manager: apt
 system_packages:
 python_packages:
 commands:
-  - pipeline_name: fmriprep
+  - name: fmriprep
     version: 1
     workflow: arcana.tasks.bids:bids_app
     description: >-

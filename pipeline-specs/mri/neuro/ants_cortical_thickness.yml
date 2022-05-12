@@ -9,7 +9,7 @@ package_manager: apt
 system_packages:
 python_packages:
 commands:
-  - pipeline_name: ants_cortical_thickness
+  - name: ants_cortical_thickness
     version: 1
     workflow: arcana.tasks.bids:bids_app
     description: >-
