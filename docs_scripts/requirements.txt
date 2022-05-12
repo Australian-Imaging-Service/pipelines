@@ -1,2 +1,0 @@
-git+https://github.com/Australian-Imaging-Service/arcana@master
-PyYAML==6.0

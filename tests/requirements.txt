@@ -1,2 +1,1 @@
-arcana
-xnat4tests
+"arcana[test] @ git+https://github.com/Australian-Imaging-Service/arcana@main"
