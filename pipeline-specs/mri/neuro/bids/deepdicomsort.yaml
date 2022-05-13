@@ -15,12 +15,6 @@ commands:
     description: >-
       Automatically renames MRI DICOMs following BIDS naming convention
     inputs:
-      - name: anat/T1w
-        format: medimage:NiftiGz
-      - name: anat/T2w
-        format: medimage:NiftiGz
-      - name: func/bold
-        format: medimage:NiftiGz
     outputs:
     parameters:
     frequency: session

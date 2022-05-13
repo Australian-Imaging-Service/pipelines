@@ -20,7 +20,7 @@ commands:
       at this stage.
     inputs: &inputs
       - path: anat/T1w
-        format: medimage:NiftiGz
+        format: medimage:NiftiGzX
         stored_format: medimage:Dicom
     outputs: &outputs
       - path: ants_cortical_thickness

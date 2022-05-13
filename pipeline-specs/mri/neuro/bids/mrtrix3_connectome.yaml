@@ -19,10 +19,10 @@ commands:
       and inter-subject connection density normalisation.
     inputs: &inputs
       - path: anat/T1w
-        format: medimage:MrtrixImage
+        format: medimage:NiftiGzX
         stored_format: medimage:Dicom
       - path: dwi/dwi
-        format: medimage:MrtrixImage
+        format: medimage:NiftiGzXFslgrad
         stored_format: medimage:Dicom
     outputs: &outputs
       - path: mrtrix_connectome

@@ -26,13 +26,13 @@ commands:
       theory measures, surface or volume-based statistics, etc.
     inputs: &inputs
       - path: anat/T1w
-        format: medimage:NiftiGz
+        format: medimage:NiftiGzX
         stored_format: medimage:Dicom
       - path: anat/T2w
-        format: medimage:NiftiGz
+        format: medimage:NiftiGzX
         stored_format: medimage:Dicom
       - path: func/bold
-        format: medimage:NiftiGz
+        format: medimage:NiftiGzX
         stored_format: medimage:Dicom
     outputs: &outputs
       - path: fmriprep
