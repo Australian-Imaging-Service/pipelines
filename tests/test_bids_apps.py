@@ -6,11 +6,12 @@ from arcana.test.utils import show_cli_trace
 from arcana.core.utils import resolve_class
 from arcana.cli.deploy import build
 from arcana.core.deploy.utils import load_yaml_spec
-from arcana.test.fixtures.medimage import (
+from arcana.test.stores.medimage.xnat import (
     create_dataset_data_in_repo,
     TestXnatDatasetBlueprint,
     ResourceBlueprint,
-    ScanBlueprint)
+    ScanBlueprint,
+    install_and_launch_xnat_cs_command)
 
 
 
@@ -69,71 +70,27 @@ def test_bids_app(nifti_data, bids_app_spec_path, cli_runner, run_prefix, xnat_h
 
             with open(build_dir / 'xnat_commands' / (cmd_name + '.json')) as f:
                 xnat_command = json.load(f)
-
-            cmd_id = xlogin.post("/xapi/commands", json=xnat_command).json()
-
-            # Enable the command globally and in the project
-            xlogin.put(f"/xapi/commands/{cmd_id}/wrappers/{cmd_name}/enabled")
-            xlogin.put(
-                f"/xapi/projects/{project_id}/commands/{cmd_id}/wrappers/{cmd_name}/enabled"
-            )
-
-            test_xsession = next(iter(xlogin.projects[project_id].experiments.values()))
-
-            launch_json = {"SESSION": f"/archive/experiments/{test_xsession.id}"}
+                
+            test_xsession = next(iter(xlogin.projects[project_id].experiments.values()))                
+                
+            inputs_json = {}
 
             for inpt in cmd_spec['inputs']:
-                launch_json[inpt['name']] = inpt['name']
+                inputs_json[inpt['name']] = inpt['name']
 
             # for pname in cmd_spec['parameters']:
-            #     launch_json[pname] = pval
-
-            launch_result = xlogin.post(
-                f"/xapi/projects/{project_id}/wrappers/{cmd_id}/root/SESSION/launch",
-                json=launch_json
-            ).json()
-
-            assert launch_result["status"] == "success"
-            workflow_id = launch_result["workflow-id"]
-            assert workflow_id != "To be assigned"
-
-            NUM_ATTEMPTS = 100
-            SLEEP_PERIOD = 10
-            max_runtime = NUM_ATTEMPTS * SLEEP_PERIOD
-
-            INCOMPLETE_STATES = (
-                "Pending",
-                "Running",
-                "_Queued",
-                "Staging",
-                "Finalizing",
-                "Created",
-            )
-
-            for i in range(NUM_ATTEMPTS):
-                wf_result = xlogin.get(f"/xapi/workflows/{workflow_id}").json()
-                if wf_result["status"] not in INCOMPLETE_STATES:
-                    break
-                time.sleep(SLEEP_PERIOD)
-
-            # Get workflow stdout/stderr for error messages if required
-            out_str = ""
-            stdout_result = xlogin.get(
-                f"/xapi/workflows/{workflow_id}/logs/stdout", accepted_status=[200, 204]
-            )
-            if stdout_result.status_code == 200:
-                out_str = f"stdout:\n{stdout_result.content.decode('utf-8')}\n"
-            stderr_result = xlogin.get(
-                f"/xapi/workflows/{workflow_id}/logs/stderr", accepted_status=[200, 204]
-            )
-            if stderr_result.status_code == 200:
-                out_str += f"\nstderr:\n{stderr_result.content.decode('utf-8')}"
+            #     launch_json[pname] = pval                
+                
+            workflow_id, status, out_str = install_and_launch_xnat_cs_command(
+                cmd_name=cmd_name,
+                command_json=xnat_command,
+                project_id=project_id,
+                session_id=test_xsession.id,
+                inputs=inputs_json,
+                xlogin=xlogin)
 
             assert (
-                i != 99
-            ), f"Workflow {workflow_id} did not complete in {max_runtime}.\n{out_str}"
-            assert (
-                wf_result["status"] == "Complete"
+                status == "Complete"
             ), f"Workflow {workflow_id} failed.\n{out_str}"
 
             # for deriv in blueprint.derivatives:
