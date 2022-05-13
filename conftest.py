@@ -2,8 +2,10 @@ import os
 import logging
 from pathlib import Path
 import tempfile
+from datetime import datetime
 import pytest
 from click.testing import CliRunner
+import xnat4tests
 
 # Set DEBUG logging for unittests
 
@@ -45,7 +47,19 @@ bids_specs = [str(p.stem) for p in bids_apps_dir.glob('*.yaml')]
 @pytest.fixture(params=bids_specs)
 def bids_app_spec_path(request):
     return str(bids_apps_dir / request.param) + '.yaml'
-    
+
+
+@pytest.fixture(scope='session')
+def xnat_host():
+    xnat4tests.launch_xnat()
+    yield xnat4tests.config.XNAT_URI
+    #xnat4tests.stop_xnat()
+
+
+@pytest.fixture(scope='session')
+def run_prefix():
+    "A datetime string used to avoid stale data left over from previous tests"
+    return datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
 
 
 # For debugging in IDE's don't catch raised exceptions and let the IDE
