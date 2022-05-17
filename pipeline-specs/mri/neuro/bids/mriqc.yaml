@@ -36,4 +36,4 @@ commands:
     configuration:
       inputs: *inputs
       outputs: *outputs
-      executable: /opt/conda/bin/mriqc
+      executable: /usr/local/miniconda/bin/mriqc

@@ -8,7 +8,7 @@ from arcana.test.stores.medimage.xnat import (
     install_and_launch_xnat_cs_command)
 
 
-SKIP_BUILD = True
+SKIP_BUILD = False
     
 def test_bids_app(bids_app_spec_and_project, run_prefix, xnat_connect, cli_runner):
 
