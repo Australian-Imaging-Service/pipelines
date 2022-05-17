@@ -1,0 +1,39 @@
+pkg_version: &pkg_version '0.16.1'
+wrapper_version: '1'
+authors:
+  - thomas.close@sydney.edu.au
+base_image: !join [ 'poldracklab/mriqc:', *pkg_version ]
+info_url: https://mriqc.readthedocs.io
+package_manager: apt
+system_packages:
+python_packages:
+package_templates:
+  - name: dcm2niix
+    version: v1.0.20201102
+commands:
+  - name: mriqc
+    version: 1
+    workflow: arcana.tasks.bids:bids_app
+    description: >-
+      MRIQC extracts no-reference IQMs (image quality metrics) from
+      structural (T1w and T2w) and functional MRI (magnetic resonance
+      imaging) data.
+    inputs: &inputs
+      - path: anat/T1w
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+      - path: anat/T2w
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+      - path: func/bold
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+    outputs: &outputs
+      - path: mriqc
+        format: common:Directory
+    parameters:
+    frequency: session
+    configuration:
+      inputs: *inputs
+      outputs: *outputs
+      executable: /opt/conda/bin/mriqc

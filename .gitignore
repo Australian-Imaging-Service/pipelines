@@ -1,0 +1,12 @@
+.vscode
+/debug-build
+/tests/data
+__pycache__
+*.egg-info
+.DS_Store
+
+# Automatically generated
+
+!/docs/pipelines/_index.md
+test-data
+*.build

@@ -1,0 +1,78 @@
+pkg_version: &pkg_version '0.5.1'
+wrapper_version: '1'
+authors:
+  - thomas.close@sydney.edu.au
+base_image: !join [ 'bids/mrtrix3_connectome:', *pkg_version ]
+info_url: 'https://github.com/BIDS-Apps/MRtrix3_connectome'
+package_manager: apt
+system_packages:
+python_packages:
+commands:
+  - name: mrtrix3_connectome
+    version: 1
+    workflow: arcana.tasks.bids:bids_app
+    description: >-
+      Mrtrix_connectome enables generation and subsequent group analysis of structural
+      connectomes generated from diffusion MRI data. The analysis pipeline relies
+      primarily on the MRtrix3 software package, and includes a number of state-of-the-art
+      methods for image processing, tractography reconstruction, connectome generation
+      and inter-subject connection density normalisation.
+    inputs: &inputs
+      - path: anat/T1w
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+      - path: dwi/dwi
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+    outputs: &outputs
+      - path: mrtrix_connectome
+        format: common:Directory
+    parameters:
+    frequency: session
+    configuration:
+      inputs: *inputs
+      outputs: *outputs
+      executable: /mrtrix3_connectome.py
+
+
+# Parameters
+# ------------
+
+# Options that are relevant to participant-level analysis
+# --parcellation
+# The choice of connectome parcellation scheme (compulsory for participant-level analysis); options are: aal, aal2, brainnetome246fs, brainnetome246mni, craddock200, craddock400, desikan, destrieux, hcpmmp1, none, perry512, yeo7fs, yeo7mni, yeo17fs, yeo17mni.
+
+# --streamlines
+# The number of streamlines to generate for each subject (will be determined heuristically if not explicitly set).
+
+# --template_reg software
+# The choice of registration software for mapping subject to template space; options are: ants, fsl.
+
+# Options that are relevant to both preproc-level and participant-level analyses
+# --t1w_preproc path
+# Provide a path by which pre-processed T1-weighted image data may be found for the processed participant(s) / session(s)
+# Options specific to the batch processing of participant data
+# --participant_label
+# The label(s) of the participant(s) that should be analyzed.
+
+# --session_label
+# The session(s) within each participant that should be analyzed.
+
+# Standard options
+# -d/--debug
+# display debugging messages.
+
+# -h/--help
+# display this information page and exit.
+
+# -n/--n_cpus number
+# use this number of threads in multi-threaded applications (set to 0 to disable multi-threading).
+
+# --scratch /path/to/scratch/
+# manually specify the path in which to generate the scratch directory.
+
+# --skip-bids-validator
+# Skip BIDS validation
+
+# -v/--version
+# display version information and exit.
