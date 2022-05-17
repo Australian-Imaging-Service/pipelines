@@ -63,8 +63,8 @@ def test_bids_app(bids_app_spec_and_project, run_prefix, xnat_connect, cli_runne
                 project_id=project_id,
                 session_id=test_xsession.id,
                 inputs=inputs_json,
-                xlogin=xlogin)
-
+                xlogin=xlogin,
+                timeout=30000)
             assert (
                 status == "Complete"
             ), f"Workflow {workflow_id} failed.\n{out_str}"

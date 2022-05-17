@@ -25,7 +25,7 @@ commands:
       - path: anat/T2w
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-      - path: func/bold
+      - path: func/task-rest_bold
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
     outputs: &outputs
