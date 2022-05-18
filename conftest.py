@@ -46,10 +46,11 @@ bids_specs = [str(p.stem) for p in bids_apps_dir.glob('*.yaml')]
 
 
 @pytest.fixture(params=bids_specs)
-def bids_app_spec_and_project(run_prefix, request):
+def bids_app_spec_and_project(run_prefix, xnat_connect, request):
     bids_app_name = request.param
     project_id = make_project_name(bids_app_name, run_prefix=run_prefix)
-    upload_test_dataset_to_xnat(project_id, test_bids_data_dir / bids_app_name)
+    upload_test_dataset_to_xnat(project_id, test_bids_data_dir / bids_app_name,
+                                xnat_connect)
     return bids_apps_dir / (bids_app_name+ '.yaml'), project_id
 
 
@@ -100,15 +101,16 @@ def make_project_name(dataset_name: str, run_prefix: str=None):
     return (run_prefix if run_prefix else '') + dataset_name
 
 
-def upload_test_dataset_to_xnat(project_id: str, source_data_dir: Path):
+def upload_test_dataset_to_xnat(project_id: str, source_data_dir: Path,
+                                xnat_connect):
     """
     Creates dataset for each entry in dataset_structures
     """
 
-    with xnat4tests.connect() as login:
+    with xnat_connect() as login:
         login.put(f'/data/archive/projects/{project_id}')
     
-    with xnat4tests.connect() as login:
+    with xnat_connect() as login:
         xproject = login.projects[project_id]
         xclasses = login.classes
         xsubject = xclasses.SubjectData(label=TEST_SUBJECT_LABEL,
