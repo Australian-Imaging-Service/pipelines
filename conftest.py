@@ -2,7 +2,9 @@ import os
 import logging
 from pathlib import Path
 import tempfile
+import typing as ty
 from datetime import datetime
+from dataclasses import dataclass
 import pytest
 from click.testing import CliRunner
 import xnat4tests
@@ -37,7 +39,19 @@ def work_dir():
     work_dir = tempfile.mkdtemp()
     yield Path(work_dir)
     # shutil.rmtree(work_dir)
-    
+
+
+@dataclass
+class BidsAppTestBlueprint():
+
+    spec_path: str
+    project_id: str
+    parameters: ty.Dict[str, str]
+
+
+BIDS_APP_PARAMETERS = {
+    'fmriprep': {'json_edit': "-e 'func/.*bold' 'SliceTimings[*]' '{value} / 1000.0'"}}
+
 
 bids_apps_dir = Path(__file__).parent / 'pipeline-specs' / 'mri' / 'neuro' / 'bids'
 test_bids_data_dir = Path(__file__).parent / 'tests' / 'data' / 'mri' / 'neuro' / 'bids'
@@ -46,12 +60,15 @@ bids_specs = [str(p.stem) for p in bids_apps_dir.glob('*.yaml')]
 
 
 @pytest.fixture(params=bids_specs)
-def bids_app_spec_and_project(run_prefix, xnat_connect, request):
+def bids_app_blueprint(run_prefix, xnat_connect, request):
     bids_app_name = request.param
     project_id = make_project_name(bids_app_name, run_prefix=run_prefix)
     upload_test_dataset_to_xnat(project_id, test_bids_data_dir / bids_app_name,
                                 xnat_connect)
-    return bids_apps_dir / (bids_app_name+ '.yaml'), project_id
+    return BidsAppTestBlueprint(
+        spec_path=bids_apps_dir / (bids_app_name+ '.yaml'),
+        project_id=project_id,
+        parameters=BIDS_APP_PARAMETERS.get(bids_app_name, {}))
 
 
 @pytest.fixture(scope='session')

@@ -37,7 +37,9 @@ commands:
     outputs: &outputs
       - path: fmriprep
         format: common:Directory
-    parameters:
+    parameters: &parameters
+      - name: json_edits
+        type: string
     frequency: session
     configuration:
       inputs: *inputs
