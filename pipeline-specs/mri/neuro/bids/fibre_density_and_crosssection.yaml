@@ -1,0 +1,53 @@
+pkg_version: &pkg_version 'v0.0.1'
+wrapper_version: '1'
+authors:
+  - thomas.close@sydney.edu.au
+base_image: !join [ 'bids/fibredensityandcrosssection:', *pkg_version ]
+info_url: 'https://github.com/BIDS-Apps/FibreDensityAndCrosssection'
+package_manager: apt
+system_packages:
+python_packages:
+commands:
+  - name: fibre_density_and_crosssection
+    version: 1
+    workflow: arcana.tasks.bids:bids_app
+    description: >-
+      `fibre_density_and_crosssection` enables group analysis of diffusion MRI data
+      by performing a Fixel-Based Analysis (FBA) of Fibre Density,
+      Fibre Cross-section and a combined measure (Fibre Density & Cross-section).
+    inputs: &inputs
+      - path: dwi/dwi
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+    outputs: &outputs
+      - path: fibre_density_and_cross_section
+        format: common:Directory
+        stored_format: medimage:Dicom
+    parameters:
+    frequency: session
+    configuration:
+      inputs: *inputs
+      outputs: *outputs
+      executable: /code/run.py
+
+
+
+# -vox_size FLOAT
+#    define the voxel size (in mm) to be used during the upsampling step
+#    (participant1 analysis level only)
+
+# -group_subset GROUP_SUBSET
+#    Define a subset of participants to be used when generating the group-
+#    average FOD template and response functions. The subset is to be supplied
+#    as a comma separate list. Note the subset should be representable of your
+#    entire population and not biased towards one particular group. For example
+#    in a patient-control comparison, choose equal numbers of patients and
+#    controls. Used in group1 and group2 analysis levels.
+
+# -num_tracks INT
+#    define the number of streamlines to be computed when performing
+#    tractography on the FOD template. (group3 analysis level only)
+
+# -num_tracks_sift INT
+#    define the number of streamlines to remain after performing SIFT on the
+#    tractogram(group3 analysis level only)
