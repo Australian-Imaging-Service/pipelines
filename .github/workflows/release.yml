@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
     - name: Checkout
       uses: actions/checkout@v2
 
@@ -41,5 +40,8 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.CR_PAT }} # - must be in GitHub Secrets!
 
-    - name: Push container images
-      run: arcana deploy push ./pipeline-specs australianimagingservice --registry ghcr.io
+    # - name: Security scan images
+    #   run: for tag=$(arcana deploy list-images ./pipeline-specs australianimagingservice --registry ghcr.io); do docker scan $tag; done
+
+    - name: Push images to registry
+      run: for tag=$(arcana deploy list-images ./pipeline-specs australianimagingservice --registry ghcr.io); do docker push $tag; done
