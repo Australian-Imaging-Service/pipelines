@@ -10,7 +10,8 @@ from arcana.test.stores.medimage.xnat import (
 
 SKIP_BUILD = False
     
-def test_bids_app(bids_app_blueprint, run_prefix, xnat_connect, cli_runner):
+def test_bids_app(bids_app_blueprint, run_prefix, xnat_connect, license_dir,
+                  cli_runner):
 
     bp = bids_app_blueprint
 
@@ -30,7 +31,9 @@ def test_bids_app(bids_app_blueprint, run_prefix, xnat_connect, cli_runner):
         '--build_dir', str(build_dir),
         build_arg,
         '--use-test-config',
-        '--use-local-packages', '--raise-errors'])
+        '--use-local-packages',
+        '--raise-errors',
+        '--license-dir', str(license_dir)])
 
     assert result.exit_code == 0, show_cli_trace(result)
     

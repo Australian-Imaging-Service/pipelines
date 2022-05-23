@@ -25,6 +25,10 @@ logger.addHandler(sch)
 
 TEST_NIFTI_DATA_DIR = Path(__file__).parent / 'tests' / 'data' / 'nifti'
 
+@pytest.fixture(scope='session')
+def license_dir():
+    return Path(__file__).parent / 'licenses'
+
 
 @pytest.fixture
 def nifti_data():
@@ -50,7 +54,7 @@ class BidsAppTestBlueprint():
 
 
 BIDS_APP_PARAMETERS = {
-    'fmriprep': {'json_edit': "-e 'func/.*bold' 'SliceTimings[*]' '{value} / 1000.0'"}}
+    'fmriprep': {'json_edits': "-e func/.*bold SliceTiming[*] {value}/1000.0"}}
 
 
 bids_apps_dir = Path(__file__).parent / 'pipeline-specs' / 'mri' / 'neuro' / 'bids'
