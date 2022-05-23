@@ -15,7 +15,7 @@ def test_bids_app(bids_app_blueprint, run_prefix, xnat_connect, license_dir,
 
     bp = bids_app_blueprint
 
-    build_dir = bp.spec_path.parent / '.build' / bp.spec_path.stem
+    build_dir = bp.spec_path.parent / '.build-test' / bp.spec_path.stem
     
     build_dir.mkdir(exist_ok=True, parents=True)
 
