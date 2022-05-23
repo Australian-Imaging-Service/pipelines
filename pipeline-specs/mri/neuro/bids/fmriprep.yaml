@@ -12,7 +12,7 @@ package_templates:
     version: v1.0.20201102
 licenses:
   - source: freesurfer.txt
-    destination: /opt/freesurfer/licence.txt
+    destination: /opt/freesurfer/license.txt
 commands:
   - name: fmriprep
     version: 1a1
