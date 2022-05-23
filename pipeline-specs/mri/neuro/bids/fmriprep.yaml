@@ -10,6 +10,9 @@ python_packages:
 package_templates:
   - name: dcm2niix
     version: v1.0.20201102
+licenses:
+  - source: freesurfer.txt
+    destination: /opt/freesurfer/licence.txt
 commands:
   - name: fmriprep
     version: 1a1
