@@ -22,7 +22,7 @@ weight: 10
 |----|------------|-------------|
 |`anat/T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|
 |`anat/T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|
-|`func/bold`|`medimage:NiftiGzX`|`medimage:Dicom`|
+|`func/task-rest_bold`|`medimage:NiftiGzX`|`medimage:Dicom`|
 
 #### Outputs
 |Name|Output format|Stored format|
@@ -32,3 +32,5 @@ weight: 10
 #### Parameters
 |Name|Data type|
 |----|---------|
+|json_edits|string|
+

@@ -10,9 +10,12 @@ python_packages:
 package_templates:
   - name: dcm2niix
     version: v1.0.20201102
+licenses:
+  - source: freesurfer.txt
+    destination: /opt/freesurfer/license.txt
 commands:
   - name: fmriprep
-    version: 1
+    version: 1a1
     workflow: arcana.tasks.bids:bids_app
     description: >-
       `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
@@ -31,13 +34,15 @@ commands:
       - path: anat/T2w
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-      - path: func/bold
+      - path: func/task-rest_bold
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
     outputs: &outputs
       - path: fmriprep
         format: common:Directory
     parameters:
+      - name: json_edits
+        type: string
     frequency: session
     configuration:
       inputs: *inputs

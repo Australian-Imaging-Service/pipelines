@@ -4,7 +4,7 @@
 __pycache__
 *.egg-info
 .DS_Store
-
+/licenses/*
 # Automatically generated
 
 !/docs/pipelines/_index.md

@@ -22,7 +22,7 @@ MRIQC extracts no-reference IQMs (image quality metrics) from structural (T1w an
 |----|------------|-------------|
 |`anat/T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|
 |`anat/T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|
-|`func/bold`|`medimage:NiftiGzX`|`medimage:Dicom`|
+|`func/task-rest_bold`|`medimage:NiftiGzX`|`medimage:Dicom`|
 
 #### Outputs
 |Name|Output format|Stored format|
