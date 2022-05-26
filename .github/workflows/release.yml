@@ -33,7 +33,11 @@ jobs:
       run: pip install -r requirements.txt
 
     - name: Build container images
-      run: BUILT_IMAGES=$(arcana deploy xnat build ./pipeline-specs australianimagingservice --registry ghcr.io --license-dir ./licenses  --logfile )
+      run: |
+        BUILD_LOG=../build-log.txt
+        BUILT_IMAGES=$(arcana deploy xnat build ./pipeline-specs australianimagingservice --registry ghcr.io --license-dir ./licenses --logfile $BUILD_LOG)
+        BUILT_IMAGES=$(echo $BUILT_IMAGES | xargs)  # concatenate into a single line
+        echo "Successfully built \"$BUILT_IMAGES\":\n$(cat $BUILD_LOG)"
 
     - uses: docker/login-action@v1
       with:
@@ -41,14 +45,14 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.CR_PAT }} # - must be in GitHub Secrets!
 
-    # - uses: docker/login-action@v1
-    #   with:
-    #     registry: index.docker.io
-    #     username: ${{ secrets.DOCKERHUB_USERNAME }}
-    #     password: ${{ ssecrets.DOCKERHUB_PASSWORD }} # - must be in GitHub Secrets!
+    - uses: docker/login-action@v1
+      with:
+        registry: index.docker.io
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ ssecrets.DOCKERHUB_PASSWORD }} # - must be in GitHub Secrets!
 
-    # - name: Security scan images
-    #   run: for tag=$(arcana deploy list-images $BUILD_TARGETS); do docker scan $tag; done
+    - name: Security scan images
+      run: for tag=$BUILT_IMAGES; do docker scan $tag; done
 
     - name: Push images to registry
-      run: for tag=$(arcana deploy list-images $BUILD_TARGETS); do docker push $tag; done
+      run: for tag=$BUILT_IMAGES; do docker push $tag; done
