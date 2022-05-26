@@ -24,17 +24,17 @@ commands:
         path: anat/T1w
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: T1-weighted anatomical scan
+        description: "T1-weighted anatomical scan"
       - name: T2w
         path: anat/T2w
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: T2-weighted anatomical scan
+        description: "T2-weighted anatomical scan"
       - name: fMRI
         path: func/task-rest_bold
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: functional MRI
+        description: "functional MRI"
     outputs: &outputs
       - name: mriqc
         format: common:Directory
