@@ -27,7 +27,7 @@ def test_bids_app(bids_app_blueprint, run_prefix, xnat_connect, license_dir,
     result = cli_runner(
         build,
         [str(bp.spec_path),
-        'australianimagingservice',
+        'pipelines-core-test',
         '--build_dir', str(build_dir),
         build_arg,
         '--use-test-config',
