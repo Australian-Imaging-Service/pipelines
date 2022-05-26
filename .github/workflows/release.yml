@@ -33,9 +33,7 @@ jobs:
       run: pip install -r requirements.txt
 
     - name: Build container images
-      run: |
-        BUILD_TARGETS="./pipeline-specs australianimagingservice --registry ghcr.io"
-        arcana deploy xnat build $BUILD_TARGETS --license-dir ./licenses
+      run: BUILT_IMAGES=$(arcana deploy xnat build ./pipeline-specs australianimagingservice --registry ghcr.io --license-dir ./licenses  --logfile )
 
     - uses: docker/login-action@v1
       with:

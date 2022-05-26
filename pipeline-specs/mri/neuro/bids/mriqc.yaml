@@ -14,22 +14,29 @@ commands:
   - name: mriqc
     version: 1a1
     workflow: arcana.tasks.bids:bids_app
-    description: >-
+    description: 'MRIQC: quality control metrics from T1w, T2W and fMRI data'
+    long_description: >-
       MRIQC extracts no-reference IQMs (image quality metrics) from
       structural (T1w and T2w) and functional MRI (magnetic resonance
       imaging) data.
     inputs: &inputs
-      - path: anat/T1w
+      - name: T1w
+        path: anat/T1w
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-      - path: anat/T2w
+        description: T1-weighted anatomical scan
+      - name: T2w
+        path: anat/T2w
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-      - path: func/task-rest_bold
+        description: T2-weighted anatomical scan
+      - name: fMRI
+        path: func/task-rest_bold
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
+        description: functional MRI
     outputs: &outputs
-      - path: mriqc
+      - name: mriqc
         format: common:Directory
     parameters:
     frequency: session
