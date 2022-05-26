@@ -1,5 +1,5 @@
 pkg_version: &pkg_version '0.16.1'
-wrapper_version: '1.1'
+wrapper_version: '1.2'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'poldracklab/mriqc:', *pkg_version ]
@@ -37,6 +37,7 @@ commands:
         description: "functional MRI"
     outputs: &outputs
       - name: mriqc
+        path: mriqc
         format: common:Directory
     parameters:
     frequency: session
