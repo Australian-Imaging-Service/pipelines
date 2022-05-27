@@ -10,7 +10,7 @@ python_packages:
   - name: pydra
     version: 0.18
   - name: pydra-dcm2niix
-    version: 1.0.0rc2+2.gf1bca2d
+    version: 1.0.0rc2
 package_templates:
   - name: dcm2niix
     version: v1.0.20201102
