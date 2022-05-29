@@ -8,6 +8,8 @@ from arcana.test.utils import show_cli_trace
 from arcana.core.deploy.utils import load_yaml_spec
 from arcana.test.stores.medimage.xnat import (
     install_and_launch_xnat_cs_command)
+from arcana.core.deploy.build import copy_package_into_build_dir
+from arcana.deploy.medimage.xnat import build_xnat_cs_image, dockerfile_build
 
 # Root package dir
 pkg_dir = Path(__file__).parent.parent
@@ -23,28 +25,35 @@ inputs_json = {
 command_index = 0
 
 # Relative directories
+image_tag = 'pipelines-core-specific-test/' + spec_path.stem
 license_dir = pkg_dir / 'licenses'
-build_dir = pkg_dir / 'scripts' / '.build' / spec_path.stem
+build_dir = pkg_dir / 'scripts' / '.build' / 'specific-test-case'
 build_dir.mkdir(exist_ok=True, parents=True)
 run_prefix = datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
-project_id = f'{run_prefix}_{spec_path.stem}_specific'
+project_id = run_prefix + '_' + data_dir.stem  # f'{run_prefix}_{spec_path.stem}_specific'
+pipelines_core_docker_dest = Path('/python-packages/pipelines-core')
+
 
 
 def build_image():
-    runner = CliRunner()
-    result = runner.invoke(
-        build,
-        [str(spec_path),
-        'pipelines-core-specific-test',
-        '--build_dir', str(build_dir),
-        '--use-test-config',
-        '--use-local-packages',
-        '--raise-errors',
-        '--license-dir', str(license_dir)],
-        catch_exceptions=False)
 
-    if result.exit_code != 0:
-        raise Exception(show_cli_trace(result))
+    spec = load_yaml_spec(spec_path, base_dir=spec_path)
+
+    dockerfile = build_xnat_cs_image(
+        image_tag=image_tag,
+        build_dir=build_dir,
+        use_local_packages=True,
+        test_config=True,
+        license_dir=license_dir,
+        generate_only=True,
+        **{k: v for k, v in spec.items() if not k.startswith('_')})
+
+    pkg_build_path = copy_package_into_build_dir('pipelines-core', pkg_dir,
+                                                 build_dir)
+    dockerfile.copy(source=[str(pkg_build_path.relative_to(build_dir))],
+                    destination=str(pipelines_core_docker_dest))
+
+    dockerfile_build(dockerfile, build_dir, image_tag)
 
 
 def upload_data():

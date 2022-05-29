@@ -8,9 +8,9 @@ package_manager: apt
 system_packages:
 python_packages:
   - name: pydra
-    version: 0.18
+    version: 0.18+1.ga4845a9ba
   - name: pydra-dcm2niix
-    version: 1.0.0rc2
+    version: 1.0.0rc2+4.g3f76f68
 package_templates:
   - name: dcm2niix
     version: v1.0.20201102
