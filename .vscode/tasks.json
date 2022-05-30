@@ -1,0 +1,60 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "docker-build",
+            "label": "docker-build",
+            "dockerBuild": {
+                "context": "${workspaceFolder}/scripts/.build/specific-test-case",  //	The default context is the workspace folder.
+                "dockerfile": "${workspaceFolder}/scripts/.build/specific-test-case/Dockerfile",  //	The default Dockerfile path will be in the root of the workspace folder.
+                "tag": "pipelines-core-specific-test-case-debug",  //	The base name of the root workspace folder.
+                "pull": false,  //	Defaults to true in order to pull new base images before building.
+            }
+        },
+        {
+            "type": "docker-run",
+            "label": "docker-run: debug",
+            "dependsOn": ["docker-build"],
+            "platform": "python",
+            "dockerRun": {
+                "image": "pipelines-core-specific-test-case-debug",
+                "env": {
+                    "CONDA_DEFAULT_ENV": "arcana",
+                    "CONDA_PREFIX": "/opt/miniconda-latest/envs/arcana",
+                    "CONDA_PREFIX_1": "/opt/miniconda-latest",
+                    "CONDA_PROMPT_MODIFIER": "(arcana) ",
+                    "CONDA_SHLVL": "2",
+                    "PATH": "/opt/miniconda-latest/envs/arcana/bin:/opt/miniconda-latest/condabin:/opt/miniconda-latest/bin:/opt/dcm2niix-v1.0.20201102:/opt/conda/bin:/opt/workbench/bin_linux64:/opt/ICA-AROMA:/opt/ants:/opt/afni-latest:/opt/convert3d-1.0.0/bin:/opt/fsl-6.0.5.1/bin:/opt/freesurfer/bin:/bin:/opt/freesurfer/tktools:/opt/freesurfer/mni/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                    "XNAT_HOST": "http://host.docker.internal:8080",
+                    "XNAT_USER": "admin",
+                    "XNAT_PASS": "admin"
+                },
+                "volumes": [
+                    {
+                        "localPath": "${userHome}/.xnat4tests/xnat_root/archive/FTD1028/arc001/testsession",
+                        "containerPath": "/input",
+                        "permissions": "ro"
+                    },
+                    {
+                        "localPath": "${userHome}/Desktop/specific-test-case-output",
+                        "containerPath": "/output",
+                        "permissions": "rw"
+                    },
+                    {
+                        "localPath": "${userHome}/Desktop/specific-test-case-work",
+                        "containerPath": "/work",
+                        "permissions": "rw"
+                    }
+                ]
+            },
+            "python": {
+                "file": "/python-packages/pipelines-core/scripts/specific_test_case.py",
+                "args": [
+                    "--in_docker"
+                ]
+            }
+        }
+    ]
+}

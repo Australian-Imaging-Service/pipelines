@@ -1,0 +1,79 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python: specific test case",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/specific_test_case.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Create bidsifiable dataset on XNAT",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/create_neuro_dataset.py",
+            "console": "integratedTerminal",
+            "args": [
+                "http://localhost:8080",
+                "BIDS",
+                "admin",
+                "admin"
+            ]
+        },
+        {
+            "name": "Python: build specific test case",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/specific_test_case.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--build-only"
+            ]
+        },        
+        {
+            "name": "Docker: specific test case",
+            "type": "docker",
+            "request": "launch",
+            "preLaunchTask": "docker-run: debug",
+            "python": {
+              "pathMappings": [
+                {
+                  "localRoot": "${workspaceFolder}",
+                  "remoteRoot": "/python-packages/pipelines-core"
+                },
+                {
+                    "localRoot": "${userHome}/git/workflows/arcana",
+                    "remoteRoot": "/python-packages/arcana"
+                },
+                {
+                    "localRoot": "${userHome}/git/workflows/pydra",
+                    "remoteRoot": "/python-packages/pydra"
+                },
+                {
+                    "localRoot": "${userHome}/git/workflows/pydra-dcm2niix",
+                    "remoteRoot": "/python-packages/pydra-dcm2niix"
+                },
+              ],
+              "args": [
+                "--in_docker"
+              ]
+            },
+        },
+        {
+            "name": "Test Config",
+            "type": "python",
+            "request": "launch",
+            "purpose": ["debug-test"],
+            "justMyCode": false,
+            "console": "internalConsole",
+            "env": {
+                "_PYTEST_RAISE": "1"
+            },
+        },
+    ]
+}
