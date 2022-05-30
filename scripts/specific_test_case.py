@@ -34,7 +34,7 @@ license_dir = pkg_dir / 'licenses'
 build_dir = pkg_dir / 'scripts' / '.build' / 'specific-test-case'
 build_dir.mkdir(exist_ok=True, parents=True)
 run_prefix = datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
-project_id = data_dir.stem  # f'{run_prefix}_{spec_path.stem}_specific'
+project_id = run_prefix + data_dir.stem  # f'{run_prefix}_{spec_path.stem}_specific'
 pipelines_core_docker_dest = Path('/python-packages/pipelines-core')
 session_label = 'testsession'
 subject_label = 'testsubj'
