@@ -40,6 +40,10 @@
                     "localRoot": "${userHome}/git/workflows/arcana",
                     "remoteRoot": "/python-packages/arcana"
                 },
+                {
+                    "localRoot": "${userHome}/git/workflows/pydra",
+                    "remoteRoot": "/python-packages/pydra"
+                },
               ]
             }
         },
@@ -50,16 +54,6 @@
             "purpose": ["debug-test"],
             "justMyCode": false,
             "console": "internalConsole",
-            "env": {
-                "_PYTEST_RAISE": "1"
-            },
-        },
-        {
-            "name": "Debug Tests",
-            "type": "python",
-            "request": "test",
-            "console": "internalConsole",
-            "justMyCode": false,
             "env": {
                 "_PYTEST_RAISE": "1"
             },
