@@ -1,12 +1,14 @@
 pkg_version: &pkg_version '21.0.2'
-wrapper_version: '1'
+wrapper_version: '1.3'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'nipreps/fmriprep:', *pkg_version ]
 info_url: 'https://fmriprep.org'
 package_manager: apt
 system_packages:
-python_packages:
+python_packages:  # Copy in local copies of pydra and pydra-dcm2niix
+  - name: pydra
+  - name: pydra-dcm2niix
 package_templates:
   - name: dcm2niix
     version: v1.0.20201102
@@ -17,7 +19,8 @@ commands:
   - name: fmriprep
     version: 1a1
     workflow: arcana.tasks.bids:bids_app
-    description: >-
+    description: 'fMRIPrep: a functional fMRI data preprocessing pipeline'
+    long_description: >-
       `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
       pipeline that is designed to provide an easily accessible, state-of-the-art
       interface that is robust to variations in scan acquisition protocols and that
@@ -28,17 +31,24 @@ commands:
       of group level analyses, including task-based or resting-state fMRI, graph
       theory measures, surface or volume-based statistics, etc.
     inputs: &inputs
-      - path: anat/T1w
+      - name: T1w
+        path: anat/T1w
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-      - path: anat/T2w
+        description: "T1-weighted anatomical scan"
+      - name: T2w
+        path: anat/T2w
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-      - path: func/task-rest_bold
+        description: "T2-weighted anatomical scan"
+      - name: fMRI
+        path: func/task-rest_bold
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
+        description: "functional MRI"
     outputs: &outputs
-      - path: fmriprep
+      - name: fmriprep
+        path: fmriprep
         format: common:Directory
     parameters:
       - name: json_edits

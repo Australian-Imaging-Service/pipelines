@@ -9,13 +9,13 @@ weight: 10
 |Key|Value|
 |---|-----|
 |App version|21.0.2|
-|XNAT wrapper version|1|
+|XNAT wrapper version|1.3|
 |Base image|`nipreps/fmriprep:21.0.2`|
 |Info URL|https://fmriprep.org|
 
 ## Commands
 ### fmriprep
-`fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing pipeline that is designed to provide an easily accessible, state-of-the-art interface that is robust to variations in scan acquisition protocols and that requires minimal user input, while providing easily interpretable and comprehensive error and output reporting. It performs basic processing steps (coregistration, normalization, unwarping, noise component extraction, segmentation, skullstripping etc.) providing outputs that can be easily submitted to a variety of group level analyses, including task-based or resting-state fMRI, graph theory measures, surface or volume-based statistics, etc.
+fMRIPrep: a functional fMRI data preprocessing pipeline
 
 #### Inputs
 |Path|Input format|Stored format|

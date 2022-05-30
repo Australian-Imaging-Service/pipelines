@@ -66,7 +66,7 @@ bids_specs = [str(p.stem) for p in bids_apps_dir.glob('*.yaml')]
 @pytest.fixture(params=bids_specs)
 def bids_app_blueprint(run_prefix, xnat_connect, request):
     bids_app_name = request.param
-    project_id = make_project_name(bids_app_name, run_prefix=run_prefix)
+    project_id = make_project_id(bids_app_name, run_prefix=run_prefix)
     upload_test_dataset_to_xnat(project_id, test_bids_data_dir / bids_app_name,
                                 xnat_connect)
     return BidsAppTestBlueprint(
@@ -118,7 +118,7 @@ TEST_SUBJECT_LABEL = 'TESTSUBJ'
 TEST_SESSION_LABEL = 'TESTSUBJ_01'
 
 
-def make_project_name(dataset_name: str, run_prefix: str=None):
+def make_project_id(dataset_name: str, run_prefix: str=None):
     return (run_prefix if run_prefix else '') + dataset_name
 
 
