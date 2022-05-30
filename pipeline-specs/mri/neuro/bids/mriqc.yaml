@@ -1,5 +1,5 @@
 pkg_version: &pkg_version '0.16.1'
-wrapper_version: '1.3'
+wrapper_version: '1.4'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'poldracklab/mriqc:', *pkg_version ]
@@ -8,9 +8,7 @@ package_manager: apt
 system_packages:
 python_packages:
   - name: pydra
-    version: 0.18
   - name: pydra-dcm2niix
-    version: 1.0.0rc2
 package_templates:
   - name: dcm2niix
     version: v1.0.20201102
