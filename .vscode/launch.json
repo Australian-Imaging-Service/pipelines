@@ -26,6 +26,16 @@
             ]
         },
         {
+            "name": "Python: build specific test case",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/specific_test_case.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--build-only"
+            ]
+        },        
+        {
             "name": "Docker: specific test case",
             "type": "docker",
             "request": "launch",
@@ -44,8 +54,15 @@
                     "localRoot": "${userHome}/git/workflows/pydra",
                     "remoteRoot": "/python-packages/pydra"
                 },
+                {
+                    "localRoot": "${userHome}/git/workflows/pydra-dcm2niix",
+                    "remoteRoot": "/python-packages/pydra-dcm2niix"
+                },
+              ],
+              "args": [
+                "--in_docker"
               ]
-            }
+            },
         },
         {
             "name": "Test Config",
