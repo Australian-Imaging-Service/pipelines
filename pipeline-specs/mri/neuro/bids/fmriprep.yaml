@@ -1,5 +1,5 @@
 pkg_version: &pkg_version '21.0.2'
-wrapper_version: '1.5'
+wrapper_version: '1.6'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'nipreps/fmriprep:', *pkg_version ]
@@ -52,12 +52,14 @@ commands:
         format: common:Directory
     parameters:
       - name: json_edits
+        pydra_field: json_edits
         type: string
     frequency: session
     configuration:
       inputs: *inputs
       outputs: *outputs
       executable: /opt/conda/bin/fmriprep
+      dataset: /work/bids-dataset
 
 
 # Parameters (see https://fmriprep.org/en/latest/usage.html)
