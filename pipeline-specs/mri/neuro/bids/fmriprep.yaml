@@ -1,5 +1,5 @@
 pkg_version: &pkg_version '21.0.2'
-wrapper_version: '1.8'
+wrapper_version: '1.9'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'nipreps/fmriprep:', *pkg_version ]
@@ -60,6 +60,7 @@ commands:
       outputs: *outputs
       executable: /opt/conda/bin/fmriprep
       dataset: /work/bids-dataset
+      app_output_dir: /work/bids-app-output
 
 
 # Parameters (see https://fmriprep.org/en/latest/usage.html)
