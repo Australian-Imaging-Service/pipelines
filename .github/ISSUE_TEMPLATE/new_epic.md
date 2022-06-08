@@ -4,30 +4,36 @@ about: Epic is a large piece of work, requiring more than a "Program Increment" 
 labels: ''
 ---
 
-## Define an Epic
-Completing an Epic requires a significant investments. Stakeholders need to agree on their intent and definition. SAFe offers a reference template https://www.scaledagileframework.com/?ddownload=43239, used to prepare this epic template. For further information, start here: https://www.scaledagileframework.com/epic/ 
+## Instructions
+**Delete this section when creating a new Epic, and complete all other sections.**
+
+Completing an Epic requires a significant investments. Stakeholders need to agree on their intent and definition. SAFe offers a reference template [Epic Hypothesis Statement](https://www.scaledagileframework.com/?ddownload=43239), and that was used to prepare this template.
+
+For further information, plese refer to: [SAFe Epic](https://www.scaledagileframework.com/epic/)
 
 ## Epic Hypothesis Statement
-Funnel Entry Date: <The date that the epic entered the funnel>
-Epic Name: <A short name for the epic>
-Epic Owner: <The name of the epic owner>
-Epic Description: 
+- Funnel Entry Date: **The date that the epic entered the [funnel](https://www.scaledagileframework.com/program-and-solution-kanbans/)**
+- Epic Name:  **A short name for the epic, should be the same as issue title**
+- Epic Owner: **The name of the epic owner**
 
-<An elevator pitch (value statement) that describes the epic in a clear and concise way>
+### Epic Description
 
-For <customers>
-who <do something>
-the <solution>
-is a <something – the ‘how’>
-that <provides this value>
-unlike <competitor, current solution or non-existing solution>
-our solution <does something better — the ‘why’>
+**An elevator pitch (value statement) that describes the epic in a clear and concise way**
 
-## Business Outcomes
-<The measurable benefits that the business can anticipate if the epic hypothesis is proven to be correct.>
+For *customers*
+who *do something*
+the *solution*
+is a *something – the ‘how’*
+that *provides this value*
+unlike *competitor, current solution or non-existing solution*
+our solution *does something better — the ‘why’*
 
-## Leading Indicators
-<The early measures that will help predict the business outcome hypothesis. For more on this topic, see the Innovation Accounting advanced topic article>
+### Business Outcomes
+The measurable benefits that the business can anticipate if the epic hypothesis is proven to be correct
 
-## Nonfunctional Requirements
-<Nonfunctional requirements (NFRs) associated with the epic>
+### Leading Indicators
+The early measures that will help predict the business outcome hypothesis.
+For more on this topic, see the Innovation Accounting advanced topic article
+
+### Nonfunctional Requirements
+Nonfunctional requirements (NFRs) associated with the epic
