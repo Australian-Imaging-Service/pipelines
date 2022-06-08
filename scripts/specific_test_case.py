@@ -23,7 +23,7 @@ data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / 'FTD1028'
 inputs_json = {
     'T1w': '3d COR T1 a',
     'T2w': 'T2 FLAIR',
-    'fMRI': 'Resting State.*',
+    'fMRI': '',  # 'Resting State.*',
     'fmriprep_flags': '--use-aroma',
     'Arcana_flags': '--loglevel debug'}
 command_index = 0
