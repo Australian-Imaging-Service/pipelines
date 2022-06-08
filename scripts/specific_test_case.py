@@ -24,8 +24,8 @@ inputs_json = {
     'T1w': '3d COR T1 a',
     'T2w': 'T2 FLAIR',
     'fMRI': 'Resting State.*',
-    'Json_edits': '',
-    'Dataset_config': 'default'}
+    'fmriprep_flags': '--use-aroma',
+    'Arcana_flags': '--loglevel debug'}
 command_index = 0
 
 # Relative directories
