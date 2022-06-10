@@ -45,5 +45,5 @@ jobs:
 
     - name: Build, scan and push container images
       run: |
-        arcana deploy xnat build ./specs australian-imaging-service --registry ghcr.io --license-dir ./licenses --push
+        arcana deploy xnat build ./specs australian-imaging-service --registry ghcr.io --license-dir ./licenses --check-against-prebuilt --push
 
