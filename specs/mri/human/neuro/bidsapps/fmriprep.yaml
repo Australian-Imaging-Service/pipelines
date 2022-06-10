@@ -1,5 +1,5 @@
 pkg_version: &pkg_version '21.0.2'
-wrapper_version: '1.3'
+wrapper_version: '1.18'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'nipreps/fmriprep:', *pkg_version ]
@@ -18,7 +18,7 @@ licenses:
 commands:
   - name: fmriprep
     version: 1a1
-    workflow: arcana.tasks.bids:bids_app
+    pydra_task: arcana.tasks.bids:bids_app
     description: 'fMRIPrep: a functional fMRI data preprocessing pipeline'
     long_description: >-
       `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
@@ -30,6 +30,32 @@ commands:
       skullstripping etc.) providing outputs that can be easily submitted to a variety
       of group level analyses, including task-based or resting-state fMRI, graph
       theory measures, surface or volume-based statistics, etc.
+
+      Optional flags that can be provided to the `fmriprep_flags` parameter:
+        [--anat-only] [--boilerplate_only] [--md-only-boilerplate]
+        [--error-on-aroma-warnings] [-v]
+        [--ignore {fieldmaps,slicetiming,sbref,t2w,flair} [{fieldmaps,slicetiming,sbref,t2w,flair} ...]]
+        [--output-spaces [OUTPUT_SPACES [OUTPUT_SPACES ...]]]
+        [--me-output-echos] [--bold2t1w-init {register,header}]
+        [--bold2t1w-dof {6,9,12}] [--force-bbr] [--force-no-bbr]
+        [--medial-surface-nan] [--slice-time-ref SLICE_TIME_REF]
+        [--random-seed _RANDOM_SEED]
+        [--use-aroma]
+        [--aroma-melodic-dimensionality AROMA_MELODIC_DIM]
+        [--return-all-components]
+        [--fd-spike-threshold REGRESSORS_FD_TH]
+        [--dvars-spike-threshold REGRESSORS_DVARS_TH]
+        [--skull-strip-template SKULL_STRIP_TEMPLATE]
+        [--skull-strip-fixed-seed]
+        [--skull-strip-t1w {auto,skip,force}] [--fmap-bspline]
+        [--fmap-no-demean] [--topup-max-vols TOPUP_MAX_VOLS]
+        [--use-syn-sdc [{warn,error}]] [--force-syn]
+        [--no-submm-recon] [--cifti-output [{91k,170k}] | --fs-no-reconall]
+        [--resource-monitor]
+        [--reports-only] [--config-file FILE] [--write-graph]
+        [--stop-on-first-crash] [--notrack]
+        [--debug {compcor,fieldmaps,all} [{compcor,fieldmaps,all} ...]]
+        [--sloppy]
     inputs: &inputs
       - name: T1w
         path: anat/T1w
@@ -48,16 +74,22 @@ commands:
         description: "functional MRI"
     outputs: &outputs
       - name: fmriprep
-        path: fmriprep
         format: common:Directory
     parameters:
+      - name: fmriprep_flags
+        pydra_field: flags
+        type: string
       - name: json_edits
+        pydra_field: json_edits
         type: string
     frequency: session
     configuration:
+      name: fmriprep
       inputs: *inputs
       outputs: *outputs
       executable: /opt/conda/bin/fmriprep
+      dataset: /work/bids-dataset
+      app_output_dir: /work/bids-app-output
 
 
 # Parameters (see https://fmriprep.org/en/latest/usage.html)

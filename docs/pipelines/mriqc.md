@@ -1,5 +1,5 @@
 ---
-source_file: mri/neuro/bids/mriqc.yaml
+source_file: mri/human/neuro/bidsapps/mriqc.yaml
 title: mriqc
 weight: 10
 
@@ -9,7 +9,7 @@ weight: 10
 |Key|Value|
 |---|-----|
 |App version|0.16.1|
-|XNAT wrapper version|1.3|
+|XNAT wrapper version|1.16|
 |Base image|`poldracklab/mriqc:0.16.1`|
 |Info URL|https://mriqc.readthedocs.io|
 
@@ -20,9 +20,9 @@ MRIQC: quality control metrics from T1w, T2W and fMRI data
 #### Inputs
 |Path|Input format|Stored format|
 |----|------------|-------------|
-|`anat/T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|
-|`anat/T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|
-|`func/task-rest_bold`|`medimage:NiftiGzX`|`medimage:Dicom`|
+|`T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|
+|`T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|
+|`fMRI`|`medimage:NiftiGzX`|`medimage:Dicom`|
 
 #### Outputs
 |Name|Output format|Stored format|

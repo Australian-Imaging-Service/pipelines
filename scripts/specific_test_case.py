@@ -18,14 +18,14 @@ from arcana.deploy.medimage.xnat import build_xnat_cs_image, dockerfile_build
 pkg_dir = Path(__file__).parent.parent
 
 # Customisable parameters of the debug run
-spec_path = pkg_dir / 'pipeline-specs' / 'mri' / 'neuro' / 'bids' / 'fmriprep.yaml'
+spec_path = pkg_dir / 'specs' / 'mri' / 'neuro' / 'bids' / 'fmriprep.yaml'
 data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / 'FTD1028'
 inputs_json = {
     'T1w': '3d COR T1 a',
     'T2w': 'T2 FLAIR',
-    'fMRI': 'Resting State.*',
-    'Json_edits': '',
-    'Dataset_config': 'default'}
+    'fMRI': '',  # 'Resting State.*',
+    'fmriprep_flags': '--use-aroma',
+    'Arcana_flags': '--loglevel debug'}
 command_index = 0
 
 # Relative directories

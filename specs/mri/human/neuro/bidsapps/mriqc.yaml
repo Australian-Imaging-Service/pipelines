@@ -1,5 +1,5 @@
 pkg_version: &pkg_version '0.16.1'
-wrapper_version: '1.3'
+wrapper_version: '1.16'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'poldracklab/mriqc:', *pkg_version ]
@@ -8,16 +8,14 @@ package_manager: apt
 system_packages:
 python_packages:
   - name: pydra
-    version: 0.18
   - name: pydra-dcm2niix
-    version: 1.0.0rc2
 package_templates:
   - name: dcm2niix
     version: v1.0.20201102
 commands:
   - name: mriqc
     version: 1a1
-    workflow: arcana.tasks.bids:bids_app
+    pydra_task: arcana.tasks.bids:bids_app
     description: 'MRIQC: quality control metrics from T1w, T2W and fMRI data'
     long_description: >-
       MRIQC extracts no-reference IQMs (image quality metrics) from
@@ -41,11 +39,13 @@ commands:
         description: "functional MRI"
     outputs: &outputs
       - name: mriqc
-        path: mriqc
         format: common:Directory
     parameters:
     frequency: session
     configuration:
+      name: mriqc
       inputs: *inputs
       outputs: *outputs
       executable: /usr/local/miniconda/bin/mriqc
+      dataset: /work/bids-dataset
+      app_output_dir: /work/bids-app-output
