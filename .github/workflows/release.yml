@@ -44,7 +44,9 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }} # - must be in GitHub Secrets!
 
     - name: Get freesurfer licence from secrets
-      run: echo "${{ secrets.FREESURFER_LICENSE }}" > licenses/freesurfer.txt
+      run: |
+        mkdir licenses
+        echo "${{ secrets.FREESURFER_LICENSE }}" > licenses/freesurfer.txt
 
     - name: Build, scan and push container images
       run: |
