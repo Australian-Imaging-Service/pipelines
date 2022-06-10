@@ -13,6 +13,13 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: test build",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/test_build.py",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Create bidsifiable dataset on XNAT",
             "type": "python",
             "request": "launch",
