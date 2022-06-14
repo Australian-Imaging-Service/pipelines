@@ -3,7 +3,7 @@ name: Create a new Story
 about: A Story is a short, simple descipriotn of funciotnality, usually part of a
   feature
 title: "[Story Name]"
-labels: pipelines-stream
+labels: pipelines-stream, story
 assignees: ''
 
 ---
