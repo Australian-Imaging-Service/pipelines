@@ -1,9 +1,11 @@
 ---
 name: Create a new Story
-about: A Story is a short, simple descipriotn of funciotnality, usually part of a feature
+about: A Story is a short, simple descipriotn of funciotnality, usually part of a
+  feature
 title: "[Story Name]"
-labels: story
+labels: pipelines-stream
 assignees: ''
+
 ---
 
 ## Instructions

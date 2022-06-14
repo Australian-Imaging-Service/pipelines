@@ -1,9 +1,12 @@
 ---
 name: Create a new Epic
-about: Epic is a large piece of work, requiring more than a "Program Increment" (PI) to complete. Elaborate epics and break them down into features that can be completed within a PI
+about: Epic is a large piece of work, requiring more than a "Program Increment" (PI)
+  to complete. Elaborate epics and break them down into features that can be completed
+  within a PI
 title: "[Epic Name]"
-labels: epic
+labels: epic, pipelines-stream
 assignees: ''
+
 ---
 
 ## Instructions
