@@ -37,7 +37,7 @@ jobs:
         run: pip install -r ./pipelines_root/requirements.txt
 
       - name: Generate pipeline docs
-        run: arcana deploy docs --flatten specs docs/pipelines
+        run: arcana deploy docs --flatten ./specs docs/pipelines
         working-directory: ./pipelines_root
 
       - name: Remove /docs/pipelines/ from .gitignore
