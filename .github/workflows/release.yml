@@ -34,17 +34,14 @@ jobs:
 
     - uses: docker/login-action@v2
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ ssecrets.DOCKERHUB_PASSWORD }} # - must be in GitHub Secrets!
-
-    - uses: docker/login-action@v2
-      with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }} # - must be in GitHub Secrets!
 
     - name: Get freesurfer licence from secrets
-      run: echo "${{ secrets.FREESURFER_LICENSE }}" > licenses/freesurfer.txt
+      run: |
+        mkdir licenses
+        echo "${{ secrets.FREESURFER_LICENSE }}" > licenses/freesurfer.txt
 
     - name: Build and push container images
       run: |
