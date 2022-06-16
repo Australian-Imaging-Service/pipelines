@@ -59,7 +59,7 @@ def build_image():
     python_packages.append({'name': 'pydra'})
     python_packages.append({'name': 'pydra-dcm2niix'})
 
-    dockerfile = build_xnat_cs_image(
+    dockerfile, _ = build_xnat_cs_image(
         image_tag=image_tag,
         build_dir=build_dir,
         use_local_packages=True,
