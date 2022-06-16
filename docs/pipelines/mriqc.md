@@ -1,5 +1,5 @@
 ---
-source_file: mri/human/neuro/bidsapps/mriqc.yaml
+source_file: specs/mri/human/neuro/bidsapps/mriqc.yaml
 title: mriqc
 weight: 10
 
@@ -15,20 +15,24 @@ weight: 10
 
 ## Commands
 ### mriqc
-MRIQC: quality control metrics from T1w, T2W and fMRI data
+MRIQC extracts no-reference IQMs (image quality metrics) from structural (T1w and T2w) and functional MRI (magnetic resonance imaging) data.
 
+|Key|Value|
+|---|-----|
+|Short description|MRIQC: quality control metrics from T1w, T2W and fMRI data|
+|Workflow|`arcana.tasks.bids:bids_app`|
+|Version|`1a1`|
+|Executable|`/usr/local/miniconda/bin/mriqc`|
+|Operates on|Session|
 #### Inputs
-|Path|Input format|Stored format|
-|----|------------|-------------|
-|`T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|
-|`T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|
-|`fMRI`|`medimage:NiftiGzX`|`medimage:Dicom`|
+|Path|Input format|Stored format|Description|
+|----|------------|-------------|-----------|
+|`T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|T1-weighted anatomical scan|
+|`T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|T2-weighted anatomical scan|
+|`fMRI`|`medimage:NiftiGzX`|`medimage:Dicom`|functional MRI|
 
 #### Outputs
-|Name|Output format|Stored format|
-|----|-------------|-------------|
-|`mriqc`|`common:Directory`|`format`|
+|Name|Output format|Stored format|Description|
+|----|-------------|-------------|-----------|
+|`mriqc`|`common:Directory`|`format`||
 
-#### Parameters
-|Name|Data type|
-|----|---------|
