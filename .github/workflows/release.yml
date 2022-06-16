@@ -46,7 +46,7 @@ jobs:
     - name: Get freesurfer licence from secrets
       run: echo "${{ secrets.FREESURFER_LICENSE }}" > licenses/freesurfer.txt
 
-    - name: Build, scan and push container images
+    - name: Build and push container images
       run: |
         arcana deploy xnat build ./specs australian-imaging-service --registry ghcr.io --license-dir ./licenses --check-registry --push
 
