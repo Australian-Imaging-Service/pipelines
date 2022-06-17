@@ -41,7 +41,7 @@ commands:
       - name: mriqc
         format: common:Directory
     parameters:
-    frequency: session
+    row_frequency: session
     configuration:
       name: mriqc
       inputs: *inputs

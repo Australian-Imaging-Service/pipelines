@@ -23,6 +23,7 @@ MRIQC extracts no-reference IQMs (image quality metrics) from structural (T1w an
 |Workflow|`arcana.tasks.bids:bids_app`|
 |Version|`1a1`|
 |Executable|`/usr/local/miniconda/bin/mriqc`|
+|Operates on|Session|
 #### Inputs
 |Path|Input format|Stored format|Description|
 |----|------------|-------------|-----------|
