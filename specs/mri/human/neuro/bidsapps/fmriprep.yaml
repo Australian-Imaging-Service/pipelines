@@ -82,7 +82,7 @@ commands:
       - name: json_edits
         pydra_field: json_edits
         type: string
-    frequency: session
+    row_frequency: session
     configuration:
       name: fmriprep
       inputs: *inputs
