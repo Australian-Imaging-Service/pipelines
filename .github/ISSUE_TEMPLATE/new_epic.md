@@ -16,12 +16,12 @@ Completing an Epic requires a significant investments. Stakeholders need to agre
 
 For further information, plese refer to: [SAFe Epic](https://www.scaledagileframework.com/epic/)
 
-## Epic Hypothesis Statement
+### Hypothesis Statement
 - Funnel Entry Date: **The date that the epic entered the [funnel](https://www.scaledagileframework.com/program-and-solution-kanbans/)**
 - Epic Name:  **A short name for the epic, should be the same as issue title**
 - Epic Owner: **The name of the epic owner**
 
-### Epic Description
+### Description
 
 **An elevator pitch (value statement) that describes the epic in a clear and concise way**
 
@@ -33,7 +33,7 @@ For further information, plese refer to: [SAFe Epic](https://www.scaledagilefram
 	unlike *competitor, current solution or non-existing solution*
 	our solution *does something better — the ‘why’*
 
-### Business Outcomes
+### Outcomes
 The measurable benefits that the business can anticipate if the epic hypothesis is proven to be correct
 
 ### Leading Indicators
@@ -42,3 +42,7 @@ For more on this topic, see the Innovation Accounting advanced topic article
 
 ### Nonfunctional Requirements
 Nonfunctional requirements (NFRs) associated with the epic
+
+### Features
+
+- [ ]
