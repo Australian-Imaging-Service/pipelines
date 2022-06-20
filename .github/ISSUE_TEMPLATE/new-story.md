@@ -17,6 +17,7 @@ Stories are short, simple descriptions of functionality. Stories provide just en
 For further information, plese refer to: [SAFe Story](https://www.scaledagileframework.com/story/)
 
 ### Description
+
 **User Stories** are the primary means of expressing needed functionality. Since they focus on the user as the subject of interest, and not the system, user stories are value and customer-centric. Recommended form is the "user-voice form":
 	As a (user role), I want to (activity), so that (business value)
 By using this format, the teams are guided to understand who is using the system, what they are doing with it, and why they are doing it.

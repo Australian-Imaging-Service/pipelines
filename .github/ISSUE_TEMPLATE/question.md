@@ -1,5 +1,5 @@
 ---
-name: Question
+name: Ask a question
 about: Ask a question about the functionality of a pipeline
 title: "[QUESTION] "
 labels: question
