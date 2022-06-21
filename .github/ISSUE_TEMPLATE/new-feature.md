@@ -32,6 +32,8 @@ The proposition describes what we plan to develop. The benefit describes the val
 ### Acceptance Criteria
 Agree on how to determine whether the implementation of the feature is corect and complete. Acceptance criteria enables validation of the benefit hypothesis by creating alignment between product management, stakeholders, and the team that delivers it. Acceptance criteria is a useful source of stories. Ask the yourself and the team "how will we test the feature to know that it’s complete and fit for purpose?".
 
+- [ ]
+
 ### Stories
 
 - [ ]
