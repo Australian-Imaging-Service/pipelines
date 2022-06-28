@@ -1,5 +1,5 @@
 ---
-name: [INTERNAL] New Feature
+name: "[INTERNAL] New Feature"
 about: A Feature is a service that fulfills a stakeholder need. It should be part
   of an epic and sized to be completed within one "Program Increment" (PI)
 title: "[FEATURE] "
