@@ -1,6 +1,6 @@
 ---
-name: New story
-about: A Story is a short, simple descipriotn of funciotnality, usually part of a
+name: [INTERNAL] New story
+about: A Story is a short, simple description of functionality, usually part of a
   feature
 title: "[STORY] "
 labels: pipelines-stream, story
@@ -9,7 +9,9 @@ assignees: ''
 ---
 
 ### Instructions
+
 NB: This template is only for core team members to be used as part of the management of the overall project
+
 **Delete this section when creating a new Story, and complete all other sections.**
 
 Stories are short, simple descriptions of functionality. Stories provide just enough information for business and technical people to understand the intent. Through acceptance criteria and acceptance tests, stories get more specific, helping to ensure system quality. User stories deliver functionality directly to the end user. Enabler stories bring visibility to the work items needed to support exploration, architecture, infrastructure, and compliance.
@@ -31,3 +33,7 @@ Acceptance criteria is used to confirm that the story was completed correctly. C
 	Given *some context*
 	When *some action is carried out*
 	Then *a particular set of observable consequences should obtain*
+
+### Blocked by
+
+- [ ] 
