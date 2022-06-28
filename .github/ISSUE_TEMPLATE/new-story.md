@@ -1,5 +1,5 @@
 ---
-name: [INTERNAL] New story
+name: "[INTERNAL] New story"
 about: A Story is a short, simple description of functionality, usually part of a
   feature
 title: "[STORY] "
