@@ -1,5 +1,5 @@
 ---
-name: New Epic
+name: [INTERNAL] New Epic
 about: Epic is a large piece of work, requiring more than a "Program Increment" (PI)
   to complete. Elaborate epics and break them down into features that can be completed
   within a PI
@@ -10,6 +10,7 @@ assignees: ''
 ---
 
 ## Instructions
+
 NB: This template is only for core team members to be used as part of the management of the overall project
 
 **Delete this section when creating a new Epic, and complete all other sections.**
@@ -47,4 +48,4 @@ Nonfunctional requirements (NFRs) associated with the epic
 
 ### Features
 
-- [ ]
+- [ ] 
