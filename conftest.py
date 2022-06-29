@@ -57,8 +57,8 @@ BIDS_APP_PARAMETERS = {
     'fmriprep': {'json_edits': "-e func/.*bold SliceTiming[*] {value}/1000.0"}}
 
 
-bids_apps_dir = Path(__file__).parent / 'pipeline-specs' / 'mri' / 'neuro' / 'bids'
-test_bids_data_dir = Path(__file__).parent / 'tests' / 'data' / 'mri' / 'neuro' / 'bids'
+bids_apps_dir = Path(__file__).parent / 'specs' / 'mri' / 'human' / 'neuro' / 'bidsapps'
+test_bids_data_dir = Path(__file__).parent / 'tests' / 'data' / 'mri' / 'human' / 'neuro' / 'bidsapps'
 
 bids_specs = [str(p.stem) for p in bids_apps_dir.glob('*.yaml')]
 
