@@ -139,6 +139,8 @@ def upload_test_dataset_to_xnat(project_id: str, source_data_dir: Path,
         xsession = xclasses.MrSessionData(label=TEST_SESSION_LABEL,
                                           parent=xsubject)
         for scan_path in source_data_dir.iterdir():
+            if scan_path.name.startswith('.'):
+                continue
             # Create scan
             xscan = xclasses.MrScanData(id=scan_path.stem, type=scan_path.stem,
                                         parent=xsession)

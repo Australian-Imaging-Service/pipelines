@@ -45,7 +45,7 @@ def test_bids_app(bids_app_blueprint, run_prefix, xnat_connect, license_dir,
 
         with xnat_connect() as xlogin:
 
-            with open(build_dir / 'xnat_commands' / (cmd_spec['name'] + '.json')) as f:
+            with open(build_dir / cmd_spec['name'] / 'xnat_commands' / (cmd_spec['name'] + '.json')) as f:
                 xnat_command = json.load(f)
             xnat_command['name'] = xnat_command['label'] = cmd_name + run_prefix
                 
