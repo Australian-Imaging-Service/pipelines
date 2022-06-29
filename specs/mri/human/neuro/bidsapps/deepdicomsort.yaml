@@ -1,9 +1,8 @@
-pkg_name: deepdicomsort
 pkg_version: &pkg_version '0.1'
 wrapper_version: '1'
 authors:
   - mahdieh.dashtbanimoghari@sydney.edu.au
-base_image: 'ubuntu/kinetic'
+base_image: 'ubuntu:kinetic'
 info_url: https://deepdicomsort.com
 package_manager: apt
 python_packages:
