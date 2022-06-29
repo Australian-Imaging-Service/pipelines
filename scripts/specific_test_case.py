@@ -182,7 +182,5 @@ def run(in_docker, build_only):
             run_in_container_service()
 
 
-
-
 if __name__ == '__main__':
     run()
