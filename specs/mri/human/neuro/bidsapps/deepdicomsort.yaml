@@ -2,19 +2,37 @@ pkg_name: deepdicomsort
 pkg_version: &pkg_version '0.1'
 wrapper_version: '1'
 authors:
-  - thomas.close@sydney.edu.au
-base_image: !join [ 'svordt/dds:', *pkg_version ]
+  - mahdieh.dashtbanimoghari@sydney.edu.au
+base_image: 'ubuntu/kinetic'
 info_url: https://deepdicomsort.com
 package_manager: apt
-system_packages:
-python_packages: ['deepdicomsort4xnat']
+python_packages:
+  - name: dds4xnat
+    version: *pkg_version
+package_templates:
+  - name: dcm2niix
+    version: &dcm2niix_version v1.0.20201102
+  - name: fsl
+    version: &fsl_version '6.0.5.1'
 commands:
   - name: deepdicomsort
     version: 1
-    workflow: 'deepdicomsort4xnat:dds4xnat_workflow'
+    pydra_task: 'dds4xnat.workflow:dds4xnat_workflow'
     description: >-
       Automatically renames MRI DICOMs following BIDS naming convention
     inputs:
+      - name: mr_session
+        format: arcana.core.data.row:DataRow
+        description: the whole MR imaging session
     outputs:
+      - name: output_log
+        path: dds_rename_log
+        pydra_field: rename_log
+        format: common:Text
     parameters:
-    frequency: session
+    row_frequency: session
+    configuration:
+        dcm2niix_bin: !join ['/opt/dcm2niix-', *dcm2niix_version, '/bin/dcm2niix']
+        fslval_bin: !join ['/opt/fsl-', *fsl_version, '/bin/fslval']
+        model_file: /a/path/that/wont/exist
+        output_folder: /work/output-folder
