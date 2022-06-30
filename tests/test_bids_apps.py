@@ -24,18 +24,18 @@ def test_bids_app(bids_app_blueprint, run_prefix, xnat_connect, license_dir,
     else:
         build_arg = '--build'
 
-    result = cli_runner(
-        build,
-        [str(bp.spec_path),
-        'pipelines-core-test',
-        '--build_dir', str(build_dir),
-        build_arg,
-        '--use-test-config',
-        '--use-local-packages',
-        '--raise-errors',
-        '--license-dir', str(license_dir)])
+    # result = cli_runner(
+    #     build,
+    #     [str(bp.spec_path),
+    #     'pipelines-core-test',
+    #     '--build_dir', str(build_dir),
+    #     build_arg,
+    #     '--use-test-config',
+    #     '--use-local-packages',
+    #     '--raise-errors',
+    #     '--license-dir', str(license_dir)])
 
-    assert result.exit_code == 0, show_cli_trace(result)
+    # assert result.exit_code == 0, show_cli_trace(result)
     
     spec = load_yaml_spec(bp.spec_path)
     
@@ -54,7 +54,7 @@ def test_bids_app(bids_app_blueprint, run_prefix, xnat_connect, license_dir,
             inputs_json = {}
 
             for inpt in cmd_spec['inputs']:
-                inputs_json[path2xnatname(inpt['path'])] = path2varname(inpt['path'])
+                inputs_json[inpt['name']] = inpt['path']
 
             for pname, pval in bp.parameters.items():
                 inputs_json[path2xnatname(pname)] = pval
