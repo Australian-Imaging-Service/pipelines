@@ -9,17 +9,17 @@ system_packages:
 python_packages:  # Copy in local copies of pydra and pydra-dcm2niix
   - name: pydra
   - name: pydra-dcm2niix
-package_templates:
+package_templates: # neurodocker template--fs and fsl is already in smriprep image
   - name: dcm2niix
     version: v1.0.20201102
 licenses:
   - source: freesurfer.txt
-    destination: /opt/freesurfer/license.txt
+    destination: /opt/freesurfer/license.txt # where in the docker image it should be installed
 commands:
-  - name: fmriprep
+  - name: smriprep # shows up in xnat
     version: 1a1
     pydra_task: arcana.tasks.bids:bids_app
-    description: 'fMRIPrep: a functional fMRI data preprocessing pipeline'
+    description: 'SMRIPrep: a structural MRI data preprocessing pipeline'
     long_description: >-
       `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
       pipeline that is designed to provide an easily accessible, state-of-the-art
@@ -67,27 +67,22 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "T2-weighted anatomical scan"
-      - name: fMRI
-        path: func/task-rest_bold
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "functional MRI"
     outputs: &outputs
-      - name: fmriprep
+      - name: smriprep
         format: common:Directory
     parameters:
       - name: fmriprep_flags
-        pydra_field: flags
+        pydra_field: flags #look at app.py =>id, flag, json edit are the input to wf
         type: string
       - name: json_edits
         pydra_field: json_edits
         type: string
     row_frequency: session
     configuration:
-      name: fmriprep
+      name: smriprep
       inputs: *inputs
       outputs: *outputs
-      executable: /opt/conda/bin/fmriprep
+      executable: /opt/conda/bin/smriprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
 
