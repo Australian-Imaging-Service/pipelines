@@ -21,7 +21,7 @@ jobs:
       uses: srggrs/assign-one-project-github-action@1.2.1
       if: |
         contains(github.event.issue.labels.*.name, 'Iteration')
-        && github.event.issue.column_name == ''
+        && github.event.issue.column_name == 'Backlog'
       with:
         project: 'https://github.com/orgs/Australian-Imaging-Service/projects/2'
         column_name: 'Todo'
