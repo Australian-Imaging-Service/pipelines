@@ -5,7 +5,7 @@ on:
     types: [opened]
   workflow_dispatch:  # Allow manual triggering by a user with write access to this repo
 env:
-  MY_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   assign_one_project:
