@@ -5,6 +5,7 @@ about: A Story is a short, simple description of functionality, usually part of 
 title: "[STORY] "
 labels: pipelines-stream, story
 assignees: ''
+column_name: 'Backlog'
 
 ---
 
