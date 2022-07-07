@@ -71,7 +71,11 @@ commands:
       - name: smriprep
         format: common:Directory
     parameters:
+<<<<<<< HEAD
       - name: smriprep_flags
+=======
+      - name: fmriprep_flags
+>>>>>>> 9f0d44fc7dd92bf94fb0243fe862cb6ab67f2112
         pydra_field: flags #look at app.py =>id, flag, json edit are the input to wf
         type: string
       - name: json_edits
