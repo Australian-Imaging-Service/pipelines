@@ -1,7 +1,7 @@
 pkg_version: &pkg_version '0.9.1' 
 wrapper_version: '1'
 authors:
-  - mhdieh.dashtbanimoghari@sydney.edu.au
+  - mahdieh.dashtbanimoghari@sydney.edu.au
 base_image: !join [ 'nipreps/smriprep:', *pkg_version ]
 info_url: 'https://www.nipreps.org/smriprep/master/index.html'
 package_manager: apt
