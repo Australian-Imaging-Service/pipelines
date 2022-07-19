@@ -63,12 +63,12 @@ commands:
         stored_format: medimage:Dicom
         description: "T1-weighted anatomical scan"
       - name: dwi
-        path: dwi/dwi
+        path: dwi/dwi ##??dwi/dir-LR??
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "diffusion weighted scan"
       - name: bval
-        path: dwi/dwi
+        path: dwi/dwi ##?
         format:  #??
         stored_format:  #??
         description: "b-value"
