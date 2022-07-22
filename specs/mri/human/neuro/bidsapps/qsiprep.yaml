@@ -71,7 +71,6 @@ commands:
         format: medimage:NiftiGzXFslgrad
         stored_format: medimage:Dicom
         description: "diffusion weighted scan"
-
     outputs: &outputs
       - name: qsiprep
         format: common:Directory
