@@ -16,7 +16,7 @@ licenses:
   - source: freesurfer.txt
     destination: /opt/freesurfer/license.txt
 commands: 
-  - name: qsiprep
+  - name: mrtrix3_connectome
     version: 1a1 
     pydra_task: arcana.tasks.bids:bids_app
     description: 'mrtrix3_connectome: Generates subject connectomes from raw image data and perform inter-subject connection density normalisation, using tools provided in the MRtrix3 software package.'
