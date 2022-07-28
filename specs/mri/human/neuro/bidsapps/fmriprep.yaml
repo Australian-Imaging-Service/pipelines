@@ -72,22 +72,22 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "functional MRI"
-      - name: fmap_case2_echo1_mag
+      - name: fmap2_echo1_mag
         path: fmap/magnitude1
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 2: first echo magnitude"
-      - name: fmap_case2_echo1_phase
+      - name: fmap2_echo1_phase
         path: fmap/phase1
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 2: first echo phase"
-      - name: fmap_case2_echo2_mag
+      - name: fmap2_echo2_mag
         path: fmap/magnitude2
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 2: second echo magnitude"
-      - name: fmap_case2_echo2_phase
+      - name: fmap2_echo2_phase
         path: fmap/phase2
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
