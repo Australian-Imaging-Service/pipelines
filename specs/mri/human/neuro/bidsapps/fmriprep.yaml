@@ -76,22 +76,22 @@ commands:
         path: fmap/magnitude1
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: first echo magnitude"
+        description: "Field map - BIDS Case 2: magnitude of first echo"
       - name: fmap2_echo1_phase
         path: fmap/phase1
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: first echo phase"
+        description: "Field map - BIDS Case 2: phase of first echo"
       - name: fmap2_echo2_mag
         path: fmap/magnitude2
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: second echo magnitude"
+        description: "Field map - BIDS Case 2: magnitude of second echo"
       - name: fmap2_echo2_phase
         path: fmap/phase2
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: second echo phase"
+        description: "Field map - BIDS Case 2: phase of second echo"
     outputs: &outputs
       - name: fmriprep
         format: common:Directory
