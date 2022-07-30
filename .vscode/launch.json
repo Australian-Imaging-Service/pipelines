@@ -10,7 +10,22 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/scripts/specific_test_case.py",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "args": [
+                "mri/human/neuro/bidsapps/fmriprep.yaml",
+                "FTD1684",
+                "--input", "T1w", "Cor 3D T1a",
+                "--input", "T2w", "Ax T2 FLAIR FS",
+                "--input", "fMRI", "Ax fMRI.*",
+                "--input", "fmap2_echo1_mag", "Ax Field map.*4.9.*",
+                "--input", "fmap2_echo1_phase", "\"Ax Field map.*4.9.*\" converter.component=ph",
+                "--input", "fmap2_echo2_mag", "Ax Field map.*7.3.*",
+                "--input", "fmap2_echo2_phase", "\"Ax Field map.*7.3.*\" converter.component=ph",
+                "--input", "fmriprep_flags", "--use-aroma",
+                "--input", "Arcana_flags", "--loglevel debug",
+                "--build", "no",
+                "--run-directly"
+            ]
         },
         {
             "name": "Python: test build",

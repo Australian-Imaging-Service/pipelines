@@ -12,32 +12,37 @@ from arcana.core.deploy.utils import load_yaml_spec
 from arcana.test.stores.medimage.xnat import (
     install_and_launch_xnat_cs_command)
 from arcana.core.deploy.build import copy_package_into_build_dir
-from arcana.deploy.medimage.xnat import build_xnat_cs_image, dockerfile_build
+from arcana.deploy.medimage.xnat import (
+    build_xnat_cs_image, dockerfile_build, generate_xnat_cs_command)
 
 # Root package dir
 pkg_dir = Path(__file__).parent.parent
 
-# Customisable parameters of the debug run
-spec_path = pkg_dir / 'specs' / 'mri' / 'neuro' / 'bids' / 'fmriprep.yaml'
-data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / 'FTD1028'
-inputs_json = {
-    'T1w': '3d COR T1 a',
-    'T2w': 'T2 FLAIR',
-    'fMRI': '',  # 'Resting State.*',
-    'fmriprep_flags': '--use-aroma',
-    'Arcana_flags': '--loglevel debug'}
-command_index = 0
+# # Customisable parameters of the debug run
+# spec_path = pkg_dir / 'specs' / 'mri' / 'human' / 'neuro' / 'bidsapps' / 'fmriprep.yaml'
+# data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / 'FTD1684'
+# inputs_json = {
+#     'T1w': 'Cor 3D T1a',
+#     'T2w': 'Ax T2 FLAIR FS',
+#     'fMRI': 'Ax fMRI.*',
+#     'fmap2_echo1_mag': 'Ax Field map.*4.9.*',
+#     'fmap2_echo1_phase': '"Ax Field map.*4.9.*" converter.component=ph',
+#     'fmap2_echo2_mag': 'Ax Field map.*7.3.*',
+#     'fmap2_echo2_phase': '"Ax Field map.*7.3.*" converter.component=ph',
+#     'fmriprep_flags': '--use-aroma',
+#     'Arcana_flags': '--loglevel debug'}
+# command_index = 0
 
-# Relative directories
-image_tag = 'pipelines-core-specific-test/' + spec_path.stem
-license_dir = pkg_dir / 'licenses'
-build_dir = pkg_dir / 'scripts' / '.build' / 'specific-test-case'
-build_dir.mkdir(exist_ok=True, parents=True)
-run_prefix = datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
-project_id = run_prefix + data_dir.stem  # f'{run_prefix}_{spec_path.stem}_specific'
-pipelines_core_docker_dest = Path('/python-packages/pipelines-core')
-session_label = 'testsession'
-subject_label = 'testsubj'
+# # Relative directories
+# image_tag = 'pipelines-core-specific-test/' + spec_path.stem
+# license_dir = pkg_dir / 'licenses'
+# build_dir = pkg_dir / 'scripts' / '.build' / 'specific-test-case'
+# build_dir.mkdir(exist_ok=True, parents=True)
+# run_prefix = datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
+# project_id = run_prefix + data_dir.stem  # f'{run_prefix}_{spec_path.stem}_specific'
+# pipelines_core_docker_dest = Path('/python-packages/pipelines-core')
+# session_label = 'testsession'
+# subject_label = 'testsubj'
 
 
 def xnat_connect(in_docker):
@@ -50,7 +55,8 @@ def xnat_connect(in_docker):
     return xlogin
 
 
-def build_image():
+def build_image(spec_path, image_tag, build_dir, license_dir,
+                pipelines_core_docker_dest):
 
     spec = load_yaml_spec(spec_path, base_dir=spec_path)
 
@@ -77,7 +83,8 @@ def build_image():
     dockerfile_build(dockerfile, build_dir, image_tag)
 
 
-def upload_data(in_docker=False):
+def upload_data(project_id, subject_label, session_label, data_dir,
+                in_docker=False):
     """
     Creates dataset for each entry in dataset_structures
     """
@@ -111,7 +118,8 @@ def upload_data(in_docker=False):
             xscan.type = xscan.series_description
 
 
-def run_in_container_service():
+def run_pipeline_in_container_service(build_dir, spec_path, command_index,
+                                      run_prefix, project_id, inputs_json):
     spec = load_yaml_spec(spec_path)
     cmd_spec = spec['commands'][command_index]
     cmd_name = cmd_spec['name']
@@ -136,12 +144,20 @@ def run_in_container_service():
         ), f"Workflow {workflow_id} failed.\n{out_str}"
 
 
-def run_directly():
+def run_pipeline_directly(spec_path, command_index, image_tag, project_id,
+                          inputs_json, subject_label, session_label,
+                          in_docker=False):
     spec = load_yaml_spec(spec_path)
     cmd_spec = spec['commands'][command_index]
 
-    with open(Path('/xnat_commands') / (cmd_spec['name'] + '.json')) as f:
-        xnat_command = json.load(f)
+    if in_docker:
+        with open(Path('/xnat_commands') / (cmd_spec['name'] + '.json')) as f:
+            xnat_command = json.load(f)
+    else:
+        xnat_command = generate_xnat_cs_command(
+            image_tag=image_tag,
+            info_url='http://some.url',
+            **cmd_spec)
 
     cmdline = xnat_command["command-line"].split('run-arcana-pipeline')[-1]
 
@@ -164,22 +180,80 @@ def run_directly():
     assert result.exit_code == 0, show_cli_trace(result)
 
 
-@click.command(help="run the test")
-@click.option('--in_docker/--out-of-docker', type=bool, default=False,
-              help="Whether the test is being run inside or out of docker")
-@click.option('--build-only/--build-and-run', type=bool, default=False,
-              help="Whether to just build the image instead of build and running")
-def run(in_docker, build_only):
+# spec_path = pkg_dir / 'specs' / 'mri' / 'human' / 'neuro' / 'bidsapps' / 'fmriprep.yaml'
+# data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / 'FTD1684'
+# inputs_json = {
+#     'T1w': 'Cor 3D T1a',
+#     'T2w': 'Ax T2 FLAIR FS',
+#     'fMRI': 'Ax fMRI.*',
+#     'fmap2_echo1_mag': 'Ax Field map.*4.9.*',
+#     'fmap2_echo1_phase': '"Ax Field map.*4.9.*" converter.component=ph',
+#     'fmap2_echo2_mag': 'Ax Field map.*7.3.*',
+#     'fmap2_echo2_phase': '"Ax Field map.*7.3.*" converter.component=ph',
+#     'fmriprep_flags': '--use-aroma',
+#     'Arcana_flags': '--loglevel debug'}
+# command_index = 0
 
-    if not in_docker:
-        xnat4tests.launch_xnat()
-        build_image()
-    upload_data(in_docker=in_docker)
-    if not build_only:
-        if in_docker:
-            run_directly()
+
+@click.command(help="run the test")
+@click.argument('relative_spec_path', str,
+                help="Relative path to pipeline spec, from main specs dir")
+@click.argument('data_dir_name', str,
+                help=("Relative path to data directory from "
+                      "'<PKG-DIR>/tests/data/specific-cases' dir. Scan data "
+                      "must be in placed resource sub-directories under "
+                      "directories named by the scans ID (e.g. '4/DICOM', "
+                      "'5/DICOM', '7/NIFTI')"))
+@click.option('--input', nargs=2, multiple=True, metavar='<name> <value>',
+              help=("Inputs to be provided to command"))
+@click.option('--command-index', default=0, type=int,
+              help="The index of the command in the spec to run")
+@click.option('--run-directly/--run-in-cs', type=bool, default=False,
+              help=("Whether the test is being run via the XNAT container service or not. "
+                    "If 'run-in-cs', then the pipeline will be launched "
+                    "via the container service. If 'run-directly', then the "
+                    "pipeline will be run as-if it was launched by the "
+                    "container service, but by directly calling the command "
+                    "so that it can be debugged"))
+@click.option('--in-docker/--out-of-docker', type=bool, default=False,
+              help=("Whether to access XNAT from host.docker.internal because "
+                    "this script is being run inside a container"))
+@click.option('--build', type=str, default='yes', # allowed_values=['no', 'only'],
+              help="Whether to just build the image instead of build and running")
+def run(relative_spec_path, data_dir_name, input, command_index,
+        run_directly, in_docker, build):
+
+    spec_path = pkg_dir / 'specs' / relative_spec_path
+    data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / data_dir_name
+    inputs_json = dict(input)
+
+    # Relative directories
+    image_tag = 'pipelines-core-specific-test/' + spec_path.stem
+    license_dir = pkg_dir / 'licenses'
+    build_dir = pkg_dir / 'scripts' / '.build' / 'specific-test-case'
+    build_dir.mkdir(exist_ok=True, parents=True)
+    run_prefix = datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
+    project_id = run_prefix + data_dir.stem  # f'{run_prefix}_{spec_path.stem}_specific'
+    pipelines_core_docker_dest = Path('/python-packages/pipelines-core')
+    session_label = 'testsession'
+    subject_label = 'testsubj'
+
+    if not run_directly:
+        if build != 'no':
+            build_image(spec_path, image_tag, build_dir, license_dir,
+                        pipelines_core_docker_dest)
+    xnat4tests.launch_xnat()
+    upload_data(project_id, subject_label, session_label, data_dir,
+                in_docker=in_docker)
+    if build != 'only':
+        if run_directly:
+            run_pipeline_directly(
+                spec_path, command_index, image_tag, project_id,
+                inputs_json, subject_label, session_label, in_docker=in_docker)
         else:
-            run_in_container_service()
+            run_pipeline_in_container_service(
+                build_dir, spec_path, command_index, run_prefix, project_id,
+                inputs_json)
 
 
 if __name__ == '__main__':
