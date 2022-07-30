@@ -9,7 +9,7 @@
             "name": "Python: specific test case",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/scripts/specific_test_case.py",
+            "program": "${workspaceFolder}/scripts/debug_specific_case.py",
             "console": "integratedTerminal",
             "args": [
                 "mri/human/neuro/bidsapps/fmriprep.yaml",
