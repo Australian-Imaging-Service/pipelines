@@ -24,7 +24,10 @@
                 "--input", "fmriprep_flags", "--use-aroma",
                 "--input", "Arcana_flags", "--loglevel debug",
                 "--build", "no",
-                "--run-directly"
+                "--run-directly",
+                "--configuration", "dataset", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-dataset",
+                "--configuration", "app_output_dir", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-output",
+                "--configuration", "executable", "/opt/fmriprep/bin/fmriprep"
             ]
         },
         {

@@ -1,8 +1,11 @@
+from distutils.command.config import config
 from pathlib import Path
 from datetime import datetime
 import json
 import xnat
+import shutil
 import shlex
+import tempfile
 import click
 from click.testing import CliRunner
 import xnat4tests
@@ -10,39 +13,10 @@ from arcana.test.utils import show_cli_trace
 from arcana.cli.deploy import run_pipeline
 from arcana.core.deploy.utils import load_yaml_spec
 from arcana.test.stores.medimage.xnat import (
-    install_and_launch_xnat_cs_command)
+    install_and_launch_xnat_cs_command, XnatViaCS)
 from arcana.core.deploy.build import copy_package_into_build_dir
 from arcana.deploy.medimage.xnat import (
     build_xnat_cs_image, dockerfile_build, generate_xnat_cs_command)
-
-# Root package dir
-pkg_dir = Path(__file__).parent.parent
-
-# # Customisable parameters of the debug run
-# spec_path = pkg_dir / 'specs' / 'mri' / 'human' / 'neuro' / 'bidsapps' / 'fmriprep.yaml'
-# data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / 'FTD1684'
-# inputs_json = {
-#     'T1w': 'Cor 3D T1a',
-#     'T2w': 'Ax T2 FLAIR FS',
-#     'fMRI': 'Ax fMRI.*',
-#     'fmap2_echo1_mag': 'Ax Field map.*4.9.*',
-#     'fmap2_echo1_phase': '"Ax Field map.*4.9.*" converter.component=ph',
-#     'fmap2_echo2_mag': 'Ax Field map.*7.3.*',
-#     'fmap2_echo2_phase': '"Ax Field map.*7.3.*" converter.component=ph',
-#     'fmriprep_flags': '--use-aroma',
-#     'Arcana_flags': '--loglevel debug'}
-# command_index = 0
-
-# # Relative directories
-# image_tag = 'pipelines-core-specific-test/' + spec_path.stem
-# license_dir = pkg_dir / 'licenses'
-# build_dir = pkg_dir / 'scripts' / '.build' / 'specific-test-case'
-# build_dir.mkdir(exist_ok=True, parents=True)
-# run_prefix = datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
-# project_id = run_prefix + data_dir.stem  # f'{run_prefix}_{spec_path.stem}_specific'
-# pipelines_core_docker_dest = Path('/python-packages/pipelines-core')
-# session_label = 'testsession'
-# subject_label = 'testsubj'
 
 
 def xnat_connect(in_docker):
@@ -146,7 +120,7 @@ def run_pipeline_in_container_service(build_dir, spec_path, command_index,
 
 def run_pipeline_directly(spec_path, command_index, image_tag, project_id,
                           inputs_json, subject_label, session_label,
-                          in_docker=False):
+                          arcana_flags, configuration, in_docker=False):
     spec = load_yaml_spec(spec_path)
     cmd_spec = spec['commands'][command_index]
 
@@ -154,6 +128,7 @@ def run_pipeline_directly(spec_path, command_index, image_tag, project_id,
         with open(Path('/xnat_commands') / (cmd_spec['name'] + '.json')) as f:
             xnat_command = json.load(f)
     else:
+        cmd_spec['configuration'].update(configuration)
         xnat_command = generate_xnat_cs_command(
             image_tag=image_tag,
             info_url='http://some.url',
@@ -163,7 +138,7 @@ def run_pipeline_directly(spec_path, command_index, image_tag, project_id,
 
     # Do XNAT replacements
     cmdline = cmdline.replace('[PROJECT_ID]', project_id)
-    cmdline = cmdline.replace('#DATASET_NAME#', inputs_json['Dataset_config'])
+    cmdline = cmdline.replace('#ARCANA_FLAGS#', arcana_flags)
     cmdline = cmdline.replace('[SUBJECT_LABEL]', subject_label)
     cmdline = cmdline.replace('[SESSION_LABEL]', session_label)
 
@@ -171,39 +146,28 @@ def run_pipeline_directly(spec_path, command_index, image_tag, project_id,
         if k != 'Dataset_config':
             cmdline = cmdline.replace(f'[{k.upper()}_INPUT]', f"{v}")
 
+    cmd_args = shlex.split(cmdline)
+
     runner = CliRunner()
     result = runner.invoke(
         run_pipeline,
-        shlex.split(cmdline),
+        cmd_args,
         catch_exceptions=False)
 
     assert result.exit_code == 0, show_cli_trace(result)
 
 
-# spec_path = pkg_dir / 'specs' / 'mri' / 'human' / 'neuro' / 'bidsapps' / 'fmriprep.yaml'
-# data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / 'FTD1684'
-# inputs_json = {
-#     'T1w': 'Cor 3D T1a',
-#     'T2w': 'Ax T2 FLAIR FS',
-#     'fMRI': 'Ax fMRI.*',
-#     'fmap2_echo1_mag': 'Ax Field map.*4.9.*',
-#     'fmap2_echo1_phase': '"Ax Field map.*4.9.*" converter.component=ph',
-#     'fmap2_echo2_mag': 'Ax Field map.*7.3.*',
-#     'fmap2_echo2_phase': '"Ax Field map.*7.3.*" converter.component=ph',
-#     'fmriprep_flags': '--use-aroma',
-#     'Arcana_flags': '--loglevel debug'}
-# command_index = 0
+@click.command(help="""Debug a pipeline run on a specific session
+               
+RELATIVE_SPEC PATH is a path to pipeline spec, from main specs dir
 
-
-@click.command(help="run the test")
-@click.argument('relative_spec_path', str,
-                help="Relative path to pipeline spec, from main specs dir")
-@click.argument('data_dir_name', str,
-                help=("Relative path to data directory from "
-                      "'<PKG-DIR>/tests/data/specific-cases' dir. Scan data "
-                      "must be in placed resource sub-directories under "
-                      "directories named by the scans ID (e.g. '4/DICOM', "
-                      "'5/DICOM', '7/NIFTI')"))
+TEST_DATA_DIR is name of sub-directory in '<PKG-DIR>/tests/data/specific-cases'
+dir containing test scan data. The scan data must be in placed resource
+sub-directories under directories named by the scans ID (e.g. '4/DICOM', 
+'5/DICOM', '7/NIFTI'). A new session will be created in the test XNAT instance
+using this label""")
+@click.argument('relative_spec_path', type=str)
+@click.argument('test_data_dir', type=str)
 @click.option('--input', nargs=2, multiple=True, metavar='<name> <value>',
               help=("Inputs to be provided to command"))
 @click.option('--command-index', default=0, type=int,
@@ -218,13 +182,21 @@ def run_pipeline_directly(spec_path, command_index, image_tag, project_id,
 @click.option('--in-docker/--out-of-docker', type=bool, default=False,
               help=("Whether to access XNAT from host.docker.internal because "
                     "this script is being run inside a container"))
-@click.option('--build', type=str, default='yes', # allowed_values=['no', 'only'],
+@click.option('--build', default='yes', type=click.Choice(['yes', 'no', 'only']),
               help="Whether to just build the image instead of build and running")
-def run(relative_spec_path, data_dir_name, input, command_index,
-        run_directly, in_docker, build):
+@click.option('--arcana-flags', type=str, default=None,
+              help="Any flags to pass to Arcana run command")
+@click.option('--configuration', type=str, multiple=True, nargs=2, metavar='<name> <val>',
+              help=("Configuration arguments to override when running directly "
+                    "out of docker"))
+def run(relative_spec_path, test_data_dir, input, command_index,
+        run_directly, in_docker, build, configuration, arcana_flags):
+
+    # Root package dir
+    pkg_dir = Path(__file__).parent.parent
 
     spec_path = pkg_dir / 'specs' / relative_spec_path
-    data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / data_dir_name
+    data_dir = pkg_dir / 'tests' / 'data' / 'specific-cases' / test_data_dir
     inputs_json = dict(input)
 
     # Relative directories
@@ -238,6 +210,31 @@ def run(relative_spec_path, data_dir_name, input, command_index,
     session_label = 'testsession'
     subject_label = 'testsubj'
 
+    if run_directly and not in_docker:
+        output_dir = (pkg_dir / 'tests' / 'output' / 'specific-cases' /
+                      test_data_dir)
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        output_dir.mkdir(parents=True)
+        xnat_cs = XnatViaCS(
+            row_id=session_label,
+            input_mount=(xnat4tests.config.XNAT_ROOT_DIR / 'archive'
+                         / project_id / 'arc001' / session_label),
+            output_mount=output_dir / 'xnat-cs-output',
+            server=xnat4tests.config.XNAT_URI,
+            user=xnat4tests.config.XNAT_USER,
+            password=xnat4tests.config.XNAT_PASSWORD,
+            cache_dir=output_dir / 'cache-dir')
+        xnat_cs.save('xnat-cs')
+    
+    if not arcana_flags:
+        arcana_flags = "--plugin serial --dataset_name default --loglevel debug"
+        if run_directly and not in_docker:
+            work_dir = str(output_dir / 'work')
+            export_work_dir = tempfile.mkdtemp()
+            arcana_flags += f" --work /{work_dir} --export-work {export_work_dir}"
+
+
     if not run_directly:
         if build != 'no':
             build_image(spec_path, image_tag, build_dir, license_dir,
@@ -249,7 +246,8 @@ def run(relative_spec_path, data_dir_name, input, command_index,
         if run_directly:
             run_pipeline_directly(
                 spec_path, command_index, image_tag, project_id,
-                inputs_json, subject_label, session_label, in_docker=in_docker)
+                inputs_json, subject_label, session_label,
+                arcana_flags, configuration, in_docker=in_docker)
         else:
             run_pipeline_in_container_service(
                 build_dir, spec_path, command_index, run_prefix, project_id,
@@ -258,3 +256,33 @@ def run(relative_spec_path, data_dir_name, input, command_index,
 
 if __name__ == '__main__':
     run()
+
+# Example VSCode launch configuration to run the fmriprep BIDS app on the
+# 'FTD1684' session (which has to be manually placed in the gitignored directory)
+# <PKG-DIR>/tests/data/specific-cases/)
+#
+# {
+#     "name": "Python: specific test case",
+#     "type": "python",
+#     "request": "launch",
+#     "program": "${workspaceFolder}/scripts/debug_specific_case.py",
+#     "console": "integratedTerminal",
+#     "args": [
+#         "mri/human/neuro/bidsapps/fmriprep.yaml",
+#         "FTD1684",
+#         "--input", "T1w", "Cor 3D T1a",
+#         "--input", "T2w", "Ax T2 FLAIR FS",
+#         "--input", "fMRI", "Ax fMRI.*",
+#         "--input", "fmap2_echo1_mag", "Ax Field map.*4.9.*",
+#         "--input", "fmap2_echo1_phase", "\"Ax Field map.*4.9.*\" converter.component=ph",
+#         "--input", "fmap2_echo2_mag", "Ax Field map.*7.3.*",
+#         "--input", "fmap2_echo2_phase", "\"Ax Field map.*7.3.*\" converter.component=ph",
+#         "--input", "fmriprep_flags", "--use-aroma",
+#         "--input", "Arcana_flags", "--loglevel debug",
+#         "--build", "no",
+#         "--run-directly",
+#         "--configuration", "dataset", "/Users/tclose/Desktop/test-bids-dataset",
+#         "--configuration", "app_output_dir", "/Users/tclose/Desktop/test-bids-output",
+#         "--configuration", "executable", "/opt/fmriprep/bin/fmriprep"
+#     ]
+# },
