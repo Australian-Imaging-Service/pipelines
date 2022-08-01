@@ -23,8 +23,8 @@
                 "--input", "fmap2_echo2_phase", "\"Ax Field map.*7.3.*\" converter.component=ph",
                 "--input", "fmriprep_flags", "--use-aroma",
                 "--input", "Arcana_flags", "--loglevel debug",
-                "--build", "no",
-                "--run-directly",
+                // "--build", "no",
+                // "--run-directly",
                 "--configuration", "dataset", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-dataset",
                 "--configuration", "app_output_dir", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-output",
                 "--configuration", "executable", "/opt/fmriprep/bin/fmriprep"

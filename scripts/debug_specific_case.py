@@ -29,7 +29,7 @@ def xnat_connect(in_docker):
     return xlogin
 
 
-def build_image(spec_path, image_tag, build_dir, license_dir,
+def build_image(pkg_dir, spec_path, image_tag, build_dir, license_dir,
                 pipelines_core_docker_dest):
 
     spec = load_yaml_spec(spec_path, base_dir=spec_path)
@@ -148,6 +148,8 @@ def run_pipeline_directly(spec_path, command_index, image_tag, project_id,
 
     cmd_args = shlex.split(cmdline)
 
+    cmd_args.append('--raise-errors')
+
     runner = CliRunner()
     result = runner.invoke(
         run_pipeline,
@@ -237,7 +239,7 @@ def run(relative_spec_path, test_data_dir, input, command_index,
 
     if not run_directly:
         if build != 'no':
-            build_image(spec_path, image_tag, build_dir, license_dir,
+            build_image(pkg_dir, spec_path, image_tag, build_dir, license_dir,
                         pipelines_core_docker_dest)
     xnat4tests.launch_xnat()
     upload_data(project_id, subject_label, session_label, data_dir,
@@ -281,8 +283,8 @@ if __name__ == '__main__':
 #         "--input", "Arcana_flags", "--loglevel debug",
 #         "--build", "no",
 #         "--run-directly",
-#         "--configuration", "dataset", "/Users/tclose/Desktop/test-bids-dataset",
-#         "--configuration", "app_output_dir", "/Users/tclose/Desktop/test-bids-output",
+#         "--configuration", "dataset", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-dataset",
+#         "--configuration", "app_output_dir", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-output",
 #         "--configuration", "executable", "/opt/fmriprep/bin/fmriprep"
 #     ]
 # },
