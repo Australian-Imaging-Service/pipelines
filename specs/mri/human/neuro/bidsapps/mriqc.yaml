@@ -14,7 +14,7 @@ package_templates:
     version: v1.0.20201102
 commands:
   - name: mriqc
-    version: 1a1
+    version: 1
     pydra_task: arcana.tasks.bids:bids_app
     description: 'MRIQC: quality control metrics from T1w, T2W and fMRI data'
     long_description: >-

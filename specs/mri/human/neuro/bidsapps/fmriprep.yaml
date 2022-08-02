@@ -1,5 +1,5 @@
-pkg_version: &pkg_version '21.0.2'
-wrapper_version: '1.22'
+pkg_version: &pkg_version '22.0.0'
+wrapper_version: '1'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'nipreps/fmriprep:', *pkg_version ]
@@ -17,7 +17,7 @@ licenses:
     destination: /opt/freesurfer/license.txt
 commands:
   - name: fmriprep
-    version: 1a1
+    version: 1
     pydra_task: arcana.tasks.bids:bids_app
     description: 'fMRIPrep: a functional fMRI data preprocessing pipeline'
     long_description: >-
@@ -72,6 +72,26 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "functional MRI"
+      - name: fmap2_echo1_mag
+        path: fmap/magnitude1
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 2: magnitude of first echo"
+      - name: fmap2_echo1_phase
+        path: fmap/phase1
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 2: phase of first echo"
+      - name: fmap2_echo2_mag
+        path: fmap/magnitude2
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 2: magnitude of second echo"
+      - name: fmap2_echo2_phase
+        path: fmap/phase2
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 2: phase of second echo"
     outputs: &outputs
       - name: fmriprep
         format: common:Directory
@@ -90,6 +110,9 @@ commands:
       executable: /opt/conda/bin/fmriprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
+      json_edits:
+        - path: 'fmap/.*'
+          jq_expr: '.IntendedFor = "{fMRI}"'
 
 
 # Parameters (see https://fmriprep.org/en/latest/usage.html)

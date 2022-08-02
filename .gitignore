@@ -1,6 +1,7 @@
 .vscode
 /debug-build
 /tests/data
+/tests/output
 __pycache__
 *.egg-info
 .DS_Store

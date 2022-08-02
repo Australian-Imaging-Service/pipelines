@@ -8,9 +8,9 @@ weight: 10
 ## Package Info
 |Key|Value|
 |---|-----|
-|App version|21.0.2|
-|XNAT wrapper version|1.22|
-|Base image|`nipreps/fmriprep:21.0.2`|
+|App version|22.0.0|
+|XNAT wrapper version|1|
+|Base image|`nipreps/fmriprep:22.0.0`|
 |Info URL|https://fmriprep.org|
 
 ### Required licenses
@@ -51,7 +51,7 @@ Optional flags that can be provided to the `fmriprep_flags` parameter:
 |---|-----|
 |Short description|fMRIPrep: a functional fMRI data preprocessing pipeline|
 |Workflow|`arcana.tasks.bids:bids_app`|
-|Version|`1a1`|
+|Version|`1`|
 |Executable|`/opt/conda/bin/fmriprep`|
 |Operates on|Session|
 #### Inputs
@@ -60,6 +60,10 @@ Optional flags that can be provided to the `fmriprep_flags` parameter:
 |`T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|T1-weighted anatomical scan|
 |`T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|T2-weighted anatomical scan|
 |`fMRI`|`medimage:NiftiGzX`|`medimage:Dicom`|functional MRI|
+|`fmap2_echo1_mag`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: magnitude of first echo|
+|`fmap2_echo1_phase`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: phase of first echo|
+|`fmap2_echo2_mag`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: magnitude of second echo|
+|`fmap2_echo2_phase`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: phase of second echo|
 
 #### Outputs
 |Name|Output format|Stored format|Description|

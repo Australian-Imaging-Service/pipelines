@@ -21,7 +21,7 @@ MRIQC extracts no-reference IQMs (image quality metrics) from structural (T1w an
 |---|-----|
 |Short description|MRIQC: quality control metrics from T1w, T2W and fMRI data|
 |Workflow|`arcana.tasks.bids:bids_app`|
-|Version|`1a1`|
+|Version|`1`|
 |Executable|`/usr/local/miniconda/bin/mriqc`|
 |Operates on|Session|
 #### Inputs
