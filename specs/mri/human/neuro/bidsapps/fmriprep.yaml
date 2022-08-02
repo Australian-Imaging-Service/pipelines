@@ -1,5 +1,5 @@
-pkg_version: &pkg_version '21.0.2'
-wrapper_version: '1.23'
+pkg_version: &pkg_version '22.0.0'
+wrapper_version: '1'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'nipreps/fmriprep:', *pkg_version ]
@@ -17,7 +17,7 @@ licenses:
     destination: /opt/freesurfer/license.txt
 commands:
   - name: fmriprep
-    version: 1a1
+    version: 1
     pydra_task: arcana.tasks.bids:bids_app
     description: 'fMRIPrep: a functional fMRI data preprocessing pipeline'
     long_description: >-
