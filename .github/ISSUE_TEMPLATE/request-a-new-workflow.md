@@ -2,7 +2,7 @@
 name: Request a new workflow
 about: Request a new workflow to be implemented by AIS/NIF Team
 title: "[REQUEST WORKFLOW]"
-labels: pipelines-stream, workflow-request
+labels: pipelines, workflow-request
 assignees: ''
 
 ---
