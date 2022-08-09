@@ -20,10 +20,11 @@ Stories are short, simple descriptions of functionality. Stories provide just en
 For further information, please refer to: [SAFe Story](https://www.scaledagileframework.com/story/)
 
 
-### Links
+### Metadata
 
 Epic:
 Feature:
+Feature Release:
 
 ### Description
 
