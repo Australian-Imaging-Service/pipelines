@@ -17,7 +17,7 @@ commands:
     version: 1
     pydra_task: arcana.tasks.bids:bids_app
     description: 'MRIQC: quality control metrics from T1w, T2W and fMRI data'
-    long_description: >-
+    long_description: |
       MRIQC extracts no-reference IQMs (image quality metrics) from
       structural (T1w and T2w) and functional MRI (magnetic resonance
       imaging) data.
