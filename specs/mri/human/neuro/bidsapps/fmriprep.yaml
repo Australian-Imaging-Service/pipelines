@@ -20,7 +20,7 @@ commands:
     version: 1
     pydra_task: arcana.tasks.bids:bids_app
     description: 'fMRIPrep: a functional fMRI data preprocessing pipeline'
-    long_description: >-
+    long_description: |
       `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
       pipeline that is designed to provide an easily accessible, state-of-the-art
       interface that is robust to variations in scan acquisition protocols and that
@@ -32,6 +32,7 @@ commands:
       theory measures, surface or volume-based statistics, etc.
 
       Optional flags that can be provided to the `fmriprep_flags` parameter:
+      ```
         [--anat-only] [--boilerplate_only] [--md-only-boilerplate]
         [--error-on-aroma-warnings] [-v]
         [--ignore {fieldmaps,slicetiming,sbref,t2w,flair} [{fieldmaps,slicetiming,sbref,t2w,flair} ...]]
@@ -56,6 +57,7 @@ commands:
         [--stop-on-first-crash] [--notrack]
         [--debug {compcor,fieldmaps,all} [{compcor,fieldmaps,all} ...]]
         [--sloppy]
+      ```  
     inputs: &inputs
       - name: T1w
         path: anat/T1w
@@ -72,6 +74,21 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "functional MRI"
+      - name: fmap1_phasediff
+        path: fmap/phasediff
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
+      - name: fmap1_shorterEcho_mag
+        path: fmap/magnitude1
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 1: magnitude of shorter echo"
+      - name: fmap1_longerEcho_mag #magnitude2 is optional
+        path: fmap/magnitude2
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 1: magnitude of longer echo"
       - name: fmap2_echo1_mag
         path: fmap/magnitude1
         format: medimage:NiftiGzX
@@ -92,6 +109,21 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 2: phase of second echo"
+        - name: fmap3_fmap
+        path: fmap/fieldmap
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 3: directly reconstructed field map"
+      - name: fmap3_mag
+        path: fmap/magnitude
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
+        - name: fmap4_epi
+        path: fmap/epi
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field"
     outputs: &outputs
       - name: fmriprep
         format: common:Directory
