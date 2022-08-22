@@ -1,12 +1,12 @@
-pkg_version: &pkg_version '0.9.1'
-wrapper_version: '1'
+pkg_version: &pkg_version "0.9.1"
+wrapper_version: "1"
 authors:
-  - mhdieh.dashtbanimoghari@sydney.edu.au
-base_image: !join [ 'nipreps/smriprep:', *pkg_version ]
-info_url: 'https://www.nipreps.org/smriprep/master/index.html'
+  - mahdieh.dashtbanimoghari@sydney.edu.au
+base_image: !join ["nipreps/smriprep:", *pkg_version]
+info_url: "https://www.nipreps.org/smriprep/master/index.html"
 package_manager: apt
 system_packages:
-python_packages:  # Copy in local copies of pydra and pydra-dcm2niix
+python_packages: # Copy in local copies of pydra and pydra-dcm2niix
   - name: pydra
   - name: pydra-dcm2niix
 package_templates: # neurodocker template--fs and fsl is already in smriprep image
@@ -19,7 +19,7 @@ commands:
   - name: smriprep # shows up in xnat
     version: 1a1
     pydra_task: arcana.tasks.bids:bids_app
-    description: 'SMRIPrep: a structural MRI data preprocessing pipeline'
+    description: "SMRIPrep: a structural MRI data preprocessing pipeline"
     long_description: >-
       `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
       pipeline that is designed to provide an easily accessible, state-of-the-art
@@ -71,7 +71,7 @@ commands:
       - name: smriprep
         format: common:Directory
     parameters:
-      - name: fmriprep_flags
+      - name: smriprep_flags
         pydra_field: flags #look at app.py =>id, flag, json edit are the input to wf
         type: string
       - name: json_edits
@@ -85,8 +85,6 @@ commands:
       executable: /opt/conda/bin/smriprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
-
-
 # Parameters (see https://fmriprep.org/en/latest/usage.html)
 # ----------------------------------------------------------
 

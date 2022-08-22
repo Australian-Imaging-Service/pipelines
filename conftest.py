@@ -5,6 +5,7 @@ import tempfile
 import typing as ty
 from datetime import datetime
 from dataclasses import dataclass
+from arcana.core.utils import varname2path
 import pytest
 from click.testing import CliRunner
 import xnat4tests
@@ -54,7 +55,7 @@ class BidsAppTestBlueprint():
 
 
 BIDS_APP_PARAMETERS = {
-    'fmriprep': {'json_edits': "-e func/.*bold SliceTiming[*] {value}/1000.0"}}
+    'fmriprep': {'json_edits': "func/.*bold \".SliceTiming[] /= 1000.0\""}}
 
 
 bids_apps_dir = Path(__file__).parent / 'specs' / 'mri' / 'human' / 'neuro' / 'bidsapps'
@@ -138,12 +139,16 @@ def upload_test_dataset_to_xnat(project_id: str, source_data_dir: Path,
                                         parent=xproject)
         xsession = xclasses.MrSessionData(label=TEST_SESSION_LABEL,
                                           parent=xsubject)
-        for scan_path in source_data_dir.iterdir():
+        for test_scan_dir in source_data_dir.iterdir():
+            if test_scan_dir.name.startswith('.'):
+                continue
+            scan_id = test_scan_dir.stem
+            scan_path = varname2path(scan_id)
             # Create scan
-            xscan = xclasses.MrScanData(id=scan_path.stem, type=scan_path.stem,
+            xscan = xclasses.MrScanData(id=scan_id, type=scan_path,
                                         parent=xsession)
             
-            for resource_path in scan_path.iterdir():
+            for resource_path in test_scan_dir.iterdir():
 
                 # Create the resource
                 xresource = xscan.create_resource(resource_path.stem)

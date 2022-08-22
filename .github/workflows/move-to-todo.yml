@@ -1,0 +1,21 @@
+name: Move to Todo column when added to an iteration
+
+on:
+  issues:
+    types: [milestoned]
+env:
+  MY_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  assign_one_project:
+    runs-on: ubuntu-latest
+    name: Assign to AIS project
+    steps:
+    - name: Assign issues `Iteration` in label to "Todo"
+      uses: srggrs/assign-one-project-github-action@1.2.1
+      if: |
+        contains(github.event.issue.milestone[title], 'Iteration')
+        && github.event.issue.column_name == 'Backlog'
+      with:
+        project: 'https://github.com/Australian-Imaging-Service/projects/2'
+        column_name: 'Todo'
