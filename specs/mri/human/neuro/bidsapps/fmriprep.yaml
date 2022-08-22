@@ -109,7 +109,7 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 2: phase of second echo"
-        - name: fmap3_fmap
+      - name: fmap3_fmap
         path: fmap/fieldmap
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
@@ -119,7 +119,7 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
-        - name: fmap4_epi
+      - name: fmap4_epi
         path: fmap/epi
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
