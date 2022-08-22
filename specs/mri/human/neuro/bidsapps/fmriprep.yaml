@@ -119,7 +119,7 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
-        - name: fmap4_epi
+      - name: fmap4_epi
         path: fmap/epi
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
