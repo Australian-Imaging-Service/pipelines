@@ -9,7 +9,7 @@ weight: 10
 |Key|Value|
 |---|-----|
 |App version|0.16.1|
-|XNAT wrapper version|1.18|
+|XNAT wrapper version|1.19|
 |Base image|`poldracklab/mriqc:0.16.1`|
 |Info URL|https://mriqc.readthedocs.io|
 

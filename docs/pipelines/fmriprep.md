@@ -9,7 +9,7 @@ weight: 10
 |Key|Value|
 |---|-----|
 |App version|22.0.0|
-|XNAT wrapper version|1|
+|XNAT wrapper version|1.1|
 |Base image|`nipreps/fmriprep:22.0.0`|
 |Info URL|https://fmriprep.org|
 
