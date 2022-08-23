@@ -2,18 +2,17 @@ name: Auto Assign to AIS Project
 
 on:
   issues:
-    types: [opened]
-  workflow_dispatch:  # Allow manual triggering by a user with write access to this repo
-env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    types:
+      - opened
+      - reopened
 
 jobs:
-  assign_one_project:
+  add-to-project:
+    name: Add issue to project
     runs-on: ubuntu-latest
-    name: Assign to AIS project
     steps:
-    - name: Assign issues to the AIS project backlog
-      uses: srggrs/assign-one-project-github-action@1.2.1
-      with:
-        project: 'https://github.com/orgs/Australian-Imaging-Service/projects/2'
-        column_name: 'Backlog'
+      - name: Assign issues to the AIS project
+        uses: actions/add-to-project@v0.3.0
+        with:
+          project-url: https://github.com/orgs/Australian-Imaging-Service/projects/2
+          github-token: ${{ secrets.AIS_ADMIN_KEY }}

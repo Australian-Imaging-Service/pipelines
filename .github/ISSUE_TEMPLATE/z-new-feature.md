@@ -3,7 +3,7 @@ name: "[INTERNAL] New Feature"
 about: A Feature is a service that fulfills a stakeholder need. It should be part
   of an epic and sized to be completed within one "Program Increment" (PI)
 title: "[FEATURE] "
-labels: feature, pipelines-stream
+labels: feature, pipelines
 assignees: ''
 
 ---
@@ -18,6 +18,10 @@ Features are defined using a Features and Benefits (FAB) Matrix:
  - Benefit hypothesis: The proposed measurable benefit to the end-user or business
 
 For further information, plese refer to: [SAFe Feature](https://www.scaledagileframework.com/features-and-capabilities/)
+
+### Metadata
+
+Epic:
 
 ### Description
 A short phrase giving a name and context, may just be an extension of the title

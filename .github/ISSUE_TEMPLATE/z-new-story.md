@@ -3,7 +3,7 @@ name: "[INTERNAL] New story"
 about: A Story is a short, simple description of functionality, usually part of a
   feature
 title: "[STORY] "
-labels: pipelines-stream, story
+labels: pipelines, story
 assignees: ''
 column_name: 'Backlog'
 
@@ -18,6 +18,13 @@ NB: This template is only for core team members to be used as part of the manage
 Stories are short, simple descriptions of functionality. Stories provide just enough information for business and technical people to understand the intent. Through acceptance criteria and acceptance tests, stories get more specific, helping to ensure system quality. User stories deliver functionality directly to the end user. Enabler stories bring visibility to the work items needed to support exploration, architecture, infrastructure, and compliance.
 
 For further information, please refer to: [SAFe Story](https://www.scaledagileframework.com/story/)
+
+
+### Metadata
+
+Epic:
+Feature:
+Feature Release:
 
 ### Description
 
