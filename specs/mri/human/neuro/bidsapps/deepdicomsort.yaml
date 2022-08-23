@@ -1,0 +1,37 @@
+pkg_version: &pkg_version '0.1'
+wrapper_version: '1'
+authors:
+  - thomas.close@sydney.edu.au
+  - mahdieh.dashtbani@sydney.edu.au
+base_image: !join [ 'svordt/dds:', *pkg_version ]
+info_url: https://deepdicomsort.com
+package_manager: apt
+system_packages:
+python_packages:
+  - name: 'deepdicomsort4xnat'
+    version: '0.1'
+package_templates:
+  - name: dcm2niix
+    version: v1.0.20201102
+  - name: fsl
+    version: '6.02'
+commands:
+  - name: deepdicomsort
+    version: 1
+    pydra_task: 'deepdicomsort4xnat:dds4xnat_workflow'
+    description: >-
+      Automatically renames MRI DICOMs following BIDS naming convention
+    inputs:
+      - name: mr_session
+        format: arcana.core.data.row:DataRow
+        description: MR session to be sorted
+    outputs:  # No outputs are created, scan types are updated in the MR sessions directly
+    parameters:
+      # - name: image_size_x
+      #   type: int
+      #   default: 256
+      #   description: dimensions of the resampled image used for predictions
+    row_frequency: session
+    configuration:
+      - dcm2niix_bin: /usr/local/dcm2niix
+      - fslval_bin: /usr/local/fslval
