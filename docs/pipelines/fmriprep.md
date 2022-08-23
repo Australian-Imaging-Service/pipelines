@@ -72,10 +72,16 @@ Optional flags that can be provided to the `fmriprep_flags` parameter:
 |`T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|T1-weighted anatomical scan|
 |`T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|T2-weighted anatomical scan|
 |`fMRI`|`medimage:NiftiGzX`|`medimage:Dicom`|functional MRI|
+|`fmap1_phasediff`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times|
+|`fmap1_shorterEcho_mag`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 1: magnitude of shorter echo|
+|`fmap1_longerEcho_mag`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 1: magnitude of longer echo|
 |`fmap2_echo1_mag`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: magnitude of first echo|
 |`fmap2_echo1_phase`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: phase of first echo|
 |`fmap2_echo2_mag`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: magnitude of second echo|
 |`fmap2_echo2_phase`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: phase of second echo|
+|`fmap3_fmap`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 3: directly reconstructed field map|
+|`fmap3_mag`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 3: magnitude image used for anatomical reference|
+|`fmap4_epi`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field|
 
 #### Outputs
 |Name|Output format|Stored format|Description|
