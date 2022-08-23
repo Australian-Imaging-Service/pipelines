@@ -1,26 +1,26 @@
-pkg_version: &pkg_version '22.0.0'
-wrapper_version: '1'
+pkg_version: &pkg_version "0.9.1"
+wrapper_version: "1"
 authors:
-  - thomas.close@sydney.edu.au
-base_image: !join [ 'nipreps/fmriprep:', *pkg_version ]
-info_url: 'https://fmriprep.org'
+  - mahdieh.dashtbanimoghari@sydney.edu.au
+base_image: !join ["nipreps/smriprep:", *pkg_version]
+info_url: "https://www.nipreps.org/smriprep/master/index.html"
 package_manager: apt
 system_packages:
-python_packages:  # Copy in local copies of pydra and pydra-dcm2niix
+python_packages: # Copy in local copies of pydra and pydra-dcm2niix
   - name: pydra
   - name: pydra-dcm2niix
-package_templates:
+package_templates: # neurodocker template--fs and fsl is already in smriprep image
   - name: dcm2niix
     version: v1.0.20201102
 licenses:
   - source: freesurfer.txt
-    destination: /opt/freesurfer/license.txt
+    destination: /opt/freesurfer/license.txt # where in the docker image it should be installed
 commands:
-  - name: fmriprep
-    version: 1
+  - name: smriprep # shows up in xnat
+    version: 1a1
     pydra_task: arcana.tasks.bids:bids_app
-    description: 'fMRIPrep: a functional fMRI data preprocessing pipeline'
-    long_description: |
+    description: "SMRIPrep: a structural MRI data preprocessing pipeline"
+    long_description: >-
       `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
       pipeline that is designed to provide an easily accessible, state-of-the-art
       interface that is robust to variations in scan acquisition protocols and that
@@ -32,7 +32,6 @@ commands:
       theory measures, surface or volume-based statistics, etc.
 
       Optional flags that can be provided to the `fmriprep_flags` parameter:
-      ```
         [--anat-only] [--boilerplate_only] [--md-only-boilerplate]
         [--error-on-aroma-warnings] [-v]
         [--ignore {fieldmaps,slicetiming,sbref,t2w,flair} [{fieldmaps,slicetiming,sbref,t2w,flair} ...]]
@@ -57,7 +56,6 @@ commands:
         [--stop-on-first-crash] [--notrack]
         [--debug {compcor,fieldmaps,all} [{compcor,fieldmaps,all} ...]]
         [--sloppy]
-      ```  
     inputs: &inputs
       - name: T1w
         path: anat/T1w
@@ -69,84 +67,24 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "T2-weighted anatomical scan"
-      - name: fMRI
-        path: func/task-rest_bold
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "functional MRI"
-      - name: fmap1_phasediff
-        path: fmap/phasediff
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
-      - name: fmap1_shorterEcho_mag
-        path: fmap/magnitude1
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 1: magnitude of shorter echo"
-      - name: fmap1_longerEcho_mag #magnitude2 is optional
-        path: fmap/magnitude2
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 1: magnitude of longer echo"
-      - name: fmap2_echo1_mag
-        path: fmap/magnitude1
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: magnitude of first echo"
-      - name: fmap2_echo1_phase
-        path: fmap/phase1
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: phase of first echo"
-      - name: fmap2_echo2_mag
-        path: fmap/magnitude2
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: magnitude of second echo"
-      - name: fmap2_echo2_phase
-        path: fmap/phase2
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: phase of second echo"
-      - name: fmap3_fmap
-        path: fmap/fieldmap
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 3: directly reconstructed field map"
-      - name: fmap3_mag
-        path: fmap/magnitude
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
-      - name: fmap4_epi
-        path: fmap/epi
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field"
     outputs: &outputs
-      - name: fmriprep
+      - name: smriprep
         format: common:Directory
     parameters:
-      - name: fmriprep_flags
-        pydra_field: flags
+      - name: smriprep_flags
+        pydra_field: flags #look at app.py =>id, flag, json edit are the input to wf
         type: string
       - name: json_edits
         pydra_field: json_edits
         type: string
     row_frequency: session
     configuration:
-      name: fmriprep
+      name: smriprep
       inputs: *inputs
       outputs: *outputs
-      executable: /opt/conda/bin/fmriprep
+      executable: /opt/conda/bin/smriprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
-      json_edits:
-        - path: 'fmap/.*'
-          jq_expr: '.IntendedFor = "{fMRI}"'
-
-
 # Parameters (see https://fmriprep.org/en/latest/usage.html)
 # ----------------------------------------------------------
 
