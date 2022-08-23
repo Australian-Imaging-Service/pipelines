@@ -1,5 +1,5 @@
 pkg_version: &pkg_version '22.0.0'
-wrapper_version: '1'
+wrapper_version: '1.1'
 authors:
   - thomas.close@sydney.edu.au
 base_image: !join [ 'nipreps/fmriprep:', *pkg_version ]
