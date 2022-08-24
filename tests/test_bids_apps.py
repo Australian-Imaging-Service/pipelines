@@ -73,6 +73,13 @@ def test_bids_app(
             for pname, pval in bp.parameters.items():
                 inputs_json[path2xnatname(pname)] = pval
 
+            inputs_json['Arcana_flags'] = (
+                "--plugin serial "
+                "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
+                "--dataset_name default "
+                "--loglevel info "
+            )
+
             workflow_id, status, out_str = install_and_launch_xnat_cs_command(
                 command_json=xnat_command,
                 project_id=bp.project_id,
