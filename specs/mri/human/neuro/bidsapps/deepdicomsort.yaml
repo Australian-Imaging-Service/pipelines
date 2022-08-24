@@ -33,5 +33,5 @@ commands:
       #   description: dimensions of the resampled image used for predictions
     row_frequency: session
     configuration:
-      - dcm2niix_bin: /usr/local/dcm2niix
-      - fslval_bin: /usr/local/fslval
+      dcm2niix_bin: /usr/local/dcm2niix
+      fslval_bin: /usr/local/fslval

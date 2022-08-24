@@ -21,7 +21,7 @@ commands:
     pydra_task: arcana.tasks.bids:bids_app
     description: "SMRIPrep: a structural MRI data preprocessing pipeline"
     long_description: |
-      Structural preprocessing workflow...
+      "SMRIPrep: a structural MRI data preprocessing pipeline..."
     inputs: &inputs
       - name: T1w
         path: anat/T1w
