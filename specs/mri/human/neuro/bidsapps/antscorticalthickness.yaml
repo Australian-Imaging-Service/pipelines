@@ -1,0 +1,53 @@
+pkg_version: &pkg_version "2.2.0"
+wrapper_version: "1"
+authors:
+  - mahdieh.dashtbanimoghari@sydney.edu.au
+base_image: !join ["bids/antscorticalthickness:", *pkg_version]
+info_url: "https://github.com/ANTsX/ANTs"
+package_manager: apt
+system_packages:
+python_packages: # Copy in local copies of pydra and pydra-dcm2niix
+  - name: pydra
+  - name: pydra-dcm2niix
+package_templates: # neurodocker template--fs and fsl is already in smriprep image
+  - name: dcm2niix
+    version: v1.0.20201102
+licenses:
+  - source: freesurfer.txt
+    destination: /opt/freesurfer/license.txt # where in the docker image it should be installed
+commands:
+  - name: antscorticalthickness # shows up in xnat
+    version: 1a1
+    pydra_task: arcana.tasks.bids:bids_app
+    description: "antscorticalthickness: Cortical thickness estimation using ANTs package"
+    long_description: |
+      "antscorticalthickness: The app finds all T1w files for each subject and runs antsCorticalThickness.sh (if there is only one T1w file per subject) or antsLongitudinalCorticalThickness.sh (if there are more than one T1w files)"
+    inputs: &inputs
+      - name: T1w
+        path: anat/T1w
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "T1-weighted anatomical scan"
+      - name: T2w
+        path: anat/T2w
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "T2-weighted anatomical scan"
+    outputs: &outputs
+      - name: antscorticalthickness
+        format: common:Directory
+    parameters:
+      - name: antscorticalthickness_flags
+        pydra_field: flags #look at app.py =>id, flag, json edit are the input to wf
+        type: string
+      - name: json_edits
+        pydra_field: json_edits
+        type: string
+    row_frequency: session
+    configuration:
+      name: antscorticalthickness
+      inputs: *inputs
+      outputs: *outputs
+      executable: /opt/conda/bin/antscorticalthickness
+      dataset: /work/bids-dataset
+      app_output_dir: /work/bids-app-output
