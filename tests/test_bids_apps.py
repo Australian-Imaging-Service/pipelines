@@ -1,6 +1,6 @@
 import json
 from arcana.cli.deploy import build
-from arcana.core.utils import varname2path
+from arcana.core.utils import path2varname
 from arcana.test.utils import show_cli_trace
 from arcana.deploy.medimage.xnat import path2xnatname
 from arcana.core.deploy.utils import load_yaml_spec
@@ -67,8 +67,10 @@ def test_bids_app(
             inputs_json = {}
 
             for inpt in cmd_spec["inputs"]:
-                if (bids_app_blueprint.test_data / varname2path(inpt)).exists():
+                if (bids_app_blueprint.test_data / path2varname(inpt["path"])).exists():
                     inputs_json[inpt["name"]] = inpt["path"]
+                else:
+                    inputs_json[inpt["name"]] = ""
 
             for pname, pval in bp.parameters.items():
                 inputs_json[path2xnatname(pname)] = pval
