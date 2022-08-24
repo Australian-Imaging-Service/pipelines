@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from distutils.command.config import config
 from pathlib import Path
 from datetime import datetime
