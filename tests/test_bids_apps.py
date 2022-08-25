@@ -69,6 +69,8 @@ def test_bids_app(
             for inpt in cmd_spec["inputs"]:
                 if (bids_app_blueprint.test_data / varname2path(inpt)).exists():
                     inputs_json[inpt["name"]] = inpt["path"]
+                else:
+                    inputs_json[inpt["name"]] = ''
 
             for pname, pval in bp.parameters.items():
                 inputs_json[path2xnatname(pname)] = pval
