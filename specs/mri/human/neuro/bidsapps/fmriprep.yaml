@@ -142,6 +142,7 @@ commands:
       executable: /opt/conda/bin/fmriprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
+      app_work_dir: /work/nipype-work
       json_edits:
         - path: 'fmap/.*'
           jq_expr: '.IntendedFor = "{fMRI}"'
