@@ -7,7 +7,7 @@ from arcana.core.deploy.utils import load_yaml_spec
 from arcana.test.stores.medimage.xnat import install_and_launch_xnat_cs_command
 
 
-SKIP_BUILD = False
+SKIP_BUILD = True
 
 
 def test_bids_app(
