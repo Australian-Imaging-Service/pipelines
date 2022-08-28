@@ -4,7 +4,6 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
             "name": "Python: specific test case",
             "type": "python",
@@ -14,20 +13,42 @@
             "args": [
                 "mri/human/neuro/bidsapps/fmriprep.yaml",
                 "FTD1684",
-                "--input", "T1w", "Cor 3D T1a",
-                "--input", "T2w", "Ax T2 FLAIR FS",
-                "--input", "fMRI", "Ax fMRI.*",
-                "--input", "fmap2_echo1_mag", "Ax Field map.*4.9.*",
-                "--input", "fmap2_echo1_phase", "\"Ax Field map.*4.9.*\" converter.component=ph",
-                "--input", "fmap2_echo2_mag", "Ax Field map.*7.3.*",
-                "--input", "fmap2_echo2_phase", "\"Ax Field map.*7.3.*\" converter.component=ph",
-                "--input", "fmriprep_flags", "--use-aroma",
-                "--input", "Arcana_flags", "--loglevel debug",
-                // "--build", "no",
-                // "--run-directly",
-                "--configuration", "dataset", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-dataset",
-                "--configuration", "app_output_dir", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-output",
-                "--configuration", "executable", "/opt/fmriprep/bin/fmriprep"
+                "--input",
+                "T1w",
+                "Cor 3D T1a",
+                "--input",
+                "T2w",
+                "Ax T2 FLAIR FS",
+                "--input",
+                "fMRI",
+                "Ax fMRI.*",
+                "--input",
+                "fmap2_echo1_mag",
+                "Ax Field map.*4.9.*",
+                "--input",
+                "fmap2_echo1_phase",
+                "\"Ax Field map.*4.9.*\" converter.component=ph",
+                "--input",
+                "fmap2_echo2_mag",
+                "Ax Field map.*7.3.*",
+                "--input",
+                "fmap2_echo2_phase",
+                "\"Ax Field map.*7.3.*\" converter.component=ph",
+                "--input",
+                "fmriprep_flags",
+                "--use-aroma",
+                "--input",
+                "Arcana_flags",
+                "--loglevel debug",
+                "--configuration",
+                "dataset",
+                "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-dataset",
+                "--configuration",
+                "app_output_dir",
+                "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-output",
+                "--configuration",
+                "executable",
+                "/opt/fmriprep/bin/fmriprep"
             ]
         },
         {
@@ -59,46 +80,63 @@
             "args": [
                 "--build-only"
             ]
-        },        
+        },
         {
             "name": "Docker: specific test case",
             "type": "docker",
             "request": "launch",
             "preLaunchTask": "docker-run: debug",
             "python": {
-              "pathMappings": [
-                {
-                  "localRoot": "${workspaceFolder}",
-                  "remoteRoot": "/python-packages/pipelines-core"
-                },
-                {
-                    "localRoot": "${userHome}/git/workflows/arcana",
-                    "remoteRoot": "/python-packages/arcana"
-                },
-                {
-                    "localRoot": "${userHome}/git/workflows/pydra",
-                    "remoteRoot": "/python-packages/pydra"
-                },
-                {
-                    "localRoot": "${userHome}/git/workflows/pydra-dcm2niix",
-                    "remoteRoot": "/python-packages/pydra-dcm2niix"
-                },
-              ],
-              "args": [
-                "--in_docker"
-              ]
-            },
+                "pathMappings": [
+                    {
+                        "localRoot": "${workspaceFolder}",
+                        "remoteRoot": "/python-packages/pipelines-core"
+                    },
+                    {
+                        "localRoot": "${userHome}/git/workflows/arcana",
+                        "remoteRoot": "/python-packages/arcana"
+                    },
+                    {
+                        "localRoot": "${userHome}/git/workflows/pydra",
+                        "remoteRoot": "/python-packages/pydra"
+                    },
+                    {
+                        "localRoot": "${userHome}/git/workflows/pydra-dcm2niix",
+                        "remoteRoot": "/python-packages/pydra-dcm2niix"
+                    }
+                ],
+                "args": [
+                    "--in_docker"
+                ]
+            }
         },
         {
             "name": "Test Config",
             "type": "python",
             "request": "launch",
-            "purpose": ["debug-test"],
+            "purpose": [
+                "debug-test"
+            ],
             "justMyCode": false,
             "console": "internalConsole",
             "env": {
                 "_PYTEST_RAISE": "1"
-            },
+            }
         },
+        {
+            "name": "Docker: Python - General",
+            "type": "docker",
+            "request": "launch",
+            "preLaunchTask": "docker-run: debug",
+            "python": {
+                "pathMappings": [
+                    {
+                        "localRoot": "${workspaceFolder}",
+                        "remoteRoot": "/app"
+                    }
+                ],
+                "projectType": "general"
+            }
+        }
     ]
 }
