@@ -63,7 +63,7 @@ commands:
         description: "T1-weighted anatomical scan"
       - name: dwi_LR
         path: dwi/dir-LR_dwi 
-        format: medimage:NiftiGzXFslgrad
+        format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "diffusion weighted scan"
       - name: dwi_RL
