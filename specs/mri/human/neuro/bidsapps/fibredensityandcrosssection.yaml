@@ -1,0 +1,79 @@
+pkg_version: &pkg_version 'v0.0.1' #pkg_version should be same as the image tag on docker hub
+wrapper_version: '1'
+authors:
+  - mahdieh.dashtbanimoghari@sydney.edu.au
+base_image: !join [ 'bids/fibredensityandcrosssection:', *pkg_version ]
+info_url: 'https://github.com/bids-apps/FibreDensityAndCrosssection'
+package_manager: apt
+system_packages:
+python_packages:  # Copy in local copies of pydra and pydra-dcm2niix
+  - name: pydra
+  - name: pydra-dcm2niix
+package_templates:
+  - name: dcm2niix
+    version: v1.0.20201102
+licenses:
+  - source: freesurfer.txt
+    destination: /opt/freesurfer/license.txt
+commands: 
+  - name: fibredensityandcrosssection
+    version: 1a1 
+    pydra_task: arcana.tasks.bids:bids_app
+    description: 'fibredensityandcrosssection: enables group analysis of diffusion MRI data by performing a Fixel-Based Analysis (FBA) of Fibre Density, Fibre Cross-section and a combined measure (Fibre Density & Cross-section).'
+    long_description: >-
+      'fibredensityandcrosssection: enables group analysis of diffusion MRI data by performing a Fixel-Based Analysis (FBA) of Fibre Density, Fibre Cross-section and a combined measure (Fibre Density & Cross-section).'
+    inputs: &inputs
+      - name: T1w
+        path: anat/T1w
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "T1-weighted anatomical scan"
+      - name: dwi_LR
+        path: dwi/dir-LR_dwi 
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
+      - name: dwi_RL
+        path: dwi/dir-RL_dwi 
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
+      - name: dwi_AP
+        path: dwi/dir-AP_dwi 
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
+      - name: dwi_PA
+        path: dwi/dir-PA_dwi 
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
+      - name: dwi_SI
+        path: dwi/dir-SI_dwi 
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
+      - name: dwi_IS
+        path: dwi/dir-IS_dwi 
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
+    outputs: &outputs
+      - name: fibredensityandcrosssection
+        format: common:Directory
+    parameters:
+      - name: fibredensityandcrosssection_flags
+        pydra_field: flags
+        type: string
+      - name: json_edits
+        pydra_field: json_edits
+        type: string
+    row_frequency: session
+    configuration:
+      name: fibredensityandcrosssection
+      inputs: *inputs
+      outputs: *outputs
+      executable: /opt/conda/bin/fibredensityandcrosssection
+      dataset: /work/bids-dataset
+      app_output_dir: /work/bids-app-output
+      app_work_dir: /work/nipype-work  # We need to give a work directory outside of the pydra node as otherwise the file paths exceed Freesurfer's file-path char buffers
