@@ -1,4 +1,4 @@
-pkg_version: &pkg_version "v2.2.0-1"
+pkg_version: &pkg_version "v2.2.0-1" #pkg_version should be same as image tag in the docker hub
 wrapper_version: "1"
 authors:
   - mahdieh.dashtbanimoghari@sydney.edu.au
