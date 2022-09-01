@@ -16,7 +16,7 @@ from arcana.test.stores.medimage.xnat import (
     install_and_launch_xnat_cs_command,
     XnatViaCS,
 )
-from arcana.core.deploy.build import copy_package_into_build_dir
+from arcana.core.deploy.build import copy_sdist_into_build_dir
 from arcana.deploy.medimage.xnat import (
     build_xnat_cs_image,
     dockerfile_build,
@@ -58,7 +58,7 @@ def build_image(
         **spec,
     )
 
-    pkg_build_path = copy_package_into_build_dir("pipelines-core", pkg_dir, build_dir)
+    pkg_build_path = copy_sdist_into_build_dir("pipelines-core", pkg_dir, build_dir)
     dockerfile.copy(
         source=[str(pkg_build_path.relative_to(build_dir))],
         destination=str(pipelines_core_docker_dest),
