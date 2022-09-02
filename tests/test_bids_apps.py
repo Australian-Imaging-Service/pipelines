@@ -79,7 +79,7 @@ def test_bids_app(
                 "--plugin serial "
                 "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
                 "--dataset_name default "
-                "--loglevel info "
+                "--loglevel debug "
             )
 
             workflow_id, status, out_str = install_and_launch_xnat_cs_command(

@@ -28,8 +28,8 @@ def xnat_connect(in_docker):
     if in_docker:
         xlogin = xnat.connect(
             server="http://host.docker.internal:8080",
-            user=xnat4tests.config.XNAT_USER,
-            password=xnat4tests.config.XNAT_PASSWORD,
+            user=xnat4tests.config["xnat_user"],
+            password=xnat4tests.config["xnat_password"],
         )
     else:
         xlogin = xnat4tests.connect()
@@ -278,16 +278,16 @@ def run(
         xnat_cs = XnatViaCS(
             row_id=session_label,
             input_mount=(
-                xnat4tests.config.XNAT_ROOT_DIR
+                xnat4tests.config["xnat_root_dir"]
                 / "archive"
                 / project_id
                 / "arc001"
                 / session_label
             ),
             output_mount=output_dir / "xnat-cs-output",
-            server=xnat4tests.config.XNAT_URI,
-            user=xnat4tests.config.XNAT_USER,
-            password=xnat4tests.config.XNAT_PASSWORD,
+            server=xnat4tests.config["xnat_uri"],
+            user=xnat4tests.config["xnat_user"],
+            password=xnat4tests.config["xnat_password"],
             cache_dir=output_dir / "cache-dir",
         )
         xnat_cs.save("xnat-cs")
