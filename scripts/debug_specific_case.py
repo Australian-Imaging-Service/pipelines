@@ -58,7 +58,7 @@ def build_image(
         **spec,
     )
 
-    pkg_build_path = copy_sdist_into_build_dir("pipelines-core", pkg_dir, build_dir)
+    pkg_build_path = copy_sdist_into_build_dir(pkg_dir, build_dir)
     dockerfile.copy(
         source=[str(pkg_build_path.relative_to(build_dir))],
         destination=str(pipelines_core_docker_dest),
