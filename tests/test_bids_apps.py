@@ -77,7 +77,7 @@ def test_bids_app(
 
             inputs_json['Arcana_flags'] = (
                 "--plugin serial "
-                "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
+                "--work /work "  # NB: work dir should be moved inside container (i.e. not in externally mounted '/work' directory) in production due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
                 "--dataset_name default "
                 "--loglevel info "
             )
