@@ -15,6 +15,9 @@ package_templates:
 licenses:
   - source: freesurfer.txt
     destination: /opt/freesurfer/license.txt
+    description: >
+      `fMRIPRep` uses FreeSurfer tools, which require a license to run.<br>
+      See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
 commands:
   - name: fmriprep
     version: 1
@@ -57,7 +60,9 @@ commands:
         [--stop-on-first-crash] [--notrack]
         [--debug {compcor,fieldmaps,all} [{compcor,fieldmaps,all} ...]]
         [--sloppy]
-      ```  
+      ```
+    known_issues:
+      url: https://github.com/nipreps/fmriprep/issues
     inputs: &inputs
       - name: T1w
         path: anat/T1w
@@ -131,9 +136,11 @@ commands:
       - name: fmriprep_flags
         pydra_field: flags
         type: string
+        description: ""
       - name: json_edits
         pydra_field: json_edits
         type: string
+        description: ""
     row_frequency: session
     configuration:
       name: fmriprep
