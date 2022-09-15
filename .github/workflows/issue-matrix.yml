@@ -9,7 +9,8 @@ jobs:
         issuetype: [EPIC]
         listtype: [Features]
     runs-on: ubuntu-latest
-    if: startsWith(github.event.issue.title, format('[#{0}]', matrix.issuetype))
+    # if: startsWith(github.event.issue.title, format('[#{0}]', matrix.issuetype))
+    if: contains(github.event.issue.title, jobs.initalise-issue.strategy.matrix.issuetype)
     steps:
       - name: Find list
         uses: peter-evans/find-comment@v2
