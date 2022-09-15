@@ -24,6 +24,15 @@ jobs:
     with:
       issuetype: Epic
       listtype: Features
+  populate-stories:
+    strategy:
+        matrix:
+          issuetype: [Epic, Feature]
+    if: startsWith(github.event.issue.title, '[STORIES]')
+    uses: ./.github/workflows/populate-issue.yml
+    with:
+      issuetype: ${{ matrix.issuetype }}
+      listtype: Stories
 
 
 
