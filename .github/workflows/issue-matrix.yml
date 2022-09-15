@@ -8,23 +8,28 @@ jobs:
       matrix:
         issuetype: [EPIC]
         listtype: [Features]
-    runs-on: ubuntu-latest
+    uses: .github/workflows/initalise-issue.yml@main
+    with:
+      issuetype: ${{ matrix.issuetype }}
+      listtype: ${{ matrix.listtype }}
+
+    # runs-on: ubuntu-latest
     # if: startsWith(github.event.issue.title, format('[#{0}]', matrix.issuetype))
-    if: contains(github.event.issue.title, jobs.initalise-issue.strategy.matrix.issuetype)
-    steps:
-      - name: Find list
-        uses: peter-evans/find-comment@v2
-        id: find-list
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          body-includes: format('### {0}', matrix.listtype)
-      - name: Create list
-        if: steps.find-list.outputs.comment-id == ''
-        uses: peter-evans/create-or-update-comment@v2
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          body: |
-            ### ${{ matrix.listtype }}
+    # if: contains(github.event.issue.title, jobs.initalise-issue.strategy.matrix.issuetype)
+    # steps:
+    #   - name: Find list
+    #     uses: peter-evans/find-comment@v2
+    #     id: find-list
+    #     with:
+    #       issue-number: ${{ github.event.issue.number }}
+    #       body-includes: format('### {0}', matrix.listtype)
+    #   - name: Create list
+    #     if: steps.find-list.outputs.comment-id == ''
+    #     uses: peter-evans/create-or-update-comment@v2
+    #     with:
+    #       issue-number: ${{ github.event.issue.number }}
+    #       body: |
+    #         ### ${{ matrix.listtype }}
 
   # EPIC:
   #   if: startsWith(github.event.issue.title, '[EPIC]')

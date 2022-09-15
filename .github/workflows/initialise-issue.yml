@@ -1,0 +1,27 @@
+name: "Initalise Issue"
+on:
+  workflow_call:
+    inputs:
+      issuetype:
+        required: true
+        type: string
+      listtype:
+        required: true
+        type: string
+jobs:
+  initialise-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find list
+        uses: peter-evans/find-comment@v2
+        id: find-list
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body-includes: format('### {0}', inputs.listtype)
+      - name: Create list
+        if: steps.find-list.outputs.comment-id == ''
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ### ${{ inputs.listtype }}
