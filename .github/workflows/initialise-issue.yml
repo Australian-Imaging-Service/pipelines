@@ -10,6 +10,7 @@ on:
         type: string
 jobs:
   initialise-issue:
+    if: contains(github.event.issue.title, input.issuetype)
     runs-on: ubuntu-latest
     steps:
       - name: Find list
