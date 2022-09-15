@@ -1,7 +1,7 @@
 name: "Issue matrix"
 on:
   issues:
-    types: [opened, reopened, closed]
+    types: [opened, reopened, closed, edited]
 jobs:
   initalise-epic:
     strategy:
@@ -28,7 +28,7 @@ jobs:
     strategy:
         matrix:
           issuetype: [Epic, Feature]
-    if: startsWith(github.event.issue.title, '[STORIES]')
+    if: startsWith(github.event.issue.title, '[STORY]')
     uses: ./.github/workflows/populate-issue.yml
     with:
       issuetype: ${{ matrix.issuetype }}
