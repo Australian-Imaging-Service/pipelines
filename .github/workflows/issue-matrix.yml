@@ -8,7 +8,7 @@ jobs:
       matrix:
         issuetype: [EPIC]
         listtype: [Features]
-    uses: ./.github/workflows/initalise-issue.yml
+    uses: ./.github/workflows/initialise-issue.yml
     with:
       issuetype: ${{ matrix.issuetype }}
       listtype: ${{ matrix.listtype }}
