@@ -1,0 +1,38 @@
+name: "Populate Issue"
+on:
+  workflow_call:
+    inputs:
+      issuetype:
+        required: true
+        type: string
+      listtype:
+        required: true
+        type: string
+jobs:
+  populate-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: find issue number
+        uses: actions-ecosystem/action-regex-match@v2
+        id: find-issue-number
+        with:
+          text: ${{ github.event.issue.body }}
+          regex: '${{ inputs.issuetype }}: #(.*)'
+      - name: find list
+        uses: peter-evans/find-comment@v2
+        id: find-list
+        with:
+          issue-number: ${{ steps.find-issue-number.outputs.group1 }}
+          body-includes: format('### {0}', inputs.listtype)
+      - name: create comment
+        if: steps.find-list.outputs.comment-id == ''
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ steps.find-issue-number.outputs.group1 }}
+          body: format('### {0}\n - \#{1}', inputs.listtype, github.event.issue.number)
+      - name: update list
+        if: steps.find-list.outputs.comment-id != '' && !contains(steps.find-list.outputs.comment-body, format('#{0}', github.event.issue.number))
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          comment-id: ${{ steps.find-list.outputs.comment-id }}
+          body: format(' - \#{0}',  github.event.issue.number)

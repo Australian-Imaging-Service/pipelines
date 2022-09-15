@@ -10,17 +10,22 @@ jobs:
     if: startsWith(github.event.issue.title, '[EPIC]')
     uses: ./.github/workflows/initialise-issue.yml
     with:
-      issuetype: EPIC
+      issuetype: Epic
       listtype: ${{ matrix.listtype }}
   initalise-feature:
-    strategy:
-        matrix:
-          listtype: [Stories]
     if: startsWith(github.event.issue.title, '[FEATURE]')
     uses: ./.github/workflows/initialise-issue.yml
     with:
-      issuetype: FEATURE
-      listtype: ${{ matrix.listtype }}
+      issuetype: Feature
+      listtype: Stories
+  populate-features:
+    if: startsWith(github.event.issue.title, '[FEATURE]')
+    uses: ./.github/workflows/populate-issue.yml
+    with:
+      issuetype: Epic
+      listtype: Features
+
+
 
     # runs-on: ubuntu-latest
     # if: startsWith(github.event.issue.title, format('[#{0}]', matrix.issuetype))
