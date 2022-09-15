@@ -16,7 +16,7 @@ jobs:
     strategy:
         matrix:
           listtype: [Stories]
-    if: startsWith(github.event.issue.title, '[F  EATURE]')
+    if: startsWith(github.event.issue.title, '[FEATURE]')
     uses: ./.github/workflows/initialise-issue.yml
     with:
       issuetype: FEATURE
