@@ -8,16 +8,25 @@ jobs:
   initalise-epic-or-feature:
     if: startsWith(github.event.issue.title, '[EPIC]') || startsWith(github.event.issue.title, '[FEATURE]')
     uses: ./.github/workflows/create-initial-lists.yml
-  # add-labels:
-  #   if: ${{ always() }}
-  #   needs: [initalise-epic, initalise-feature]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions-ecosystem/action-add-labels@v1
-  #       with:
-  #         labels: |
-  #           pipelines
-  #           ${{ inputs.issuetype }}
+  add-labels:
+    name: Add labels to issue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label epic
+        if: startsWith(github.event.issue.title, '[EPIC]')
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "pipelines, epic"
+      - name: Label feature
+        if: startsWith(github.event.issue.title, '[FEATURE]')
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "pipelines, feature"
+      - name: Label story
+        if: startsWith(github.event.issue.title, '[STORY]')
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "pipelines, story"
   add-to-project:
     name: Add issue to project
     runs-on: ubuntu-latest
