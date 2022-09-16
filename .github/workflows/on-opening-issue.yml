@@ -1,4 +1,4 @@
-name: "On Opening"
+name: "On Opening Issue"
 on:
   issues:
     types: [opened, reopened]
