@@ -1,10 +1,6 @@
 name: "Create Initial Lists"
 on:
   workflow_call:
-    inputs:
-      issuetype:
-        required: true
-        type: string
 jobs:
   add-lists:
     runs-on: ubuntu-latest
