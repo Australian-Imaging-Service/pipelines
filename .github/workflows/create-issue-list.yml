@@ -1,4 +1,4 @@
-name: "Initalise Issue"
+name: "Create Issue List"
 on:
   workflow_call:
     inputs:
@@ -9,7 +9,7 @@ on:
         required: true
         type: string
 jobs:
-  initialise-issue:
+  add-issue-list:
     runs-on: ubuntu-latest
     steps:
       - name: Find list
