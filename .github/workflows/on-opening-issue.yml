@@ -30,7 +30,7 @@ jobs:
   add-to-project:
     env:
       AIS_PROJECT_URL: ${{ secrets.AIS_PROJECT_URL }}
-    if: ${{ env.AIS_PROJECT_URL }} != null
+    if: "${{ env.AIS_PROJECT_URL != '' }}"
     name: Add issue to project
     runs-on: ubuntu-latest
     steps:
