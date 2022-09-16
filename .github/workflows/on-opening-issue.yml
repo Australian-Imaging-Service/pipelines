@@ -5,16 +5,9 @@ on:
 env:
   AIS_PROJECT_URL: ${{ secrets.AIS_PROJECT_URL }}
 jobs:
-  initalise-epic:
-    if: startsWith(github.event.issue.title, '[EPIC]')
+  initalise-epic-or-feature:
+    if: startsWith(github.event.issue.title, '[EPIC]') || startsWith(github.event.issue.title, '[FEATURE]')
     uses: ./.github/workflows/create-initial-lists.yml
-    with:
-      issuetype: Epic
-  initalise-feature:
-    if: startsWith(github.event.issue.title, '[FEATURE]')
-    uses: ./.github/workflows/create-initial-lists.yml
-    with:
-      issuetype: Feature
   # add-labels:
   #   if: ${{ always() }}
   #   needs: [initalise-epic, initalise-feature]
