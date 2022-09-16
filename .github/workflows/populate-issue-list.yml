@@ -25,7 +25,7 @@ jobs:
         with:
           issue-number: ${{ steps.find-issue-number.outputs.group1 }}
           body-includes: ${{ format('### {0}', inputs.listtype) }}
-      - name: Create comment
+      - name: Create list
         if: steps.find-issue-number.outputs.group1 != '' && steps.find-list.outputs.comment-id == ''
         uses: peter-evans/create-or-update-comment@v2
         with:
