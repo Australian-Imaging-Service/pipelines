@@ -1,0 +1,38 @@
+name: "Create Initial Lists"
+on:
+  workflow_call:
+    inputs:
+      issuetype:
+        required: true
+        type: string
+jobs:
+  add-lists:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find Features list
+        if: inputs.issuetype == "Epic"
+        uses: peter-evans/find-comment@v2
+        id: find-features-list
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body-includes: format('### {0}', Features)
+      - name: Create Features list
+        if: inputs.issuetype == "Epic" && steps.find-features-list.outputs.comment-id == ''
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ### Features
+      - name: Find Stories list
+        uses: peter-evans/find-comment@v2
+        id: find-stories-list
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body-includes: format('### {0}', Stories)
+      - name: Create Stories list
+        if: steps.find-stories-list.outputs.comment-id == ''
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ### Stories

@@ -6,29 +6,25 @@ env:
   AIS_PROJECT_URL: ${{ secrets.AIS_PROJECT_URL }}
 jobs:
   initalise-epic:
-    strategy:
-        matrix:
-          listtype: [Features, Stories]
     if: startsWith(github.event.issue.title, '[EPIC]')
     uses: ./.github/workflows/create-issue-list.yml
     with:
       issuetype: Epic
-      listtype: ${{ matrix.listtype }}
   initalise-feature:
     if: startsWith(github.event.issue.title, '[FEATURE]')
     uses: ./.github/workflows/create-issue-list.yml
     with:
       issuetype: Feature
-      listtype: Stories
-  initalise-story:
-    if: startsWith(github.event.issue.title, '[STORY]')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions-ecosystem/action-add-labels@v1
-        with:
-          labels: |
-            pipelines
-            story
+  # add-labels:
+  #   if: ${{ always() }}
+  #   needs: [initalise-epic, initalise-feature]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions-ecosystem/action-add-labels@v1
+  #       with:
+  #         labels: |
+  #           pipelines
+  #           ${{ inputs.issuetype }}
   add-to-project:
     name: Add issue to project
     runs-on: ubuntu-latest
