@@ -18,6 +18,13 @@ jobs:
     with:
       issuetype: Feature
       listtype: Stories
+  initalise-story:
+    if: startsWith(github.event.issue.title, '[STORY]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: story
   # add-to-project:
   #   name: Add issue to project
   #   runs-on: ubuntu-latest

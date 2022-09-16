@@ -25,3 +25,6 @@ jobs:
           issue-number: ${{ github.event.issue.number }}
           body: |
             ### ${{ inputs.listtype }}
+      - uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: ${{ inputs.issuetype }}
