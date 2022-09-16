@@ -19,19 +19,20 @@ jobs:
           text: ${{ github.event.issue.body }}
           regex: '${{ inputs.issuetype }}: #(.*)'
       - name: Find list
+        if: steps.find-issue-number.outputs.comment-id != ''
         uses: peter-evans/find-comment@v2
         id: find-list
         with:
           issue-number: ${{ steps.find-issue-number.outputs.group1 }}
           body-includes: ${{ format('### {0}', inputs.listtype) }}
       - name: Create comment
-        if: steps.find-list.outputs.comment-id == ''
+        if: steps.find-issue-number.outputs.comment-id != '' && steps.find-list.outputs.comment-id == ''
         uses: peter-evans/create-or-update-comment@v2
         with:
           issue-number: ${{ steps.find-issue-number.outputs.group1 }}
           body: ${{ format('### {0}\n - \#{1}', inputs.listtype, github.event.issue.number) }}
       - name: Update list
-        if: steps.find-list.outputs.comment-id != '' && !contains(steps.find-list.outputs.comment-body, format('#{0}', github.event.issue.number))
+        if: steps.find-issue-number.outputs.comment-id != '' && steps.find-list.outputs.comment-id != '' && !contains(steps.find-list.outputs.comment-body, format('#{0}', github.event.issue.number))
         uses: peter-evans/create-or-update-comment@v2
         with:
           comment-id: ${{ steps.find-list.outputs.comment-id }}
