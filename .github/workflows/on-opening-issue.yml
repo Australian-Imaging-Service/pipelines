@@ -27,12 +27,13 @@ jobs:
           labels: |
             pipelines
             story
-  # add-to-project:
-  #   name: Add issue to project
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Assign issues to the AIS project
-  #       uses: actions/add-to-project@v0.3.0
-  #       with:
-  #         project-url: https://github.com/orgs/Australian-Imaging-Service/projects/2
-  #         github-token: ${{ secrets.AIS_ADMIN_KEY }}
+  add-to-project:
+    if: ${{ secrets.AIS_PROJECT_URL }} != null && ${{ secrets.AIS_ADMIN_KEY }} != null
+    name: Add issue to project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign issues to the AIS project
+        uses: actions/add-to-project@v0.3.0
+        with:
+          project-url: ${{ secrets.AIS_PROJECT_URL }}
+          github-token: ${{ secrets.AIS_ADMIN_KEY }}
