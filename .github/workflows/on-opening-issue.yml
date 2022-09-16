@@ -7,12 +7,12 @@ env:
 jobs:
   initalise-epic:
     if: startsWith(github.event.issue.title, '[EPIC]')
-    uses: ./.github/workflows/create-issue-list.yml
+    uses: ./.github/workflows/create-initial-lists.yml
     with:
       issuetype: Epic
   initalise-feature:
     if: startsWith(github.event.issue.title, '[FEATURE]')
-    uses: ./.github/workflows/create-issue-list.yml
+    uses: ./.github/workflows/create-initial-lists.yml
     with:
       issuetype: Feature
   # add-labels:
