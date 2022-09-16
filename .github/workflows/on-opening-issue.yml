@@ -2,6 +2,8 @@ name: "On Opening Issue"
 on:
   issues:
     types: [opened, reopened]
+env:
+  AIS_PROJECT_URL: ${{ secrets.AIS_PROJECT_URL }}
 jobs:
   initalise-epic:
     strategy:
@@ -28,9 +30,7 @@ jobs:
             pipelines
             story
   add-to-project:
-    env:
-      AIS_PROJECT_URL: ${{ secrets.AIS_PROJECT_URL }}
-    if: "${{ env.AIS_PROJECT_URL != '' }}"
+    if: env.AIS_PROJECT_URL != ''
     name: Add issue to project
     runs-on: ubuntu-latest
     steps:
