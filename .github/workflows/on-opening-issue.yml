@@ -9,6 +9,7 @@ jobs:
     if: startsWith(github.event.issue.title, '[EPIC]') || startsWith(github.event.issue.title, '[FEATURE]')
     uses: ./.github/workflows/create-initial-lists.yml
   add-labels:
+    needs: initalise-epic-or-feature
     name: Add labels to issue
     runs-on: ubuntu-latest
     steps:
