@@ -27,4 +27,6 @@ jobs:
             ### ${{ inputs.listtype }}
       - uses: actions-ecosystem/action-add-labels@v1
         with:
-          labels: ${{ inputs.issuetype }}
+          labels: |
+            pipelines
+            ${{ inputs.issuetype }}

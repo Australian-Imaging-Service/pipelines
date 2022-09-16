@@ -24,7 +24,9 @@ jobs:
     steps:
       - uses: actions-ecosystem/action-add-labels@v1
         with:
-          labels: story
+          labels: |
+            pipelines
+            story
   # add-to-project:
   #   name: Add issue to project
   #   runs-on: ubuntu-latest
