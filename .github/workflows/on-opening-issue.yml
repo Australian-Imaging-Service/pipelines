@@ -28,7 +28,9 @@ jobs:
             pipelines
             story
   add-to-project:
-    if: ${{ secrets.AIS_PROJECT_URL }} != null && ${{ secrets.AIS_ADMIN_KEY }} != null
+    env:
+      AIS_PROJECT_URL: ${{ secrets.AIS_PROJECT_URL }}
+    if: ${{ env.AIS_PROJECT_URL }} != null
     name: Add issue to project
     runs-on: ubuntu-latest
     steps:
