@@ -30,11 +30,11 @@ jobs:
             pipelines
             story
   add-to-project:
-    if: env.AIS_PROJECT_URL != ''
     name: Add issue to project
     runs-on: ubuntu-latest
     steps:
       - name: Assign issues to the AIS project
+        if: env.AIS_PROJECT_URL != ''
         uses: actions/add-to-project@v0.3.0
         with:
           project-url: ${{ secrets.AIS_PROJECT_URL }}
