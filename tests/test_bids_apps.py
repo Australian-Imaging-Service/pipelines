@@ -67,13 +67,13 @@ def test_bids_app(
             inputs_json = {}
 
             for inpt in cmd_spec["inputs"]:
-                if (bids_app_blueprint.test_data / path2varname(inpt["path"])).exists():
+                if (bids_app_blueprint.test_data / inpt["name"]).exists():
                     inputs_json[inpt["name"]] = inpt["path"]
                 else:
                     inputs_json[inpt["name"]] = ""
 
             for pname, pval in bp.parameters.items():
-                inputs_json[path2xnatname(pname)] = pval
+                inputs_json[pname] = pval
 
             inputs_json['Arcana_flags'] = (
                 "--plugin serial "
