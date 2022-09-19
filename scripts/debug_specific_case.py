@@ -2,6 +2,7 @@
 from pathlib import Path
 from datetime import datetime
 import json
+import re
 import xnat
 import shutil
 import shlex
@@ -158,9 +159,19 @@ def run_pipeline_directly(
     cmdline = cmdline.replace("[SUBJECT_LABEL]", subject_label)
     cmdline = cmdline.replace("[SESSION_LABEL]", session_label)
 
-    for k, v in inputs_json.items():
-        if k != "Dataset_config":
-            cmdline = cmdline.replace(f"[{k.upper()}_INPUT]", f"{v}")
+    for inpt in cmd_spec["inputs"]:
+        inpt_name = inpt["name"]
+        cmdline = cmdline.replace(
+            f"[{inpt_name.upper()}_INPUT]", f"{inputs_json.get(inpt_name, '')}"
+        )
+
+    for param in cmd_spec["parameters"]:
+        param_name = param["name"]
+        cmdline = cmdline.replace(
+            f"[{param['pydra_field'].upper()}_PARAM]", f"{inputs_json.get(param_name, '')}"
+        )
+
+    assert not re.findall(r'\[(\w+)_(?:INPUT|PARAM)\]', cmdline)
 
     cmd_args = shlex.split(cmdline)
 
