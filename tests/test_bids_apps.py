@@ -1,8 +1,6 @@
 import json
 from arcana.cli.deploy import build
-from arcana.core.utils import path2varname
 from arcana.test.utils import show_cli_trace
-from arcana.deploy.medimage.xnat import path2xnatname
 from arcana.core.deploy.utils import load_yaml_spec
 from arcana.test.stores.medimage.xnat import install_and_launch_xnat_cs_command
 
@@ -68,7 +66,7 @@ def test_bids_app(
 
             for inpt in cmd_spec["inputs"]:
                 if (bids_app_blueprint.test_data / inpt["name"]).exists():
-                    inputs_json[inpt["name"]] = inpt["path"]
+                    inputs_json[inpt["name"]] = inpt["name"]
                 else:
                     inputs_json[inpt["name"]] = ""
 
