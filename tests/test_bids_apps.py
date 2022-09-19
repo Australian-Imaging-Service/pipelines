@@ -66,7 +66,16 @@ def test_bids_app(
 
             for inpt in cmd_spec["inputs"]:
                 if (bids_app_blueprint.test_data / inpt["name"]).exists():
-                    inputs_json[inpt["name"]] = inpt["name"]
+                    converter_args_path = (
+                        bids_app_blueprint.test_data / inpt["name"] / "converter.json"
+                    )
+                    converter_args = ""
+                    if converter_args_path.exists():
+                        with open(converter_args_path) as f:
+                            dct = json.load(f)
+                        for name, val in dct.items():
+                            converter_args += f" converter.{name}={val}"
+                    inputs_json[inpt["name"]] = inpt["name"] + converter_args
                 else:
                     inputs_json[inpt["name"]] = ""
 
