@@ -32,32 +32,32 @@ commands:
         path: dwi/dir-LR_dwi 
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: "diffusion weighted scan"
+        description: "diffusion weighted scan with left-to-right phase encoding"
       - name: dwi_RL
         path: dwi/dir-RL_dwi 
         format: medimage:NiftiGzXFslgrad
         stored_format: medimage:Dicom
-        description: "diffusion weighted scan"
+        description: "diffusion weighted scan with right-to-left phase encoding"
       - name: dwi_AP
         path: dwi/dir-AP_dwi 
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: "diffusion weighted scan"
+        description: "diffusion weighted scan with anterior-to-posterior phase encoding"
       - name: dwi_PA
         path: dwi/dir-PA_dwi 
         format: medimage:NiftiGzXFslgrad
         stored_format: medimage:Dicom
-        description: "diffusion weighted scan"
+        description: "diffusion weighted scan with posterior-to-anterior phase encoding"
       - name: dwi_SI
         path: dwi/dir-SI_dwi 
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
-        description: "diffusion weighted scan"
+        description: "diffusion weighted scan with superior-to-inferior phase encoding"
       - name: dwi_IS
         path: dwi/dir-IS_dwi 
         format: medimage:NiftiGzXFslgrad
         stored_format: medimage:Dicom
-        description: "diffusion weighted scan"        
+        description: "diffusion weighted scan with inferior-to-superior phase encoding"        
     outputs: &outputs
       - name: qsiprep
         format: common:Directory
