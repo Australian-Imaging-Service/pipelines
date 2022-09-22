@@ -142,7 +142,7 @@ commands:
       app_work_dir: /work/nipype-work
       json_edits:
         - path: 'fmap/.*'
-          jq_expr: '.IntendedFor = "{fMRI}"'
+          jq_expr: '.IntendedFor = "{bold}"'
 
 
 # Parameters (see https://fmriprep.org/en/latest/usage.html)
