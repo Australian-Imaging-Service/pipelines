@@ -79,52 +79,42 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "functional MRI"
-      - name: fmap1_phasediff
+      - name: fmap_magnitude1
+        path: fmap/magnitude1
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 1 & 2: magnitude of first echo"
+      - name: fmap_magnitude2
+        path: fmap/magnitude2
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 1 & 2: magnitude of second echo"
+      - name: fmap_magnitude
+        path: fmap/magnitude
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 3: magnitude image used for anatomical reference" 
+      - name: fmap_phasediff
         path: fmap/phasediff
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
-      - name: fmap1_magnitude1
-        path: fmap/magnitude1
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 1: magnitude of first echo"
-      - name: fmap1_magnitude2 #magnitude2 is optional
-        path: fmap/magnitude2
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 1: magnitude of second echo"
-      - name: fmap2_magnitude1
-        path: fmap/magnitude1
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: magnitude of first echo"
-      - name: fmap2_magnitude2
-        path: fmap/magnitude2
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: magnitude of second echo"
-      - name: fmap2_phase1
+      - name: fmap_phase1
         path: fmap/phase1
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 2: phase of first echo"
-      - name: fmap2_phase2
+      - name: fmap_phase2
         path: fmap/phase2
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 2: phase of second echo"
-      - name: fmap3_fieldmap
+      - name: fmap_fieldmap
         path: fmap/fieldmap
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 3: directly reconstructed field map"
-      - name: fmap3_magnitude
-        path: fmap/magnitude
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
-      - name: fmap4_epi
+      - name: fmap_epi
         path: fmap/epi
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
