@@ -15,9 +15,9 @@ package_templates:
 licenses:
   - source: freesurfer.txt
     destination: /opt/freesurfer/license.txt
-commands:
+commands: 
   - name: qsiprep
-    version: 1a1
+    version: 1a1 
     pydra_task: arcana.tasks.bids:bids_app
     description: 'qsiprep: an integrative platform for preprocessing and reconstructing diffusion MRI data'
     long_description: >-
@@ -30,7 +30,6 @@ commands:
       skullstripping etc.) providing outputs that can be easily submitted to a variety
       of group level analyses, including task-based or resting-state fMRI, graph
       theory measures, surface or volume-based statistics, etc.
-
       Optional flags that can be provided to the `fmriprep_flags` parameter:
         [--anat-only] [--boilerplate_only] [--md-only-boilerplate]
         [--error-on-aroma-warnings] [-v]
@@ -62,21 +61,16 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "T1-weighted anatomical scan"
-      - name: dwi
-        path: dwi/dwi ##??dwi/dir-LR??
-        format: medimage:NiftiGzX
+      - name: dwi_LR
+        path: dwi/dir-LR_dwi 
+        format: medimage:NiftiGzXFslgrad
         stored_format: medimage:Dicom
         description: "diffusion weighted scan"
-      - name: bval
-        path: dwi/dwi ##?
-        format: NiftiGzXFslgrad #??
-        stored_format:  #??
-        description: "b-value"
-      - name: bvec
-        path: dwi/dwi
-        format: NiftiGzXFslgrad #??
-        stored_format:  #??
-        description: "b-vector"
+      - name: dwi_RL
+        path: dwi/dir-RL_dwi 
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
     outputs: &outputs
       - name: qsiprep
         format: common:Directory
