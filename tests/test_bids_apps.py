@@ -28,7 +28,7 @@ def test_bids_app(
         [
             str(bp.spec_path),
             "pipelines-core-test",
-            "--build_dir",
+            "--build-dir",
             str(build_dir),
             build_arg,
             "--use-test-config",
@@ -85,7 +85,7 @@ def test_bids_app(
             inputs_json['Arcana_flags'] = (
                 "--plugin serial "
                 "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
-                "--dataset_name default "
+                "--dataset-name default "
                 "--loglevel debug "
             )
 

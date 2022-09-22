@@ -304,7 +304,7 @@ def run(
         xnat_cs.save("xnat-cs")
 
     if not arcana_flags:
-        arcana_flags = "--plugin serial --dataset_name default --loglevel debug"
+        arcana_flags = "--plugin serial --dataset-name default --loglevel debug"
         if run_directly and not in_docker:
             work_dir = str(output_dir / "work")
             export_work_dir = tempfile.mkdtemp()
