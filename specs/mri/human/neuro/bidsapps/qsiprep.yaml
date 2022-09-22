@@ -63,7 +63,7 @@ commands:
         description: "T1-weighted anatomical scan"
       - name: dwi_LR
         path: dwi/dir-LR_dwi 
-        format: medimage:NiftiGzXFslgrad
+        format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "diffusion weighted scan"
       - name: dwi_RL
@@ -81,12 +81,15 @@ commands:
       - name: json_edits
         pydra_field: json_edits
         type: string
+      # - name: output_resolution # (2.5) The isotropic voxel size in mm the data will be resampled to after preprocessing. If set to a lower value than the original voxel size, your data will be upsampled using BSpline interpolation.
+      #   pydra_field: output-resolution
+      #   type: 
     row_frequency: session
     configuration:
       name: qsiprep
       inputs: *inputs
       outputs: *outputs
-      executable: /opt/conda/bin/qsiprep
+      executable: /usr/local/miniconda/bin/qsiprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
 
