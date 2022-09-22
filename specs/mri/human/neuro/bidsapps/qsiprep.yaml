@@ -69,12 +69,12 @@ commands:
         description: "diffusion weighted scan"
       - name: bval
         path: dwi/dwi ##?
-        format:  #??
+        format: NiftiGzXFslgrad #??
         stored_format:  #??
         description: "b-value"
       - name: bvec
         path: dwi/dwi
-        format:  #??
+        format: NiftiGzXFslgrad #??
         stored_format:  #??
         description: "b-vector"
     outputs: &outputs
