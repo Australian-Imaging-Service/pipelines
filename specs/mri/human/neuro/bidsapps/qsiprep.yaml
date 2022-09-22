@@ -38,6 +38,26 @@ commands:
         format: medimage:NiftiGzXFslgrad
         stored_format: medimage:Dicom
         description: "diffusion weighted scan"
+      - name: dwi_AP
+        path: dwi/dir-AP_dwi 
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
+      - name: dwi_PA
+        path: dwi/dir-PA_dwi 
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
+      - name: dwi_SI
+        path: dwi/dir-SI_dwi 
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"
+      - name: dwi_IS
+        path: dwi/dir-IS_dwi 
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan"        
     outputs: &outputs
       - name: qsiprep
         format: common:Directory
