@@ -9,9 +9,12 @@ system_packages:
 python_packages:
   - name: pydra
   - name: pydra-dcm2niix
+  - name: pydra-mrtrix3
 package_templates:
   - name: dcm2niix
     version: v1.0.20201102
+  - name: mrtrix3
+    version: 3.0.2
 commands:
   - name: mriqc
     version: 1

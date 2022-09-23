@@ -344,33 +344,3 @@ def run(
 
 if __name__ == "__main__":
     run()
-
-# Example VSCode launch configuration to run the fmriprep BIDS app on the
-# 'FTD1684' session (which has to be manually placed in the gitignored directory)
-# <PKG-DIR>/tests/data/specific-cases/)
-#
-# {
-#     "name": "Python: specific test case",
-#     "type": "python",
-#     "request": "launch",
-#     "program": "${workspaceFolder}/scripts/debug_specific_case.py",
-#     "console": "integratedTerminal",
-#     "args": [
-#         "mri/human/neuro/bidsapps/fmriprep.yaml",
-#         "FTD1684",
-#         "--input", "T1w", "Cor 3D T1a",
-#         "--input", "T2w", "Ax T2 FLAIR FS",
-#         "--input", "fMRI", "Ax fMRI.*",
-#         "--input", "fmap2_echo1_mag", "Ax Field map.*4.9.*",
-#         "--input", "fmap2_echo1_phase", "\"Ax Field map.*4.9.*\" converter.component=ph",
-#         "--input", "fmap2_echo2_mag", "Ax Field map.*7.3.*",
-#         "--input", "fmap2_echo2_phase", "\"Ax Field map.*7.3.*\" converter.component=ph",
-#         "--input", "fmriprep_flags", "--use-aroma",
-#         "--input", "Arcana_flags", "--loglevel debug",
-#         "--build", "no",
-#         "--run-directly",
-#         "--configuration", "dataset", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-dataset",
-#         "--configuration", "app_output_dir", "${workspaceFolder}/tests/data/output/specific-cases/FTD1684/bids-output",
-#         "--configuration", "executable", "/opt/fmriprep/bin/fmriprep"
-#     ]
-# },
