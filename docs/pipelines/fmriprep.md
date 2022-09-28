@@ -9,14 +9,13 @@ weight: 10
 |Key|Value|
 |---|-----|
 |App version|22.0.2|
-|XNAT wrapper version|1|
 |Base image|`nipreps/fmriprep:22.0.2`|
 |Info URL|https://fmriprep.org|
 
 ### Required licenses
-|Source file|Mounted at|Info|
-|-----------|----------|----|
-|`freesurfer.txt`|`/opt/freesurfer/license.txt`|`fMRIPRep` uses FreeSurfer tools, which require a license to run.<br> See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
+|Source file|Info|
+|-----------|----|
+|`freesurfer.txt`|`fMRIPRep` uses FreeSurfer tools, which require a license to run.<br> See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
 |
 
 ## Commands
@@ -63,33 +62,31 @@ Optional flags that can be provided to the `fmriprep_flags` parameter:
 |Key|Value|
 |---|-----|
 |Short description|fMRIPrep: a functional fMRI data preprocessing pipeline|
-|Workflow|`arcana.tasks.bids:bids_app`|
-|Version|`1`|
-|Executable|`/opt/conda/bin/fmriprep`|
 |Operates on|Session|
+|Known issues|https://github.com/nipreps/fmriprep/issues|
 #### Inputs
-|Path|Input format|Stored format|Description|
-|----|------------|-------------|-----------|
-|`T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|T1-weighted anatomical scan|
-|`T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|T2-weighted anatomical scan|
-|`bold`|`medimage:NiftiGzX`|`medimage:Dicom`|functional MRI|
-|`fmap_magnitude1`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 1 & 2: magnitude of first echo|
-|`fmap_magnitude2`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 1 & 2: magnitude of second echo|
-|`fmap_magnitude`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 3: magnitude image used for anatomical reference|
-|`fmap_phasediff`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times|
-|`fmap_phase1`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: phase of first echo|
-|`fmap_phase2`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 2: phase of second echo|
-|`fmap_fieldmap`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 3: directly reconstructed field map|
-|`fmap_epi`|`medimage:NiftiGzX`|`medimage:Dicom`|Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field|
+|Name|Format|Description|
+|----|------|-----------|
+|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|T1-weighted anatomical scan|
+|`T2w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|T2-weighted anatomical scan|
+|`bold`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|functional MRI|
+|`fmap_magnitude1`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 1 & 2: magnitude of first echo|
+|`fmap_magnitude2`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 1 & 2: magnitude of second echo|
+|`fmap_magnitude`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 3: magnitude image used for anatomical reference|
+|`fmap_phasediff`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times|
+|`fmap_phase1`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 2: phase of first echo|
+|`fmap_phase2`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 2: phase of second echo|
+|`fmap_fieldmap`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 3: directly reconstructed field map|
+|`fmap_epi`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field|
 
 #### Outputs
-|Name|Output format|Stored format|Description|
-|----|-------------|-------------|-----------|
-|`fmriprep`|`common:Directory`|`format`||
+|Name|Format|Description|
+|----|------|-----------|
+|`fmriprep`|||
 
 #### Parameters
-|Name|Data type|
-|----|---------|
-|`fmriprep_flags`|`string`|
-|`json_edits`|`string`|
+|Name|Data type|Description|
+|----|---------|-----------|
+|`fmriprep_flags`|`string`||
+|`json_edits`|`string`||
 

@@ -9,8 +9,7 @@ weight: 10
 |Key|Value|
 |---|-----|
 |App version|22.0.6|
-|XNAT wrapper version|1|
-|Base image|`poldracklab/mriqc:22.0.6`|
+|Base image|`nipreps/mriqc:22.0.6`|
 |Info URL|https://mriqc.readthedocs.io|
 
 ## Commands
@@ -23,19 +22,16 @@ imaging) data.
 |Key|Value|
 |---|-----|
 |Short description|MRIQC: quality control metrics from T1w, T2W and fMRI data|
-|Workflow|`arcana.tasks.bids:bids_app`|
-|Version|`1`|
-|Executable|`/usr/local/miniconda/bin/mriqc`|
 |Operates on|Session|
 #### Inputs
-|Path|Input format|Stored format|Description|
-|----|------------|-------------|-----------|
-|`T1w`|`medimage:NiftiGzX`|`medimage:Dicom`|T1-weighted anatomical scan|
-|`T2w`|`medimage:NiftiGzX`|`medimage:Dicom`|T2-weighted anatomical scan|
-|`fMRI`|`medimage:NiftiGzX`|`medimage:Dicom`|functional MRI|
+|Name|Format|Description|
+|----|------|-----------|
+|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|T1-weighted anatomical scan|
+|`T2w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|T2-weighted anatomical scan|
+|`fMRI`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|functional MRI|
 
 #### Outputs
-|Name|Output format|Stored format|Description|
-|----|-------------|-------------|-----------|
-|`mriqc`|`common:Directory`|`format`||
+|Name|Format|Description|
+|----|------|-----------|
+|`mriqc`|||
 
