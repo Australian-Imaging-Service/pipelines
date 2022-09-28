@@ -1,0 +1,82 @@
+pkg_version: &pkg_version '0.16.0RC3'
+wrapper_version: '1'
+authors:
+  - mahdieh.dashtbanimoghari@sydney.edu.au
+base_image: !join [ 'pennbbl/qsiprep:', *pkg_version ]
+info_url: 'https://qsiprep.readthedocs.io/en/latest/'
+package_manager: apt
+system_packages:
+python_packages:  # Copy in local copies of pydra and pydra-dcm2niix
+  - name: pydra
+  - name: pydra-dcm2niix
+package_templates:
+  - name: dcm2niix
+    version: v1.0.20201102
+licenses:
+  - source: freesurfer.txt
+    destination: /opt/freesurfer/license.txt
+commands: 
+  - name: qsiprep
+    version: 1a1 
+    pydra_task: arcana.tasks.bids:bids_app
+    description: "qsiprep: an integrative platform for preprocessing and reconstructing diffusion MRI data"
+    long_description: >-
+      "qsiprep: an integrative platform for preprocessing and reconstructing diffusion MRI data..."
+    inputs: &inputs
+      - name: T1w
+        path: anat/T1w
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "T1-weighted anatomical scan"
+      - name: dwi_LR
+        path: dwi/dir-LR_dwi 
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan with left-to-right phase encoding"
+      - name: dwi_RL
+        path: dwi/dir-RL_dwi 
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan with right-to-left phase encoding"
+      - name: dwi_AP
+        path: dwi/dir-AP_dwi 
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan with anterior-to-posterior phase encoding"
+      - name: dwi_PA
+        path: dwi/dir-PA_dwi 
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan with posterior-to-anterior phase encoding"
+      - name: dwi_SI
+        path: dwi/dir-SI_dwi 
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan with superior-to-inferior phase encoding"
+      - name: dwi_IS
+        path: dwi/dir-IS_dwi 
+        format: medimage:NiftiGzXFslgrad
+        stored_format: medimage:Dicom
+        description: "diffusion weighted scan with inferior-to-superior phase encoding"        
+    outputs: &outputs
+      - name: qsiprep
+        format: common:Directory
+    parameters:
+      - name: qsiprep_flags
+        pydra_field: flags
+        type: string
+      - name: json_edits
+        pydra_field: json_edits
+        type: string
+      # - name: output_resolution # (2.5) The isotropic voxel size in mm the data will be resampled to after preprocessing. If set to a lower value than the original voxel size, your data will be upsampled using BSpline interpolation.
+      #   pydra_field: output-resolution
+      #   type: 
+    row_frequency: session
+    configuration:
+      name: qsiprep
+      inputs: *inputs
+      outputs: *outputs
+      executable: /usr/local/miniconda/bin/qsiprep
+      dataset: /work/bids-dataset
+      app_output_dir: /work/bids-app-output
+      app_work_dir: /work/nipype-work
