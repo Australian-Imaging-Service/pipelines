@@ -8,9 +8,9 @@ weight: 10
 ## Package Info
 |Key|Value|
 |---|-----|
-|App version|22.0.0|
-|XNAT wrapper version|1.1|
-|Base image|`nipreps/fmriprep:22.0.0`|
+|App version|22.0.2|
+|XNAT wrapper version|1|
+|Base image|`nipreps/fmriprep:22.0.2`|
 |Info URL|https://fmriprep.org|
 
 ### Required licenses

@@ -1,4 +1,4 @@
-pkg_version: &pkg_version "0.9.1"
+pkg_version: &pkg_version "0.9.2"
 wrapper_version: "1"
 authors:
   - mahdieh.dashtbanimoghari@sydney.edu.au

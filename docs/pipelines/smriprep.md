@@ -8,9 +8,9 @@ weight: 10
 ## Package Info
 |Key|Value|
 |---|-----|
-|App version|0.9.1|
+|App version|0.9.2|
 |XNAT wrapper version|1|
-|Base image|`nipreps/smriprep:0.9.1`|
+|Base image|`nipreps/smriprep:0.9.2`|
 |Info URL|https://www.nipreps.org/smriprep/master/index.html|
 
 ### Required licenses

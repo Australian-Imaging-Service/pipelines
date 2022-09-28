@@ -8,9 +8,9 @@ weight: 10
 ## Package Info
 |Key|Value|
 |---|-----|
-|App version|0.16.1|
-|XNAT wrapper version|1.19|
-|Base image|`poldracklab/mriqc:0.16.1`|
+|App version|22.0.6|
+|XNAT wrapper version|1|
+|Base image|`poldracklab/mriqc:22.0.6`|
 |Info URL|https://mriqc.readthedocs.io|
 
 ## Commands
