@@ -1,1 +1,1 @@
-arcana>=2.0b0.dev7
+git+https://github.com/Australian-Imaging-Service/arcana@2.0b0.dev9#egg=arcana
