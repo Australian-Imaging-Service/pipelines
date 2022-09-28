@@ -1,1 +1,1 @@
-arcana>=2.0b0.dev7
+arcana @ git+https://github.com/Australian-Imaging-Service/arcana@develop

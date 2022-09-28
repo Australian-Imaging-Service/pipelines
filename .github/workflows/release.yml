@@ -16,6 +16,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
+    - name: Get release tag
+      run: echo "RELEASE=`echo $(git describe --tags --abbrev=0)`" >> $GITHUB_ENV
+
     - name: Unset header
         # checkout@v2 adds a header that makes branch protection report errors
         # because the Github action bot is not a collaborator on the repo
@@ -45,5 +48,5 @@ jobs:
 
     - name: Build and push container images
       run: |
-        arcana deploy xnat build ./specs australian-imaging-service --registry ghcr.io --license-dir ./licenses --check-registry --push --raise-errors
+        arcana deploy xnat build ./specs australian-imaging-service --registry ghcr.io --license-dir ./licenses --check-registry --push --raise-errors --release pipelines-meta:$RELEASE
 
