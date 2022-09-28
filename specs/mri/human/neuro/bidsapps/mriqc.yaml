@@ -2,7 +2,7 @@ pkg_version: &pkg_version '22.0.6'
 wrapper_version: '1'
 authors:
   - thomas.close@sydney.edu.au
-base_image: !join [ 'poldracklab/mriqc:', *pkg_version ]
+base_image: !join [ 'nipreps/mriqc:', *pkg_version ]
 info_url: https://mriqc.readthedocs.io
 package_manager: apt
 system_packages:
