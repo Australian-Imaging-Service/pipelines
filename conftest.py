@@ -57,8 +57,8 @@ class BidsAppTestBlueprint:
 
 
 BIDS_APP_PARAMETERS = {
-    "fmriprep": {"json_edits": 'func/.*bold ".SliceTiming[] /= 1000.0"'}
-}
+    'fmriprep': {'json_edits': "func/.*bold \".SliceTiming[] /= 1000.0\""},
+    'qsiprep': {'qsiprep_flags': '--output-resolution 2.5'}}
 
 
 bids_apps_dir = Path(__file__).parent / "specs" / "mri" / "human" / "neuro" / "bidsapps"

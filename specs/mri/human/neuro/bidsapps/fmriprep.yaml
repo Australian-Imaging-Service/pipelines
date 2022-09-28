@@ -15,6 +15,9 @@ package_templates:
 licenses:
   - source: freesurfer.txt
     destination: /opt/freesurfer/license.txt
+    description: >
+      `fMRIPRep` uses FreeSurfer tools, which require a license to run.<br>
+      See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
 commands:
   - name: fmriprep
     version: 1
@@ -57,7 +60,9 @@ commands:
         [--stop-on-first-crash] [--notrack]
         [--debug {compcor,fieldmaps,all} [{compcor,fieldmaps,all} ...]]
         [--sloppy]
-      ```  
+      ```
+    known_issues:
+      url: https://github.com/nipreps/fmriprep/issues
     inputs: &inputs
       - name: T1w
         path: anat/T1w
@@ -69,57 +74,47 @@ commands:
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "T2-weighted anatomical scan"
-      - name: fMRI
+      - name: bold
         path: func/task-rest_bold
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "functional MRI"
-      - name: fmap1_phasediff
+      - name: fmap_magnitude1
+        path: fmap/magnitude1
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 1 & 2: magnitude of first echo"
+      - name: fmap_magnitude2
+        path: fmap/magnitude2
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 1 & 2: magnitude of second echo"
+      - name: fmap_magnitude
+        path: fmap/magnitude
+        format: medimage:NiftiGzX
+        stored_format: medimage:Dicom
+        description: "Field map - BIDS Case 3: magnitude image used for anatomical reference" 
+      - name: fmap_phasediff
         path: fmap/phasediff
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
-      - name: fmap1_shorterEcho_mag
-        path: fmap/magnitude1
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 1: magnitude of shorter echo"
-      - name: fmap1_longerEcho_mag #magnitude2 is optional
-        path: fmap/magnitude2
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 1: magnitude of longer echo"
-      - name: fmap2_echo1_mag
-        path: fmap/magnitude1
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: magnitude of first echo"
-      - name: fmap2_echo1_phase
+      - name: fmap_phase1
         path: fmap/phase1
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 2: phase of first echo"
-      - name: fmap2_echo2_mag
-        path: fmap/magnitude2
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 2: magnitude of second echo"
-      - name: fmap2_echo2_phase
+      - name: fmap_phase2
         path: fmap/phase2
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 2: phase of second echo"
-      - name: fmap3_fmap
+      - name: fmap_fieldmap
         path: fmap/fieldmap
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
         description: "Field map - BIDS Case 3: directly reconstructed field map"
-      - name: fmap3_mag
-        path: fmap/magnitude
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
-      - name: fmap4_epi
+      - name: fmap_epi
         path: fmap/epi
         format: medimage:NiftiGzX
         stored_format: medimage:Dicom
@@ -131,9 +126,11 @@ commands:
       - name: fmriprep_flags
         pydra_field: flags
         type: string
+        description: ""
       - name: json_edits
         pydra_field: json_edits
         type: string
+        description: ""
     row_frequency: session
     configuration:
       name: fmriprep
@@ -142,42 +139,7 @@ commands:
       executable: /opt/conda/bin/fmriprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
+      app_work_dir: /work/nipype-work
       json_edits:
         - path: 'fmap/.*'
-          jq_expr: '.IntendedFor = "{fMRI}"'
-
-
-# Parameters (see https://fmriprep.org/en/latest/usage.html)
-# ----------------------------------------------------------
-
-# [-t TASK_ID] [--echo-idx ECHO_IDX] [--bids-filter-file FILE]
-# [--anat-derivatives PATH] [--bids-database-dir PATH]
-# [--nprocs NPROCS] [--omp-nthreads OMP_NTHREADS]
-# [--mem MEMORY_MB] [--low-mem] [--use-plugin FILE]
-# [--anat-only] [--boilerplate_only] [--md-only-boilerplate]
-# [--error-on-aroma-warnings] [-v]
-# [--ignore {fieldmaps,slicetiming,sbref,t2w,flair} [{fieldmaps,slicetiming,sbref,t2w,flair} ...]]
-# [--longitudinal]
-# [--output-spaces [OUTPUT_SPACES [OUTPUT_SPACES ...]]]
-# [--me-output-echos] [--bold2t1w-init {register,header}]
-# [--bold2t1w-dof {6,9,12}] [--force-bbr] [--force-no-bbr]
-# [--medial-surface-nan] [--slice-time-ref SLICE_TIME_REF]
-# [--dummy-scans DUMMY_SCANS] [--random-seed _RANDOM_SEED]
-# [--use-aroma]
-# [--aroma-melodic-dimensionality AROMA_MELODIC_DIM]
-# [--return-all-components]
-# [--fd-spike-threshold REGRESSORS_FD_TH]
-# [--dvars-spike-threshold REGRESSORS_DVARS_TH]
-# [--skull-strip-template SKULL_STRIP_TEMPLATE]
-# [--skull-strip-fixed-seed]
-# [--skull-strip-t1w {auto,skip,force}] [--fmap-bspline]
-# [--fmap-no-demean] [--topup-max-vols TOPUP_MAX_VOLS]
-# [--use-syn-sdc [{warn,error}]] [--force-syn]
-# [--fs-license-file FILE] [--fs-subjects-dir PATH]
-# [--no-submm-recon] [--cifti-output [{91k,170k}] |
-# --fs-no-reconall] [--output-layout {bids,legacy}]
-# [-w WORK_DIR] [--clean-workdir] [--resource-monitor]
-# [--reports-only] [--config-file FILE] [--write-graph]
-# [--stop-on-first-crash] [--notrack]
-# [--debug {compcor,fieldmaps,all} [{compcor,fieldmaps,all} ...]]
-# [--sloppy]
+          jq_expr: '.IntendedFor = "{bold}"'

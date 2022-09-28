@@ -16,7 +16,8 @@ weight: 10
 ### Required licenses
 |Source file|Mounted at|Info|
 |-----------|----------|----|
-|`freesurfer.txt`|`/opt/freesurfer/license.txt`||
+|`freesurfer.txt`|`/opt/freesurfer/license.txt`|`sMRIPRep` uses FreeSurfer tools, which require a license to run.<br> See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
+|
 
 ## Commands
 ### smriprep

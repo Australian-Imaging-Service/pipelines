@@ -1,8 +1,6 @@
 import json
 from arcana.cli.deploy import build
-from arcana.core.utils import varname2path
 from arcana.test.utils import show_cli_trace
-from arcana.deploy.medimage.xnat import path2xnatname
 from arcana.core.deploy.utils import load_yaml_spec
 from arcana.test.stores.medimage.xnat import install_and_launch_xnat_cs_command
 
@@ -30,7 +28,7 @@ def test_bids_app(
         [
             str(bp.spec_path),
             "pipelines-core-test",
-            "--build_dir",
+            "--build-dir",
             str(build_dir),
             build_arg,
             "--use-test-config",
@@ -67,19 +65,28 @@ def test_bids_app(
             inputs_json = {}
 
             for inpt in cmd_spec["inputs"]:
-                if (bids_app_blueprint.test_data / varname2path(inpt)).exists():
-                    inputs_json[inpt["name"]] = inpt["path"]
+                if (bids_app_blueprint.test_data / inpt["name"]).exists():
+                    converter_args_path = (
+                        bids_app_blueprint.test_data / inpt["name"] / "converter.json"
+                    )
+                    converter_args = ""
+                    if converter_args_path.exists():
+                        with open(converter_args_path) as f:
+                            dct = json.load(f)
+                        for name, val in dct.items():
+                            converter_args += f" converter.{name}={val}"
+                    inputs_json[inpt["name"]] = inpt["name"] + converter_args
                 else:
-                    inputs_json[inpt["name"]] = ''
+                    inputs_json[inpt["name"]] = ""
 
             for pname, pval in bp.parameters.items():
-                inputs_json[path2xnatname(pname)] = pval
+                inputs_json[pname] = pval
 
             inputs_json['Arcana_flags'] = (
                 "--plugin serial "
                 "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
-                "--dataset_name default "
-                "--loglevel info "
+                "--dataset-name default "
+                "--loglevel debug "
             )
 
             workflow_id, status, out_str = install_and_launch_xnat_cs_command(
