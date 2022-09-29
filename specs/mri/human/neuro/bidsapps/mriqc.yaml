@@ -1,5 +1,5 @@
 pkg_version: &pkg_version "22.0.6"
-wrapper_version: "1.0"
+wrapper_version: "1.0b1"
 authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au
