@@ -36,4 +36,4 @@ jobs:
         uses: peter-evans/create-or-update-comment@v2
         with:
           comment-id: ${{ steps.find-list.outputs.comment-id }}
-          body: ${{ format(' - \#{0}',  github.event.issue.number) }}
+          body: ${{ format(' - [ ] \#{0}',  github.event.issue.number) }}
