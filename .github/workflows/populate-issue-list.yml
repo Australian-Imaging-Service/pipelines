@@ -30,7 +30,9 @@ jobs:
         uses: peter-evans/create-or-update-comment@v2
         with:
           issue-number: ${{ steps.find-issue-number.outputs.group1 }}
-          body: ${{ format('### {0}', inputs.listtype) }}
+          body: |
+            ${{ format('### {0}', inputs.listtype) }}
+            ${{ format(' - [ ] \#{0}',  github.event.issue.number) }}
       - name: Update list
         if: steps.find-issue-number.outputs.group1 != '' && steps.find-list.outputs.comment-id != '' && !contains(steps.find-list.outputs.comment-body, format('#{0}', github.event.issue.number))
         uses: peter-evans/create-or-update-comment@v2
