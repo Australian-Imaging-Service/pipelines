@@ -1,28 +1,32 @@
-pkg_version: &pkg_version '22.0.2'
-wrapper_version: '1'
+pkg_version: &pkg_version "22.0.2"
+wrapper_version: "1.0b"
 authors:
-  - thomas.close@sydney.edu.au
-base_image: !join [ 'nipreps/fmriprep:', *pkg_version ]
-info_url: 'https://fmriprep.org'
+  - name: Thomas G. Close
+    email: thomas.close@sydney.edu.au
+base_image: !join [ "nipreps/fmriprep:", *pkg_version ]
+info_url: https://fmriprep.org
 package_manager: apt
 system_packages:
 python_packages:  # Copy in local copies of pydra and pydra-dcm2niix
   - name: pydra
   - name: pydra-dcm2niix
+  - name: pydra-mrtrix3
 package_templates:
   - name: dcm2niix
     version: v1.0.20201102
+  - name: mrtrix3
+    version: "3.0.2"
 licenses:
   - source: freesurfer.txt
     destination: /opt/freesurfer/license.txt
-    description: >
-      `fMRIPRep` uses FreeSurfer tools, which require a license to run.<br>
+    info: >
+      `fMRIPRep` uses FreeSurfer tools, which require a license to run.
       See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
 commands:
   - name: fmriprep
     version: 1
     pydra_task: arcana.tasks.bids:bids_app
-    description: 'fMRIPrep: a functional fMRI data preprocessing pipeline'
+    description: 'functional fMRI data preprocessing pipeline'
     long_description: |
       `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
       pipeline that is designed to provide an easily accessible, state-of-the-art

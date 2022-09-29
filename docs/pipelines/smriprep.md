@@ -25,7 +25,7 @@ weight: 10
 
 |Key|Value|
 |---|-----|
-|Short description|SMRIPrep: a structural MRI data preprocessing pipeline|
+|Short description|structural MRI data preprocessing pipeline|
 |Operates on|Session|
 #### Inputs
 |Name|Format|Description|

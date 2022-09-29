@@ -21,7 +21,7 @@ imaging) data.
 
 |Key|Value|
 |---|-----|
-|Short description|MRIQC: quality control metrics from T1w, T2W and fMRI data|
+|Short description|quality control metrics from T1w, T2W and fMRI data|
 |Operates on|Session|
 #### Inputs
 |Name|Format|Description|

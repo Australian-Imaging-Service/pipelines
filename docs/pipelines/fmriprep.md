@@ -15,7 +15,7 @@ weight: 10
 ### Required licenses
 |Source file|Info|
 |-----------|----|
-|`freesurfer.txt`|`fMRIPRep` uses FreeSurfer tools, which require a license to run.<br> See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
+|`freesurfer.txt`|`fMRIPRep` uses FreeSurfer tools, which require a license to run. See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
 |
 
 ## Commands
@@ -61,7 +61,7 @@ Optional flags that can be provided to the `fmriprep_flags` parameter:
 
 |Key|Value|
 |---|-----|
-|Short description|fMRIPrep: a functional fMRI data preprocessing pipeline|
+|Short description|functional fMRI data preprocessing pipeline|
 |Operates on|Session|
 |Known issues|https://github.com/nipreps/fmriprep/issues|
 #### Inputs
