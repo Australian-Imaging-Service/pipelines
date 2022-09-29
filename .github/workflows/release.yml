@@ -47,6 +47,8 @@ jobs:
         echo "${{ secrets.FREESURFER_LICENSE }}" > licenses/freesurfer.txt
 
     - name: Build and push container images
-      run: |
-        arcana deploy xnat build ./specs australian-imaging-service --registry ghcr.io --license-dir ./licenses --check-registry --push --raise-errors --release pipelines-meta:$RELEASE
+      run: >
+        arcana deploy xnat build ./specs australian-imaging-service --registry ghcr.io
+        --license-dir ./licenses --check-registry --push --raise-errors
+        --release pipelines-metapackage:$RELEASE --clean-up --tag-latest
 
