@@ -1,0 +1,40 @@
+name: "On Opening Issue"
+on:
+  issues:
+    types: [opened, reopened]
+env:
+  AIS_PROJECT_URL: ${{ secrets.AIS_PROJECT_URL }}
+jobs:
+  initalise-epic-or-feature:
+    if: startsWith(github.event.issue.title, '[EPIC]') || startsWith(github.event.issue.title, '[FEATURE]')
+    uses: ./.github/workflows/create-initial-lists.yml
+  add-labels:
+    needs: initalise-epic-or-feature
+    name: Add labels to issue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label epic
+        if: startsWith(github.event.issue.title, '[EPIC]')
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "pipelines, epic"
+      - name: Label feature
+        if: startsWith(github.event.issue.title, '[FEATURE]')
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "pipelines, feature"
+      - name: Label story
+        if: startsWith(github.event.issue.title, '[STORY]')
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "pipelines, story"
+  add-to-project:
+    name: Add issue to project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign issues to the AIS project
+        if: env.AIS_PROJECT_URL != ''
+        uses: actions/add-to-project@v0.3.0
+        with:
+          project-url: ${{ secrets.AIS_PROJECT_URL }}
+          github-token: ${{ secrets.AIS_ADMIN_KEY }}

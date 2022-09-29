@@ -1,0 +1,20 @@
+name: "On Editing Issue"
+on:
+  issues:
+    types: [opened, reopened, edited]
+jobs:
+  populate-features:
+    if: startsWith(github.event.issue.title, '[FEATURE]')
+    uses: ./.github/workflows/populate-issue-list.yml
+    with:
+      issuetype: Epic
+      listtype: Features
+  populate-stories:
+    strategy:
+        matrix:
+          issuetype: [Epic, Feature]
+    if: startsWith(github.event.issue.title, '[STORY]')
+    uses: ./.github/workflows/populate-issue-list.yml
+    with:
+      issuetype: ${{ matrix.issuetype }}
+      listtype: Stories

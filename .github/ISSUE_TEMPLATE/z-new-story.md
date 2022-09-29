@@ -3,7 +3,6 @@ name: "[INTERNAL] New story"
 about: A Story is a short, simple description of functionality, usually part of a
   feature
 title: "[STORY] "
-labels: pipelines, story
 assignees: ''
 column_name: 'Backlog'
 
