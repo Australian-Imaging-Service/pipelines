@@ -7,6 +7,7 @@ assignees: ''
 
 ---
 
+<!--
 ### Instructions
 NB: This template is only for core team members to be used as part of the management of the overall project
 
@@ -17,6 +18,7 @@ Features are defined using a Features and Benefits (FAB) Matrix:
  - Benefit hypothesis: The proposed measurable benefit to the end-user or business
 
 For further information, plese refer to: [SAFe Feature](https://www.scaledagileframework.com/features-and-capabilities/)
+-->
 
 ### Metadata
 
@@ -38,9 +40,5 @@ Agree on how to determine whether the implementation of the feature is corect an
 - [ ] 
 
 ### Dependencies
-
-- [ ] 
-
-### Stories
 
 - [ ] 
