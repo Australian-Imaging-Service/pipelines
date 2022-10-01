@@ -8,22 +8,12 @@ column_name: 'Backlog'
 
 ---
 
-### Instructions
-
-NB: This template is only for core team members to be used as part of the management of the overall project
-
-**Delete this section when creating a new Story, and complete all other sections.**
-
-Stories are short, simple descriptions of functionality. Stories provide just enough information for business and technical people to understand the intent. Through acceptance criteria and acceptance tests, stories get more specific, helping to ensure system quality. User stories deliver functionality directly to the end user. Enabler stories bring visibility to the work items needed to support exploration, architecture, infrastructure, and compliance.
-
-For further information, please refer to: [SAFe Story](https://www.scaledagileframework.com/story/)
-
-
 ### Metadata
 
 Epic:
 Feature:
 Feature Release:
+Required knowledge: shallow or mid-level or deep
 
 ### Description
 
@@ -44,3 +34,14 @@ Acceptance criteria is used to confirm that the story was completed correctly. C
 ### Blocked by
 
 - [ ] 
+
+
+> ### Instructions
+
+> NB: This template is only for core team members to be used as part of the management of the overall project
+
+> **Delete this section when creating a new Story, and complete all other sections.**
+
+> Stories are short, simple descriptions of functionality. Stories provide just enough information for business and technical people to understand the > intent. Through acceptance criteria and acceptance tests, stories get more specific, helping to ensure system quality. User stories deliver functionality directly to the end user. Enabler stories bring visibility to the work items needed to support exploration, architecture, infrastructure, and compliance.
+
+> For further information, please refer to: [SAFe Story](https://www.scaledagileframework.com/story/)
