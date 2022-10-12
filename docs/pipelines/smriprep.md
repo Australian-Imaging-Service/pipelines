@@ -41,6 +41,6 @@ weight: 10
 #### Parameters
 |Name|Data type|Description|
 |----|---------|-----------|
-|`smriprep_flags`|`string`||
-|`json_edits`|`string`||
+|`smriprep_flags`|`string`|Command line flags passed on directly to sMRIPrep|
+|`json_edits`|`string`|JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to handle special cases where the dcm2niix fails to produce valid a BIDS|
 

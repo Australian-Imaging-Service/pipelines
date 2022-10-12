@@ -87,6 +87,6 @@ Optional flags that can be provided to the `fmriprep_flags` parameter:
 #### Parameters
 |Name|Data type|Description|
 |----|---------|-----------|
-|`fmriprep_flags`|`string`||
-|`json_edits`|`string`||
+|`fmriprep_flags`|`string`|Command line flags passed on directly to fMRIPrep|
+|`json_edits`|`string`|JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to handle special cases where the dcm2niix fails to produce valid a BIDS|
 
