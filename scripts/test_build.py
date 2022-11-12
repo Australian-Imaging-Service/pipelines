@@ -12,7 +12,7 @@ results = runner.invoke(
         "australian-imaging-service",
         "--registry",
         "ghcr.io",
-        "--license-dir",
+        "--license-src",
         "./licenses",
         "--push",
         "--check-registry",

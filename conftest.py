@@ -28,7 +28,7 @@ TEST_NIFTI_DATA_DIR = Path(__file__).parent / "tests" / "data" / "nifti"
 
 
 @pytest.fixture(scope="session")
-def license_dir():
+def license_src():
     return Path(__file__).parent / "licenses"
 
 

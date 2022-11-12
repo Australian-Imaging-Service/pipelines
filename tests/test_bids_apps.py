@@ -9,7 +9,7 @@ SKIP_BUILD = False
 
 
 def test_bids_app(
-    bids_app_blueprint, run_prefix, xnat_connect, license_dir, cli_runner
+    bids_app_blueprint, run_prefix, xnat_connect, license_src, cli_runner
 ):
 
     bp = bids_app_blueprint
@@ -34,8 +34,8 @@ def test_bids_app(
             "--use-test-config",
             "--use-local-packages",
             "--raise-errors",
-            "--license-dir",
-            str(license_dir),
+            "--license-src",
+            str(license_src),
         ],
     )
 

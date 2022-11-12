@@ -38,7 +38,7 @@ def xnat_connect(in_docker):
 
 
 def build_image(
-    pkg_dir, spec_path, image_tag, build_dir, license_dir, pipelines_core_docker_dest
+    pkg_dir, spec_path, image_tag, build_dir, license_src, pipelines_core_docker_dest
 ):
 
     spec = load_yaml_spec(spec_path, base_dir=spec_path)
@@ -53,7 +53,7 @@ def build_image(
         build_dir=build_dir,
         use_local_packages=True,
         test_config=True,
-        license_dir=license_dir,
+        license_src=license_src,
         arcana_install_extras=["test"],
         generate_only=True,
         **spec,
@@ -272,7 +272,7 @@ def run(
 
     # Relative directories
     image_tag = "pipelines-core-specific-test/" + spec_path.stem
-    license_dir = pkg_dir / "licenses"
+    license_src = pkg_dir / "licenses"
     build_dir = pkg_dir / "scripts" / ".build" / "specific-test-case"
     build_dir.mkdir(exist_ok=True, parents=True)
     run_prefix = datetime.strftime(datetime.now(), "%Y%m%d%H%M%S")
@@ -317,7 +317,7 @@ def run(
                 spec_path,
                 image_tag,
                 build_dir,
-                license_dir,
+                license_src,
                 pipelines_core_docker_dest,
             )
     xnat4tests.launch_xnat()
