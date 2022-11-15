@@ -128,11 +128,11 @@ commands:
         format: common:Directory
     parameters:
       - name: fmriprep_flags
-        pydra_field: flags
+        task_field: flags
         type: string
         description: Command line flags passed on directly to fMRIPrep
       - name: json_edits
-        pydra_field: json_edits
+        task_field: json_edits
         type: string
         description: >-
           JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to

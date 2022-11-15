@@ -47,11 +47,11 @@ commands:
         format: common:Directory
     parameters:
       - name: smriprep_flags
-        pydra_field: flags # look at app.py =>id, flag, json edit are the input to wf
+        task_field: flags # look at app.py =>id, flag, json edit are the input to wf
         type: string
         description: Command line flags passed on directly to sMRIPrep
       - name: json_edits
-        pydra_field: json_edits
+        task_field: json_edits
         type: string
         description: >-
           JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to

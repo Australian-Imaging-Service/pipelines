@@ -168,7 +168,7 @@ def run_pipeline_directly(
     for param in cmd_spec["parameters"]:
         param_name = param["name"]
         cmdline = cmdline.replace(
-            f"[{param['pydra_field'].upper()}_PARAM]", f"{inputs_json.get(param_name, '')}"
+            f"[{param['task_field'].upper()}_PARAM]", f"{inputs_json.get(param_name, '')}"
         )
 
     assert not re.findall(r'\[(\w+)_(?:INPUT|PARAM)\]', cmdline)
