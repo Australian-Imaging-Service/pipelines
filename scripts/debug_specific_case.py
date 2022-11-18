@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from pathlib import Path
 from datetime import datetime
 import json
@@ -11,13 +10,12 @@ import click
 from click.testing import CliRunner
 import xnat4tests
 from arcana.test.utils import show_cli_trace
-from arcana.cli.deploy import run_pipeline
-from arcana.core.deploy.utils import load_yaml_spec
+from arcana.cli.deploy import run_in_image
 from arcana.test.stores.medimage.xnat import (
     install_and_launch_xnat_cs_command,
     XnatViaCS,
 )
-from arcana.core.deploy.build import copy_sdist_into_build_dir
+from arcana.core.deploy.image import ContainerImageSpec
 from arcana.deploy.medimage.xnat import (
     build_xnat_cs_image,
     dockerfile_build,
@@ -263,6 +261,8 @@ def run(
     arcana_flags,
 ):
 
+    xnat4tests_config = xnat4tests.Config()
+
     # Root package dir
     pkg_dir = Path(__file__).parent.parent
 
@@ -289,7 +289,7 @@ def run(
         xnat_cs = XnatViaCS(
             row_id=session_label,
             input_mount=(
-                xnat4tests.config["xnat_root_dir"]
+                xnat4tests_config.xnat_root_dir,
                 / "archive"
                 / project_id
                 / "arc001"

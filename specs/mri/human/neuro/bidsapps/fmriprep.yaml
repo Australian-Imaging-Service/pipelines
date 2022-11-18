@@ -1,9 +1,9 @@
-pkg_version: &pkg_version "22.0.2"
-wrapper_version: "1.0b1"
+version: &version "22.0.2"
+spec_version: "1.0b1"
 authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au
-base_image: !join [ "nipreps/fmriprep:", *pkg_version ]
+base_image: !join [ "nipreps/fmriprep:", *version ]
 info_url: https://fmriprep.org
 package_manager: apt
 system_packages:
