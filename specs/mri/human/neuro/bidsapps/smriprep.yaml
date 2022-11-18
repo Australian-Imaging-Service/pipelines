@@ -26,8 +26,7 @@ licenses:
       See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
 commands:
   - name: smriprep # shows up in xnat
-    version: 1a1
-    pydra_task: arcana.tasks.bids:bids_app
+    task: arcana.tasks.bids:bids_app
     description: "structural MRI data preprocessing pipeline"
     long_description: |
       "SMRIPrep: a structural MRI data preprocessing pipeline..."

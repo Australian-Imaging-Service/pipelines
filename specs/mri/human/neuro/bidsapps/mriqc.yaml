@@ -18,8 +18,7 @@ package_templates:
     version: "3.0.2"
 commands:
   - name: mriqc
-    version: 1
-    pydra_task: arcana.tasks.bids:bids_app
+    task: arcana.tasks.bids:bids_app
     description: 'quality control metrics from T1w, T2W and fMRI data'
     long_description: |
       MRIQC extracts no-reference IQMs (image quality metrics) from

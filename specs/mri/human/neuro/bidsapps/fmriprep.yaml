@@ -24,8 +24,7 @@ licenses:
       See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
 commands:
   - name: fmriprep
-    version: 1
-    pydra_task: arcana.tasks.bids:bids_app
+    task: arcana.tasks.bids:bids_app
     description: 'functional fMRI data preprocessing pipeline'
     long_description: |
       `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
