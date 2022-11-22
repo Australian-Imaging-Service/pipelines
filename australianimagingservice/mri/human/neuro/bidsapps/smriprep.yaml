@@ -7,6 +7,9 @@ authors:
     email: thomas.close@sydney.edu.au
 base_image: !join ["nipreps/smriprep:", *version]
 info_url: https://www.nipreps.org/smriprep/master/index.html
+description: "structural MRI data preprocessing pipeline"
+long_description: |
+  "SMRIPrep: a structural MRI data preprocessing pipeline including Freesurfer"
 package_manager: apt
 system_packages:
 python_packages: # Copy in local copies of pydra and pydra-dcm2niix
@@ -19,48 +22,44 @@ package_templates: # neurodocker template--fs and fsl is already in smriprep ima
   - name: mrtrix3
     version: "3.0.2"
 licenses:
-  - source: freesurfer.txt
+  - name: freesurfer
     destination: /opt/freesurfer/license.txt # where in the docker image it should be installed
     info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
     description: >
       `sMRIPRep` uses FreeSurfer tools, which require a license to run.
-commands:
-  - name: smriprep # shows up in xnat
-    task: arcana.tasks.bids:bids_app
-    description: "structural MRI data preprocessing pipeline"
-    long_description: |
-      "SMRIPrep: a structural MRI data preprocessing pipeline..."
-    inputs: &inputs
-      - name: T1w
-        path: anat/T1w
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "T1-weighted anatomical scan"
-      - name: T2w
-        path: anat/T2w
-        format: medimage:NiftiGzX
-        stored_format: medimage:Dicom
-        description: "T2-weighted anatomical scan"
-    outputs: &outputs
-      - name: smriprep
-        format: common:Directory
-    parameters:
-      - name: smriprep_flags
-        task_field: flags # look at app.py =>id, flag, json edit are the input to wf
-        type: string
-        description: Command line flags passed on directly to sMRIPrep
-      - name: json_edits
-        task_field: json_edits
-        type: string
-        description: >-
-          JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to
-          handle special cases where the dcm2niix fails to produce valid a BIDS
-    row_frequency: session
-    configuration:
-      name: smriprep
-      inputs: *inputs
-      outputs: *outputs
-      executable: /opt/conda/bin/smriprep
-      dataset: /work/bids-dataset
-      app_output_dir: /work/bids-app-output
-      app_work_dir: /work/nipype-work  # We need to give a work directory outside of the pydra node as otherwise the file paths exceed Freesurfer's file-path char buffers
+command:
+  task: arcana.tasks.bids:bids_app
+  inputs: &inputs
+    - name: T1w
+      path: anat/T1w
+      format: medimage:NiftiGzX
+      stored_format: medimage:Dicom
+      description: "T1-weighted anatomical scan"
+    - name: T2w
+      path: anat/T2w
+      format: medimage:NiftiGzX
+      stored_format: medimage:Dicom
+      description: "T2-weighted anatomical scan"
+  outputs: &outputs
+    - name: smriprep
+      format: common:Directory
+  parameters:
+    - name: smriprep_flags
+      task_field: flags # look at app.py =>id, flag, json edit are the input to wf
+      type: string
+      description: Command line flags passed on directly to sMRIPrep
+    - name: json_edits
+      task_field: json_edits
+      type: string
+      description: >-
+        JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to
+        handle special cases where the dcm2niix fails to produce valid a BIDS
+  row_frequency: session
+  configuration:
+    name: smriprep
+    inputs: *inputs
+    outputs: *outputs
+    executable: /opt/conda/bin/smriprep
+    dataset: /work/bids-dataset
+    app_output_dir: /work/bids-app-output
+    app_work_dir: /work/nipype-work  # We need to give a work directory outside of the pydra node as otherwise the file paths exceed Freesurfer's file-path char buffers
