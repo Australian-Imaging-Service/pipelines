@@ -21,9 +21,9 @@ package_templates: # neurodocker template--fs and fsl is already in smriprep ima
 licenses:
   - source: freesurfer.txt
     destination: /opt/freesurfer/license.txt # where in the docker image it should be installed
-    info: >
-      `sMRIPRep` uses FreeSurfer tools, which require a license to run.<br>
-      See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
+    info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
+    description: >
+      `sMRIPRep` uses FreeSurfer tools, which require a license to run.
 commands:
   - name: smriprep # shows up in xnat
     task: arcana.tasks.bids:bids_app

@@ -19,9 +19,9 @@ package_templates:
 licenses:
   - source: freesurfer.txt
     destination: /opt/freesurfer/license.txt
-    info: >
+    info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
+    description: >
       `fMRIPRep` uses FreeSurfer tools, which require a license to run.
-      See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
 commands:
   - name: fmriprep
     task: arcana.tasks.bids:bids_app
