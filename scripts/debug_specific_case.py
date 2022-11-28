@@ -12,9 +12,9 @@
 # import click
 # from click.testing import CliRunner
 # import xnat4tests
-# from arcana.test.utils import show_cli_trace
+# from arcana.core.testing.utils import show_cli_trace
 # from arcana.cli.deploy import run_in_image
-# from arcana.test.stores.medimage.xnat import (
+# from arcana.core.testing.stores.medimage.xnat import (
 #     install_and_launch_xnat_cs_command,
 #     XnatViaCS,
 # )
@@ -53,7 +53,7 @@
 #         image_tag=image_tag,
 #         build_dir=build_dir,
 #         use_local_packages=True,
-#         test_config=True,
+#         use_test_config=True,
 #         license_src=license_src,
 #         arcana_install_extras=["test"],
 #         generate_only=True,
@@ -106,7 +106,7 @@
 #     build_dir, spec_path, command_index, run_prefix, project_id, inputs_json
 # ):
 #     spec = load_yaml_spec(spec_path)
-#     cmd_spec = spec["commands"][command_index]
+#     cmd_spec = spec["command"]
 #     cmd_name = cmd_spec["name"]
 
 #     with xnat_connect(in_docker=False) as xlogin:
@@ -141,7 +141,7 @@
 #     in_docker=False,
 # ):
 #     spec = load_yaml_spec(spec_path)
-#     cmd_spec = spec["commands"][command_index]
+#     cmd_spec = spec["command"]
 
 #     if in_docker:
 #         with open(Path("/xnat_commands") / (cmd_spec["name"] + ".json")) as f:

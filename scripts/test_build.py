@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 from arcana.cli.deploy import build
-from arcana.test.utils import show_cli_trace
+from arcana.core.testing.utils import show_cli_trace
 
 
 runner = CliRunner()

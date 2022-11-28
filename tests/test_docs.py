@@ -1,4 +1,4 @@
-from arcana.test.utils import show_cli_trace
+from arcana.core.testing.utils import show_cli_trace
 from arcana.cli.deploy import build_docs
 
 
