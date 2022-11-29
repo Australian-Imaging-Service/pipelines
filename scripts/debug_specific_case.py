@@ -13,7 +13,7 @@
 # from click.testing import CliRunner
 # import xnat4tests
 # from arcana.core.testing.utils import show_cli_trace
-# from arcana.cli.deploy import run_in_image
+# from arcana.cli.deploy import entrypoint
 # from arcana.core.testing.stores.medimage.xnat import (
 #     install_and_launch_xnat_cs_command,
 #     XnatViaCS,
@@ -169,7 +169,7 @@
 #     for param in cmd_spec["parameters"]:
 #         param_name = param["name"]
 #         cmdline = cmdline.replace(
-#             f"[{param['task_field'].upper()}_PARAM]", f"{inputs_json.get(param_name, '')}"
+#             f"[{param['field'].upper()}_PARAM]", f"{inputs_json.get(param_name, '')}"
 #         )
 
 #     assert not re.findall(r'\[(\w+)_(?:INPUT|PARAM)\]', cmdline)
