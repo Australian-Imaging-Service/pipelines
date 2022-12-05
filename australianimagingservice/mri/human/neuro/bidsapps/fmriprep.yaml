@@ -68,62 +68,62 @@ command:
   inputs: &inputs
     - name: T1w
       path: anat/T1w
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "T1-weighted anatomical scan"
     - name: T2w
       path: anat/T2w
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "T2-weighted anatomical scan"
     - name: bold
       path: func/task-rest_bold
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "functional MRI"
     - name: fmap_magnitude1
       path: fmap/magnitude1
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "Field map - BIDS Case 1 & 2: magnitude of first echo"
     - name: fmap_magnitude2
       path: fmap/magnitude2
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "Field map - BIDS Case 1 & 2: magnitude of second echo"
     - name: fmap_magnitude
       path: fmap/magnitude
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "Field map - BIDS Case 3: magnitude image used for anatomical reference" 
     - name: fmap_phasediff
       path: fmap/phasediff
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
     - name: fmap_phase1
       path: fmap/phase1
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "Field map - BIDS Case 2: phase of first echo"
     - name: fmap_phase2
       path: fmap/phase2
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "Field map - BIDS Case 2: phase of second echo"
     - name: fmap_fieldmap
       path: fmap/fieldmap
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "Field map - BIDS Case 3: directly reconstructed field map"
     - name: fmap_epi
       path: fmap/epi
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field"
   outputs: &outputs
     - name: fmriprep
-      format: common:Directory
+      datatype: common:Directory
   parameters:
     - name: fmriprep_flags
       field: flags

@@ -32,17 +32,17 @@ command:
   inputs: &inputs
     - name: T1w
       path: anat/T1w
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "T1-weighted anatomical scan"
     - name: T2w
       path: anat/T2w
-      format: medimage:NiftiGzX
+      datatype: medimage:NiftiGzX
       stored_format: medimage:Dicom
       description: "T2-weighted anatomical scan"
   outputs: &outputs
     - name: smriprep
-      format: common:Directory
+      datatype: common:Directory
   parameters:
     - name: smriprep_flags
       field: flags # look at app.py =>id, flag, json edit are the input to wf
