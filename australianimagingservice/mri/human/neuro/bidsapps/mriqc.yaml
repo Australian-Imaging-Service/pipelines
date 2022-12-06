@@ -1,53 +1,57 @@
 version: &version "22.0.6"
-spec_version: "1.0b1"
+build_iteration: "2"
 authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au
-base_image: !join [ "nipreps/mriqc:", *version ]
+base_image:
+  name: nipreps/mriqc"
+  tag: *version
 info_url: https://mriqc.readthedocs.io
 description: 'quality control metrics from T1w, T2W and fMRI data'
 long_description: |
   MRIQC extracts no-reference IQMs (image quality metrics) from
   structural (T1w and T2w) and functional MRI (magnetic resonance
   imaging) data.
-package_manager: apt
-system_packages:
-python_packages:
-  - name: pydra
-  - name: pydra-dcm2niix
-  - name: pydra-mrtrix3
-package_templates:
-  - name: dcm2niix
-    version: v1.0.20201102
-  - name: mrtrix3
-    version: "3.0.2"
+packages:
+  pip:
+    - pydra
+    - pydra-dcm2niix
+    - pydra-mrtrix3
+  neurodocker:
+    dcm2niix: v1.0.20201102
+    name: "3.0.2"
 command:
   task: arcana.tasks.bids:bids_app
-  inputs: &inputs
-    - name: T1w
-      path: anat/T1w
-      datatype: medimage:NiftiGzX
-      stored_format: medimage:Dicom
-      description: "T1-weighted anatomical scan"
-    - name: T2w
-      path: anat/T2w
-      datatype: medimage:NiftiGzX
-      stored_format: medimage:Dicom
-      description: "T2-weighted anatomical scan"
-    - name: fMRI
-      path: func/task-rest_bold
-      datatype: medimage:NiftiGzX
-      stored_format: medimage:Dicom
-      description: "functional MRI"
-  outputs: &outputs
-    - name: mriqc
-      datatype: common:Directory
-  parameters:
   row_frequency: session
+  inputs:
+    T1w:
+      datatype: medimage:NiftiGzX
+      help_string: "T1-weighted anatomical scan"
+      configuration:
+        path: anat/T1w
+      default_column:
+        datatype: medimage:Dicom
+    T2w:
+      datatype: medimage:NiftiGzX
+      help_string: "T2-weighted anatomical scan"
+      configuration:
+        path: anat/T2w
+      default_column:
+        datatype: medimage:Dicom
+    fMRI:
+      datatype: medimage:NiftiGzX
+      help_string: "functional MRI"
+      configuration:
+        path: func/task-rest_bold
+      default_column:
+        datatype: medimage:Dicom
+  outputs:
+    mriqc:
+      datatype: common:Directory
+      configuration:
+        path: mriqc
   configuration:
     name: mriqc
-    inputs: *inputs
-    outputs: *outputs
     executable: /usr/local/miniconda/bin/mriqc
     dataset: /work/bids-dataset
     app_output_dir: /work/bids-app-output
