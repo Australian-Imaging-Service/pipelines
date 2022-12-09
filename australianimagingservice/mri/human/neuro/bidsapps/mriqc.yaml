@@ -4,7 +4,7 @@ authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au
 base_image:
-  name: nipreps/mriqc"
+  name: nipreps/mriqc
   tag: *version
 info_url: https://mriqc.readthedocs.io
 description: 'quality control metrics from T1w, T2W and fMRI data'

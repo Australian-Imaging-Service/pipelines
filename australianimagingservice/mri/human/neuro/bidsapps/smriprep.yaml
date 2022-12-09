@@ -6,7 +6,7 @@ authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au
 base_image:
-  name: nipreps/smriprep"
+  name: nipreps/smriprep
   tag: *version
 packages:
   pip: # Copy in local copies of pydra and pydra-dcm2niix
