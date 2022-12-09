@@ -5,7 +5,7 @@ import tempfile
 import typing as ty
 from datetime import datetime
 from dataclasses import dataclass
-from arcana.core.utils import varname2path
+from arcana.core.utils.misc import varname2path
 import pytest
 from click.testing import CliRunner
 import xnat4tests
