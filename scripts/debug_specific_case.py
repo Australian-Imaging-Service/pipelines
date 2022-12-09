@@ -12,9 +12,9 @@
 # import click
 # from click.testing import CliRunner
 # import xnat4tests
-# from arcana.core.testing.utils import show_cli_trace
+# from arcana.core.utils.testing import show_cli_trace
 # from arcana.cli.deploy import entrypoint
-# from arcana.core.testing.data.stores.medimage.xnat import (
+# from arcana.core.utils.testing.data.stores.medimage.xnat import (
 #     install_and_launch_xnat_cs_command,
 #     XnatViaCS,
 # )

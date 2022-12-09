@@ -1,8 +1,8 @@
 import json
 from arcana.cli.deploy import build
-from arcana.core.testing.utils import show_cli_trace
+from arcana.core.utils.testing import show_cli_trace
 from arcana.deploy.xnat import XnatCSImage
-from arcana.core.testing.data.stores.xnat import install_and_launch_xnat_cs_command
+from arcana.core.utils.testing.data.stores.xnat import install_and_launch_xnat_cs_command
 
 
 SKIP_BUILD = False
