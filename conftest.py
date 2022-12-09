@@ -85,7 +85,7 @@ def bids_app_blueprint(run_prefix, xnat_connect, request):
 
 @pytest.fixture(scope="session")
 def xnat_connect():
-    xnat4tests.launch_xnat()
+    xnat4tests.start_xnat()
     yield xnat4tests.connect
     # xnat4tests.stop_xnat()
 

@@ -323,7 +323,7 @@
 #                 license_src,
 #                 pipelines_core_docker_dest,
 #             )
-#     xnat4tests.launch_xnat()
+#     xnat4tests.start_xnat()
 #     upload_data(project_id, subject_label, session_label, data_dir, in_docker=in_docker)
 #     if build != "only":
 #         if run_directly:
