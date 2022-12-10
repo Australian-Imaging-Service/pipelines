@@ -27,7 +27,7 @@ description: "structural MRI data preprocessing pipeline"
 long_description: |
   "SMRIPrep: a structural MRI data preprocessing pipeline including Freesurfer"
 command:
-  task: arcana.tasks.bids:bids_app
+  task: arcana.analysis.tasks.bids:bids_app
   inputs:
     T1w:
       datatype: medimage:NiftiGzX

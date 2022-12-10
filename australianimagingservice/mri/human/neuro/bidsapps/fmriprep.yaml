@@ -63,7 +63,7 @@ long_description: |
 known_issues:
   url: https://github.com/nipreps/fmriprep/issues
 command:
-  task: arcana.tasks.bids:bids_app
+  task: arcana.analysis.tasks.bids:bids_app
   row_frequency: session
   inputs:
     T1w:

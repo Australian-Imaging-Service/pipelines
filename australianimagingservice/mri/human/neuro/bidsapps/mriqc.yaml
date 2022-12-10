@@ -21,7 +21,7 @@ packages:
     dcm2niix: v1.0.20201102
     name: "3.0.2"
 command:
-  task: arcana.tasks.bids:bids_app
+  task: arcana.analysis.tasks.bids:bids_app
   row_frequency: session
   inputs:
     T1w:
