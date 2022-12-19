@@ -18,7 +18,7 @@
 #     install_and_launch_xnat_cs_command,
 #     XnatViaCS,
 # )
-# from arcana.core.deploy.image import PipelineImage
+# from arcana.core.deploy.image import AppImage
 # from arcana.deploy.medimage.xnat import (
 #     build_xnat_cs_image,
 #     dockerfile_build,
