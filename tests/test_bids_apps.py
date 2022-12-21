@@ -1,8 +1,8 @@
 import json
-from arcana.cli.deploy import build
+from arcana.core.cli.deploy import make_app
 from arcana.core.utils.testing import show_cli_trace
-from arcana.deploy.xnat import XnatCSImage
-from arcana.core.utils.testing.data.stores.xnat import install_and_launch_xnat_cs_command
+from arcana.xnat.deploy import XnatApp
+from arcana.xnat.utils.testing import install_and_launch_xnat_cs_command
 
 
 SKIP_BUILD = False
@@ -24,7 +24,7 @@ def test_bids_app(
         build_arg = "--build"
 
     result = cli_runner(
-        build,
+        make_app,
         [
             str(bp.spec_path),
             "pipelines-core-test",
@@ -41,7 +41,7 @@ def test_bids_app(
 
     assert result.exit_code == 0, show_cli_trace(result)
 
-    image_spec = XnatCSImage.load(bp.spec_path)
+    image_spec = XnatApp.load(bp.spec_path)
 
     with xnat_connect() as xlogin:
 

@@ -1,15 +1,14 @@
 from click.testing import CliRunner
-from arcana.cli.deploy import build
+from arcana.core.cli.deploy import make_app
 from arcana.core.utils.testing import show_cli_trace
 
 
 runner = CliRunner()
 
 results = runner.invoke(
-    build,
+    make_app,
     [
-        "./specs",
-        "australian-imaging-service",
+        "./australianimagingservice",
         "--registry",
         "ghcr.io",
         "--license-src",

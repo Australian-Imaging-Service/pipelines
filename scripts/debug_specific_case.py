@@ -13,13 +13,13 @@
 # from click.testing import CliRunner
 # import xnat4tests
 # from arcana.core.utils.testing import show_cli_trace
-# from arcana.cli.deploy import entrypoint
+# from arcana.core.cli.deploy import entrypoint
 # from arcana.core.utils.testing.data.stores.medimage.xnat import (
 #     install_and_launch_xnat_cs_command,
 #     XnatViaCS,
 # )
 # from arcana.core.deploy.image import App
-# from arcana.deploy.medimage.xnat import (
+# from arcana.deploy.medimag import (
 #     build_xnat_cs_image,
 #     dockerfile_build,
 #     generate_xnat_cs_command,
