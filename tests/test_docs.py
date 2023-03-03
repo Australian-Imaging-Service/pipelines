@@ -1,4 +1,4 @@
-from arcana.core.utils.testing import show_cli_trace
+from arcana.core.utils.misc import show_cli_trace
 from arcana.core.cli.deploy import make_docs
 
 

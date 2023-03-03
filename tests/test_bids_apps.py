@@ -1,6 +1,6 @@
 import json
 from arcana.core.cli.deploy import make_app
-from arcana.core.utils.testing import show_cli_trace
+from arcana.core.utils.misc import show_cli_trace
 from arcana.xnat.deploy import XnatApp
 from arcana.xnat.utils.testing import install_and_launch_xnat_cs_command
 
