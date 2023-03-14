@@ -94,6 +94,3 @@ def test_bids_app(
             timeout=30000,
         )
         assert status == "Complete", f"Workflow {workflow_id} failed.\n{out_str}"
-
-        # for deriv in blueprint.derivatives:
-        #     assert list(test_xsession.resources[deriv.name].files) == deriv.filenames
