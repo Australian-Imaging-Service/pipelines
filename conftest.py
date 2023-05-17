@@ -127,7 +127,7 @@ TEST_SUBJECT_LABEL = "TESTSUBJ"
 TEST_SESSION_LABEL = "TESTSUBJ_01"
 
 
-def make_project_id(dataset_name: str, run_prefix: str = None):
+def make_project_id(dataset_name: str, run_prefix: ty.Optional[str] = None):
     return (run_prefix if run_prefix else "") + dataset_name
 
 
