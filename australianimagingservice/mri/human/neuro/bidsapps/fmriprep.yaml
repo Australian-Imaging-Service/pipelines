@@ -5,7 +5,6 @@ base_image:
   tag: *version
 packages:
   pip:
-    - pydra
     - pydra-dcm2niix
     - pydra-mrtrix3
   neurodocker:
@@ -67,81 +66,81 @@ command:
   row_frequency: session
   inputs:
     T1w:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "T1-weighted anatomical scan"
       configuration:
         path: anat/T1w
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     T2w:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "T2-weighted anatomical scan"
       configuration:
         path: anat/T2w
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     bold:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "functional MRI"
       configuration:
         path: func/task-rest_bold
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     fmap_magnitude1:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "Field map - BIDS Case 1 & 2: magnitude of first echo"
       configuration:
         path: fmap/magnitude1
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     fmap_magnitude2:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "Field map - BIDS Case 1 & 2: magnitude of second echo"
       configuration:
         path: fmap/magnitude2
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     fmap_magnitude:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
       configuration:
         path: fmap/magnitude
       default_column:
-        datatype: medimage:Dicom 
+        datatype: medimage/dicom-set 
     fmap_phasediff:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
       configuration:
         path: fmap/phasediff
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     fmap_phase1:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "Field map - BIDS Case 2: phase of first echo"
       configuration:
         path: fmap/phase1
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     fmap_phase2:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "Field map - BIDS Case 2: phase of second echo"
       configuration:
         path: fmap/phase2
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     fmap_fieldmap:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "Field map - BIDS Case 3: directly reconstructed field map"
       configuration:
         path: fmap/fieldmap
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     fmap_epi:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       configuration:
         path: fmap/epi
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
       help_string: >-
         Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding
         directions to estimate the distortion map corresponding to the nonuniformities

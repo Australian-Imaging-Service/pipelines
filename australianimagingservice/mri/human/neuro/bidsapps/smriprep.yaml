@@ -30,19 +30,19 @@ command:
   task: arcana.analysis.tasks.bids:bids_app
   inputs:
     T1w:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "T1-weighted anatomical scan"
       configuration:
         path: anat/T1w
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
     T2w:
-      datatype: medimage:NiftiGzX
+      datatype: medimage/nifti-gz-x
       help_string: "T2-weighted anatomical scan"
       configuration:
         path: anat/T2w
       default_column:
-        datatype: medimage:Dicom
+        datatype: medimage/dicom-set
   outputs:
     smriprep:
       datatype: common:Directory
