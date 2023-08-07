@@ -30,7 +30,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.9'
+        python-version: '3.11'
 
     - name: Update build tools
       run: python -m pip install --upgrade pip
@@ -44,10 +44,6 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }} # - must be in GitHub Secrets!
 
-    - name: Get freesurfer licence from secrets
-      run: |
-        mkdir licenses
-        echo "${{ secrets.FREESURFER_LICENSE }}" > licenses/freesurfer.txt
     - name: Check for PyPI token on tag
       id: deployable
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
@@ -60,6 +56,6 @@ jobs:
         PUSH: "${{ steps.deployable.outputs.PUSH }}"
       run: >
         arcana deploy make-app xnat:XnatCSImage ./australian-imaging-service
-        australian-imaging-service --registry ghcr.io --license-dir ./licenses
+        australian-imaging-service --registry ghcr.io 
         --check-registry --raise-errors --release pipelines-metapackage:$RELEASE
         --clean-up --tag-latest $PUSH
