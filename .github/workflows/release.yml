@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Removed unnecessary tools to free space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
     - name: Checkout
       uses: actions/checkout@v2
 
@@ -55,4 +59,4 @@ jobs:
       run: >
         arcana deploy make-app ./australian-imaging-service xnat:XnatApp 
         --registry ghcr.io --check-registry --release pipelines-metapackage $RELEASE
-        --clean-up --tag-latest $PUSH
+        --clean-up --loglevel info --tag-latest $PUSH
