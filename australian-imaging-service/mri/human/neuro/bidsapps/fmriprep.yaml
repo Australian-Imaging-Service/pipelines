@@ -1,4 +1,5 @@
 title: 'Functional fMRI data preprocessing pipeline'
+arcana_spec_version: 1.0
 version:
   package: &package_version "22.0.2"
   build: "2"
@@ -152,6 +153,7 @@ command:
   outputs:
     fmriprep:
       datatype: generic/directory
+      help: Preprocessed fMRI data
       configuration:
   parameters:
     fmriprep_flags:

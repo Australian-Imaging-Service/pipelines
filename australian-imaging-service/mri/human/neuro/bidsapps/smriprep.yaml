@@ -1,4 +1,5 @@
 title: "Structural MRI data preprocessing pipeline"
+arcana_spec_version: 1.0
 version:
   package: &package_version "0.9.2"
   build: "3"
@@ -48,7 +49,8 @@ command:
         datatype: medimage/dicom-set
   outputs:
     smriprep:
-      datatype: common:Directory
+      datatype: generic/directory
+      help: Preprocessed sMRI data
       configuration:
         path: smriprep
   parameters:

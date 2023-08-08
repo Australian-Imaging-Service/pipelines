@@ -1,3 +1,4 @@
+arcana_spec_version: 1.0
 title: 'Extract quality control metrics from T1w, T2W and fMRI data'
 version:
   package: &package_version "22.0.6"
@@ -22,7 +23,7 @@ packages:
     - pydra-mrtrix3
   neurodocker:
     dcm2niix: v1.0.20201102
-    name: "3.0.2"
+    mrtrix3: "3.0.2"
 command:
   task: arcana.bids:bids_app
   row_frequency: session
@@ -51,6 +52,7 @@ command:
   outputs:
     mriqc:
       datatype: generic/directory
+      help: Generated QC outputs
       configuration:
         path: mriqc
   configuration:
