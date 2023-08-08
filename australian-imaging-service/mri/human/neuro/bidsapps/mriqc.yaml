@@ -6,6 +6,7 @@ authors:
 base_image:
   name: nipreps/mriqc
   tag: *version
+  package_manager: apt
 info_url: https://mriqc.readthedocs.io
 description: 'quality control metrics from T1w, T2W and fMRI data'
 long_description: |

@@ -3,13 +3,14 @@ build_iteration: "2"
 base_image:
   name: nipreps/fmriprep
   tag: *version
+  package_manager: apt
 packages:
   pip:
     - pydra-dcm2niix
     - pydra-mrtrix3
   neurodocker:
     dcm2niix: v1.0.20201102
-    mrtrix3: "3.0.2"  
+    mrtrix3: "3.0.2"
 licenses:
   freesurfer:
     destination: /opt/freesurfer/license.txt

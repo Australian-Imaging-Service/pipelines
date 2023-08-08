@@ -8,6 +8,7 @@ authors:
 base_image:
   name: nipreps/smriprep
   tag: *version
+  package_manager: apt
 packages:
   pip: # Copy in local copies of pydra and pydra-dcm2niix
     - pydra
