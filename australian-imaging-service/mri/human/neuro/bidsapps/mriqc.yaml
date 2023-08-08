@@ -1,18 +1,20 @@
-version: &version "22.0.6"
-build_iteration: "2"
+title: 'Extract quality control metrics from T1w, T2W and fMRI data'
+version:
+  package: &package_version "22.0.6"
+  build: "3"
 authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au
 base_image:
   name: nipreps/mriqc
-  tag: *version
+  tag: *package_version
   package_manager: apt
-info_url: https://mriqc.readthedocs.io
-description: 'quality control metrics from T1w, T2W and fMRI data'
-long_description: |
-  MRIQC extracts no-reference IQMs (image quality metrics) from
-  structural (T1w and T2w) and functional MRI (magnetic resonance
-  imaging) data.
+docs:
+  info_url: https://mriqc.readthedocs.io  
+  description: |
+    MRIQC extracts no-reference IQMs (image quality metrics) from
+    structural (T1w and T2w) and functional MRI (magnetic resonance
+    imaging) data.
 packages:
   pip:
     - pydra
@@ -22,33 +24,33 @@ packages:
     dcm2niix: v1.0.20201102
     name: "3.0.2"
 command:
-  task: arcana.analysis.tasks.bids:bids_app
+  task: arcana.bids:bids_app
   row_frequency: session
   inputs:
     T1w:
       datatype: medimage/nifti-gz-x
-      help_string: "T1-weighted anatomical scan"
+      help: "T1-weighted anatomical scan"
       configuration:
         path: anat/T1w
-      default_column:
+      column_defaults:
         datatype: medimage/dicom-set
     T2w:
       datatype: medimage/nifti-gz-x
-      help_string: "T2-weighted anatomical scan"
+      help: "T2-weighted anatomical scan"
       configuration:
         path: anat/T2w
-      default_column:
+      column_defaults:
         datatype: medimage/dicom-set
     fMRI:
       datatype: medimage/nifti-gz-x
-      help_string: "functional MRI"
+      help: "functional MRI"
       configuration:
         path: func/task-rest_bold
-      default_column:
+      column_defaults:
         datatype: medimage/dicom-set
   outputs:
     mriqc:
-      datatype: common:Directory
+      datatype: generic/directory
       configuration:
         path: mriqc
   configuration:
