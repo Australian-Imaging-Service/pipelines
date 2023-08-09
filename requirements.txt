@@ -1,1 +1,9 @@
-arcana @ git+https://github.com/Australian-Imaging-Service/arcana@develop
+arcana >=0.10.9
+arcana-xnat >= 0.3.5
+fileformats >= 0.8.6
+fileformats-extras >= 0.2.1
+fileformats-datascience >= 0.1.0
+fileformats-datascience-extras >= 0.1.1
+fileformats-medimage >= 0.4.4
+fileformats-medimage-extras >= 0.1.5
+

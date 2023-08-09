@@ -10,6 +10,5 @@ __pycache__
 /docs/pipelines/*
 !/docs/pipelines/_index.md
 test-data
-*.build
-*.build-test
+*.build*
 .venv

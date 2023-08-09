@@ -5,7 +5,7 @@ import tempfile
 import typing as ty
 from datetime import datetime
 from dataclasses import dataclass
-from arcana.core.utils import varname2path
+from arcana.core.utils.misc import varname2path
 import pytest
 from click.testing import CliRunner
 import xnat4tests
@@ -28,7 +28,7 @@ TEST_NIFTI_DATA_DIR = Path(__file__).parent / "tests" / "data" / "nifti"
 
 
 @pytest.fixture(scope="session")
-def license_dir():
+def license_src():
     return Path(__file__).parent / "licenses"
 
 
@@ -61,7 +61,7 @@ BIDS_APP_PARAMETERS = {
     'qsiprep': {'qsiprep_flags': '--output-resolution 2.5'}}
 
 
-bids_apps_dir = Path(__file__).parent / "specs" / "mri" / "human" / "neuro" / "bidsapps"
+bids_apps_dir = Path(__file__).parent / "australianimagingservice" / "mri" / "human" / "neuro" / "bidsapps"
 test_bids_data_dir = (
     Path(__file__).parent / "tests" / "data" / "mri" / "human" / "neuro" / "bidsapps"
 )
@@ -85,7 +85,7 @@ def bids_app_blueprint(run_prefix, xnat_connect, request):
 
 @pytest.fixture(scope="session")
 def xnat_connect():
-    xnat4tests.launch_xnat()
+    xnat4tests.start_xnat()
     yield xnat4tests.connect
     # xnat4tests.stop_xnat()
 
@@ -127,7 +127,7 @@ TEST_SUBJECT_LABEL = "TESTSUBJ"
 TEST_SESSION_LABEL = "TESTSUBJ_01"
 
 
-def make_project_id(dataset_name: str, run_prefix: str = None):
+def make_project_id(dataset_name: str, run_prefix: ty.Optional[str] = None):
     return (run_prefix if run_prefix else "") + dataset_name
 
 
@@ -160,4 +160,4 @@ def upload_test_dataset_to_xnat(project_id: str, source_data_dir: Path, xnat_con
                 xresource.upload_dir(resource_path, method="tar_file")
 
         # Populate metadata from DICOM headers
-        # login.put(f'/data/experiments/{xsession.id}?pullDataFromHeaders=true')
+        login.put(f'/data/experiments/{xsession.id}?pullDataFromHeaders=true')

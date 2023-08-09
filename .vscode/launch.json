@@ -62,16 +62,6 @@
             ]
         },
         {
-            "name": "Python: build specific test case",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/scripts/specific_test_case.py",
-            "console": "integratedTerminal",
-            "args": [
-                "--build-only"
-            ]
-        },
-        {
             "name": "Docker: specific test case",
             "type": "docker",
             "request": "launch",

@@ -4,8 +4,11 @@
 name: Build release
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [ main, develop ]
+    tags: [ '*' ]
+  pull_request:
+    branches: [ main, develop ]
   workflow_dispatch:  # Allow manual triggering by a user with write access to this repo
 
 jobs:
@@ -13,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Removed unnecessary tools to free space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
     - name: Checkout
       uses: actions/checkout@v2
 
@@ -20,14 +27,14 @@ jobs:
       run: echo "RELEASE=`echo $(git describe --tags --abbrev=0)`" >> $GITHUB_ENV
 
     - name: Unset header
-        # checkout@v2 adds a header that makes branch protection report errors
-        # because the Github action bot is not a collaborator on the repo
+      # checkout@v2 adds a header that makes branch protection report errors
+      # because the Github action bot is not a collaborator on the repo
       run: git config --local --unset http.https://github.com/.extraheader
 
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.9'
+        python-version: '3.11'
 
     - name: Update build tools
       run: python -m pip install --upgrade pip
@@ -41,14 +48,15 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }} # - must be in GitHub Secrets!
 
-    - name: Get freesurfer licence from secrets
-      run: |
-        mkdir licenses
-        echo "${{ secrets.FREESURFER_LICENSE }}" > licenses/freesurfer.txt
+    - name: Check for tagged release
+      id: deployable
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+      run: echo "PUSH='--push'"
 
     - name: Build and push container images
+      env:
+        PUSH: "${{ steps.deployable.outputs.PUSH }}"
       run: >
-        arcana deploy xnat build ./specs australian-imaging-service --registry ghcr.io
-        --license-dir ./licenses --check-registry --push --raise-errors
-        --release pipelines-metapackage:$RELEASE --clean-up --tag-latest
-
+        arcana deploy make-app ./australian-imaging-service xnat:XnatApp 
+        --registry ghcr.io --check-registry --release pipelines-metapackage $RELEASE 
+        --clean-up --loglevel info --tag-latest $PUSH

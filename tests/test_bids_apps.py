@@ -1,15 +1,15 @@
 import json
-from arcana.cli.deploy import build
-from arcana.test.utils import show_cli_trace
-from arcana.core.deploy.utils import load_yaml_spec
-from arcana.test.stores.medimage.xnat import install_and_launch_xnat_cs_command
+from arcana.core.cli.deploy import make_app
+from arcana.core.utils.misc import show_cli_trace
+from arcana.xnat.deploy import XnatApp
+from arcana.xnat.utils.testing import install_and_launch_xnat_cs_command
 
 
 SKIP_BUILD = False
 
 
 def test_bids_app(
-    bids_app_blueprint, run_prefix, xnat_connect, license_dir, cli_runner
+    bids_app_blueprint, run_prefix, xnat_connect, license_src, cli_runner
 ):
 
     bp = bids_app_blueprint
@@ -24,7 +24,7 @@ def test_bids_app(
         build_arg = "--build"
 
     result = cli_runner(
-        build,
+        make_app,
         [
             str(bp.spec_path),
             "pipelines-core-test",
@@ -34,70 +34,63 @@ def test_bids_app(
             "--use-test-config",
             "--use-local-packages",
             "--raise-errors",
-            "--license-dir",
-            str(license_dir),
+            "--license-src",
+            str(license_src),
         ],
     )
 
     assert result.exit_code == 0, show_cli_trace(result)
 
-    spec = load_yaml_spec(bp.spec_path)
+    image_spec = XnatApp.load(bp.spec_path)
 
-    for cmd_spec in spec["commands"]:
+    with xnat_connect() as xlogin:
 
-        cmd_name = cmd_spec["name"]
+        with open(
+            build_dir
+            / image_spec.name
+            / "xnat_commands"
+            / (image_spec.name + ".json")
+        ) as f:
+            xnat_command = json.load(f)
+        xnat_command.name = xnat_command.label = image_spec.name + run_prefix
 
-        with xnat_connect() as xlogin:
+        test_xsession = next(
+            iter(xlogin.projects[bp.project_id].experiments.values())
+        )
 
-            with open(
-                build_dir
-                / cmd_spec["name"]
-                / "xnat_commands"
-                / (cmd_spec["name"] + ".json")
-            ) as f:
-                xnat_command = json.load(f)
-            xnat_command["name"] = xnat_command["label"] = cmd_name + run_prefix
+        inputs_json = {}
 
-            test_xsession = next(
-                iter(xlogin.projects[bp.project_id].experiments.values())
-            )
+        for inpt in image_spec.command.inputs:
+            if (bids_app_blueprint.test_data / inpt.name).exists():
+                converter_args_path = (
+                    bids_app_blueprint.test_data / inpt.name / "converter.json"
+                )
+                converter_args = ""
+                if converter_args_path.exists():
+                    with open(converter_args_path) as f:
+                        dct = json.load(f)
+                    for name, val in dct.items():
+                        converter_args += f" converter.{name}={val}"
+                inputs_json[inpt.name] = inpt.name + converter_args
+            else:
+                inputs_json[inpt.name] = ""
 
-            inputs_json = {}
+        for pname, pval in bp.parameters.items():
+            inputs_json[pname] = pval
 
-            for inpt in cmd_spec["inputs"]:
-                if (bids_app_blueprint.test_data / inpt["name"]).exists():
-                    converter_args_path = (
-                        bids_app_blueprint.test_data / inpt["name"] / "converter.json"
-                    )
-                    converter_args = ""
-                    if converter_args_path.exists():
-                        with open(converter_args_path) as f:
-                            dct = json.load(f)
-                        for name, val in dct.items():
-                            converter_args += f" converter.{name}={val}"
-                    inputs_json[inpt["name"]] = inpt["name"] + converter_args
-                else:
-                    inputs_json[inpt["name"]] = ""
+        inputs_json['Arcana_flags'] = (
+            "--plugin serial "
+            "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
+            "--dataset-name default "
+            "--loglevel debug "
+        )
 
-            for pname, pval in bp.parameters.items():
-                inputs_json[pname] = pval
-
-            inputs_json['Arcana_flags'] = (
-                "--plugin serial "
-                "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
-                "--dataset-name default "
-                "--loglevel debug "
-            )
-
-            workflow_id, status, out_str = install_and_launch_xnat_cs_command(
-                command_json=xnat_command,
-                project_id=bp.project_id,
-                session_id=test_xsession.id,
-                inputs=inputs_json,
-                xlogin=xlogin,
-                timeout=30000,
-            )
-            assert status == "Complete", f"Workflow {workflow_id} failed.\n{out_str}"
-
-            # for deriv in blueprint.derivatives:
-            #     assert list(test_xsession.resources[deriv.name].files) == deriv.filenames
+        workflow_id, status, out_str = install_and_launch_xnat_cs_command(
+            command_json=xnat_command,
+            project_id=bp.project_id,
+            session_id=test_xsession.id,
+            inputs=inputs_json,
+            xlogin=xlogin,
+            timeout=30000,
+        )
+        assert status == "Complete", f"Workflow {workflow_id} failed.\n{out_str}"
