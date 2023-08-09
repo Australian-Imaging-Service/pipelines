@@ -58,5 +58,5 @@ jobs:
         PUSH: "${{ steps.deployable.outputs.PUSH }}"
       run: >
         arcana deploy make-app ./australian-imaging-service xnat:XnatApp 
-        --registry ghcr.io --check-registry --release pipelines-metapackage $RELEASE
+        --registry ghcr.io --check-registry --release pipelines-metapackage $RELEASE 
         --clean-up --loglevel info --tag-latest $PUSH
