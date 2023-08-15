@@ -49,6 +49,13 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Build Pipeline Docs",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/test_docs.py",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Create bidsifiable dataset on XNAT",
             "type": "python",
             "request": "launch",
