@@ -3,7 +3,6 @@ name: generate docs
 on:
   push:
     branches:
-      - master
       - main
   repository_dispatch:  # Allow access tokens which have write access to this repo to trigger this action
   workflow_dispatch:  # Allow manual triggering by a user with write access to this repo
@@ -12,11 +11,11 @@ jobs:
   generate:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
         with:
           submodules: recursive  # Fetch Hugo themes (true OR recursive)
           fetch-depth: 1    # Fetch all history for .GitInfo and .Lastmod
-          path: pipelines_root
 
       # TODO: Need a unique key we can pass, but as we're targeting
       # arcana@master, this is not trivial.
@@ -29,34 +28,33 @@ jobs:
       #     restore-keys: |
       #       ${{ runner.os }}-python-
 
-      - uses: actions/setup-python@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
         with:
-          python-version: '3.8' # Version range or exact version of a Python version to use, using SemVer'
+          python-version: '3.11' # Version range or exact version of a Python version to use, using SemVer'
 
       - name: Install python dependencies
-        run: pip install -r ./pipelines_root/requirements.txt
+        run: pip install -r ./requirements.txt
 
       - name: Generate pipeline docs
-        run: arcana deploy docs --flatten ./specs docs/pipelines
-        working-directory: ./pipelines_root
+        run: arcana deploy make-docs ./australian-imaging-service docs/pipelines --flatten 
 
       - name: Remove /docs/pipelines/ from .gitignore
         run: sed -i 's%^/docs/pipelines/\*$%%' .gitignore
-        working-directory: ./pipelines_root
 
-      - name: Deploy
+      - name: Deploy docs
         uses: peaceiris/actions-gh-pages@v3
         if: github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./pipelines_root
+          publish_dir: .
           publish_branch: docs
           enable_jekyll: true  # This branch isn't actually fed to GH pages
 
       # It's possible, likely even, that we'll trigger unnecessary docs
       # rebuilds with this. Running this properly as a separate workflow
       # only when real docs changes occur would require using a PAT.
-      - name: Repository Dispatch
+      - name: Trigger rebuild of docs
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.GITHUBPAGES_KEY }}
