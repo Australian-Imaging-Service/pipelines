@@ -38,14 +38,14 @@ command:
       configuration:
         path: anat/T1w
       column_defaults:
-        datatype: medimage/dicom-set
+        datatype: medimage/dicom-series
     T2w:
       datatype: medimage/nifti-gz-x
       help: "T2-weighted anatomical scan"
       configuration:
         path: anat/T2w
       column_defaults:
-        datatype: medimage/dicom-set
+        datatype: medimage/dicom-series
   outputs:
     smriprep:
       datatype: generic/directory
