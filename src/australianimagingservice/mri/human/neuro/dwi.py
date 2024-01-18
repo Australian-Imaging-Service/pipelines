@@ -69,7 +69,7 @@ def qsiprep():
             bundle="",
             suffix="dseg",
             keep_dtype=False,
-            in_file=wf.inputnode.lzout.t1_aseg,
+            in_file=wf.lzin.t1_aseg,
             source_file=wf.t1_name.lzout.out
         )
     )
@@ -82,7 +82,7 @@ def qsiprep():
             bundle="",
             suffix="mask",
             keep_dtype=False,
-            in_file=wf.inputnode.lzout.t1_mask,
+            in_file=wf.lzin.t1_mask,
             source_file=wf.t1_name.lzout.out
         )
     )
@@ -95,7 +95,7 @@ def qsiprep():
             bundle="",
             suffix="from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm",
             keep_dtype=False,
-            in_file=wf.inputnode.lzout.t1_2_mni_reverse_transform,
+            in_file=wf.lzin.t1_2_mni_reverse_transform,
             source_file=wf.t1_name.lzout.out
         )
     )
@@ -108,7 +108,7 @@ def qsiprep():
             bundle="",
             suffix="from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm",
             keep_dtype=False,
-            in_file=wf.inputnode.lzout.t1_2_mni_forward_transform,
+            in_file=wf.lzin.t1_2_mni_forward_transform,
             source_file=wf.t1_name.lzout.out
         )
     )
@@ -121,7 +121,7 @@ def qsiprep():
             bundle="",
             suffix="",
             keep_dtype=True,
-            in_file=wf.inputnode.lzout.t1_preproc,
+            in_file=wf.lzin.t1_preproc,
             source_file=wf.t1_name.lzout.out
         )
     )
@@ -134,7 +134,7 @@ def qsiprep():
             bundle="",
             suffix="dseg",
             keep_dtype=False,
-            in_file=wf.inputnode.lzout.t1_seg,
+            in_file=wf.lzin.t1_seg,
             source_file=wf.t1_name.lzout.out
         )
     )
@@ -147,7 +147,7 @@ def qsiprep():
             bundle="",
             suffix="from-T1wACPC_to-T1wNative_mode-image_xfm",
             keep_dtype=False,
-            in_file=wf.inputnode.lzout.t1_acpc_inv_transform,
+            in_file=wf.lzin.t1_acpc_inv_transform,
             source_file=wf.t1_name.lzout.out
         )
     )
@@ -160,7 +160,7 @@ def qsiprep():
             bundle="",
             suffix="from-T1wNative_to-T1wACPC_mode-image_xfm",
             keep_dtype=False,
-            in_file=wf.inputnode.lzout.t1_acpc_transform,
+            in_file=wf.lzin.t1_acpc_transform,
             source_file=wf.t1_name.lzout.out
         )
     )
@@ -173,13 +173,8 @@ def qsiprep():
             keep_dtype=False,
             space="",
             suffix="from-orig_to-T1w_mode-image_xfm",
-            source_file=wf.inputnode.lzout.source_files,
-            in_file=wf.inputnode.lzout.t1_template_transforms
-        )
-    )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
+            source_file=wf.lzin.source_files,
+            in_file=wf.lzin.t1_template_transforms
         )
     )
 
@@ -188,7 +183,7 @@ def qsiprep():
             name="t1_name",
             dwi_only=False,
             anatomical_contrast="T1w",
-            in_files=wf.inputnode.lzout.source_files
+            in_files=wf.lzin.source_files
         )
     )
     wf.add(
@@ -206,11 +201,11 @@ def qsiprep():
             template_resolution=1,
             explicit_masking=True,
             float=True,
-            reference_image=wf.inputnode.lzout.template_image,
-            reference_mask=wf.inputnode.lzout.template_mask,
-            moving_image=wf.inputnode.lzout.anatomical_reference,
-            lesion_mask=wf.inputnode.lzout.roi,
-            moving_mask=wf.inputnode.lzout.brain_mask
+            reference_image=wf.lzin.template_image,
+            reference_mask=wf.lzin.template_mask,
+            moving_image=wf.lzin.anatomical_reference,
+            lesion_mask=wf.lzin.roi,
+            moving_mask=wf.lzin.brain_mask
         )
     )
     wf.add(
@@ -227,8 +222,8 @@ def qsiprep():
             template_resolution=1,
             explicit_masking=True,
             float=True,
-            reference_image=wf.inputnode.lzout.template_image,
-            reference_mask=wf.inputnode.lzout.template_mask,
+            reference_image=wf.lzin.template_image,
+            reference_mask=wf.lzin.template_mask,
             moving_mask=wf.rigid_acpc_resample_mask.lzout.output_image,
             moving_image=wf.rigid_acpc_resample_anat.lzout.output_image
         )
@@ -244,11 +239,11 @@ def qsiprep():
             name="extract_rigid_transform"
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -269,8 +264,8 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            reference_image=wf.inputnode.lzout.template_image,
-            input_image=wf.inputnode.lzout.anatomical_reference,
+            reference_image=wf.lzin.template_image,
+            input_image=wf.lzin.anatomical_reference,
             transforms=wf.extract_rigid_transform.lzout.rigid_transform
         )
     )
@@ -284,8 +279,8 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            reference_image=wf.inputnode.lzout.template_image,
-            input_image=wf.inputnode.lzout.brain_mask,
+            reference_image=wf.lzin.template_image,
+            input_image=wf.lzin.brain_mask,
             transforms=wf.extract_rigid_transform.lzout.rigid_transform
         )
     )
@@ -298,8 +293,8 @@ def qsiprep():
             bundle="",
             suffix="t1_2_mni",
             keep_dtype=False,
-            source_file=wf.inputnode.lzout.source_file,
-            in_file=wf.inputnode.lzout.t1_2_mni_report
+            source_file=wf.lzin.source_file,
+            in_file=wf.lzin.t1_2_mni_report
         )
     )
     wf.add(
@@ -311,8 +306,8 @@ def qsiprep():
             bundle="",
             suffix="conform",
             keep_dtype=False,
-            source_file=wf.inputnode.lzout.source_file,
-            in_file=wf.inputnode.lzout.t1_conform_report
+            source_file=wf.lzin.source_file,
+            in_file=wf.lzin.t1_conform_report
         )
     )
     wf.add(
@@ -324,15 +319,15 @@ def qsiprep():
             bundle="",
             suffix="seg_brainmask",
             keep_dtype=False,
-            source_file=wf.inputnode.lzout.source_file,
-            in_file=wf.inputnode.lzout.seg_report
+            source_file=wf.lzin.source_file,
+            in_file=wf.lzin.seg_report
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         qsiprep.interfaces.images.Conform(
             name="anat_conform",
@@ -342,11 +337,11 @@ def qsiprep():
             target_shape=wf.template_dimensions.lzout.target_shape
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         nipype.interfaces.ants.segmentation.N4BiasFieldCorrection(
             name="n4_correct",
@@ -375,7 +370,7 @@ def qsiprep():
         qsiprep.niworkflows.interfaces.images.TemplateDimensions(
             name="template_dimensions",
             max_scale=3.0,
-            t1w_list=wf.inputnode.lzout.images
+            t1w_list=wf.lzin.images
         )
     )
     wf.add(
@@ -386,11 +381,11 @@ def qsiprep():
             anatomical_contrast="T1w"
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         nipype.interfaces.afni.utils.Autobox(
             name="autobox_template",
@@ -398,7 +393,7 @@ def qsiprep():
             num_threads=1,
             outputtype="NIFTI_GZ",
             environ={},
-            in_file=wf.inputnode.lzout.template_image
+            in_file=wf.lzin.template_image
         )
     )
     wf.add(
@@ -411,11 +406,11 @@ def qsiprep():
             in_file=wf.autobox_template.lzout.out_file
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -449,11 +444,11 @@ def qsiprep():
             t1_seg=wf.acpc_aseg_to_dseg.lzout.out_file
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -477,7 +472,7 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            input_image=wf.inputnode.lzout.image,
+            input_image=wf.lzin.image,
             reference_image=wf.prepare_synthstrip_reference.lzout.prepared_image
         )
     )
@@ -488,7 +483,7 @@ def qsiprep():
             num_threads=1,
             outputtype="NIFTI_GZ",
             environ={},
-            in_file=wf.inputnode.lzout.image
+            in_file=wf.lzin.image
         )
     )
     wf.add(
@@ -581,11 +576,11 @@ def qsiprep():
             in_rois=wf.seg2msks.lzout.out
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -600,14 +595,14 @@ def qsiprep():
             num_threads=1,
             fast=False,
             environ={"OMP_NUM_THREADS": "1"},
-            input_image=wf.inputnode.lzout.padded_image
+            input_image=wf.lzin.padded_image
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         nipype.interfaces.ants.utils.MultiplyImages(
             name="mask_brain",
@@ -615,7 +610,7 @@ def qsiprep():
             output_product_image="masked_brain.nii",
             num_threads=1,
             environ={"NSLOTS": "1"},
-            first_input=wf.inputnode.lzout.original_image,
+            first_input=wf.lzin.original_image,
             second_input=wf.mask_to_original_grid.lzout.output_image
         )
     )
@@ -630,7 +625,7 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            reference_image=wf.inputnode.lzout.original_image,
+            reference_image=wf.lzin.original_image,
             input_image=wf.synthstrip.lzout.out_brain_mask
         )
     )
@@ -646,7 +641,7 @@ def qsiprep():
             name="synthstrip",
             num_threads=1,
             environ={"OMP_NUM_THREADS": "1"},
-            input_image=wf.inputnode.lzout.padded_image
+            input_image=wf.lzin.padded_image
         )
     )
     wf.add(
@@ -702,7 +697,7 @@ def qsiprep():
             bundle="",
             suffix="dwi",
             keep_dtype=False,
-            in_file=wf.inputnode.lzout.carpetplot_data
+            in_file=wf.lzin.carpetplot_data
         )
     )
     wf.add(
@@ -755,7 +750,7 @@ def qsiprep():
             suffix="dwi",
             keep_dtype=False,
             extension=".b_table.txt",
-            in_file=wf.inputnode.lzout.btable_t1
+            in_file=wf.lzin.btable_t1
         )
     )
     wf.add(
@@ -769,7 +764,7 @@ def qsiprep():
             suffix="dwi",
             keep_dtype=False,
             extension=".bval",
-            in_file=wf.inputnode.lzout.bvals_t1
+            in_file=wf.lzin.bvals_t1
         )
     )
     wf.add(
@@ -783,7 +778,7 @@ def qsiprep():
             suffix="dwi",
             keep_dtype=False,
             extension=".bvec",
-            in_file=wf.inputnode.lzout.bvecs_t1
+            in_file=wf.lzin.bvecs_t1
         )
     )
     wf.add(
@@ -798,7 +793,7 @@ def qsiprep():
             keep_dtype=False,
             compress=True,
             extension=".nii.gz",
-            in_file=wf.inputnode.lzout.cnr_map_t1
+            in_file=wf.lzin.cnr_map_t1
         )
     )
     wf.add(
@@ -813,7 +808,7 @@ def qsiprep():
             keep_dtype=False,
             compress=True,
             extension=".nii.gz",
-            in_file=wf.inputnode.lzout.dwi_mask_t1
+            in_file=wf.lzin.dwi_mask_t1
         )
     )
     wf.add(
@@ -828,7 +823,7 @@ def qsiprep():
             keep_dtype=False,
             compress=True,
             extension=".nii.gz",
-            in_file=wf.inputnode.lzout.dwi_t1
+            in_file=wf.lzin.dwi_t1
         )
     )
     wf.add(
@@ -842,7 +837,7 @@ def qsiprep():
             suffix="dwi",
             keep_dtype=False,
             extension=".b",
-            in_file=wf.inputnode.lzout.gradient_table_t1
+            in_file=wf.lzin.gradient_table_t1
         )
     )
     wf.add(
@@ -855,7 +850,7 @@ def qsiprep():
             bundle="",
             suffix="hmcOptimization",
             keep_dtype=False,
-            in_file=wf.inputnode.lzout.hmc_optimization_data
+            in_file=wf.lzin.hmc_optimization_data
         )
     )
     wf.add(
@@ -870,35 +865,35 @@ def qsiprep():
             keep_dtype=False,
             compress=True,
             extension=".nii.gz",
-            in_file=wf.inputnode.lzout.t1_b0_ref
+            in_file=wf.lzin.t1_b0_ref
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
-            confounds=wf.inputnode.lzout.confounds,
-            dwi_t1=wf.inputnode.lzout.dwi_t1,
-            t1_b0_series=wf.inputnode.lzout.t1_b0_series,
-            t1_b0_ref=wf.inputnode.lzout.t1_b0_ref,
-            dwi_mask_t1=wf.inputnode.lzout.dwi_mask_t1
+            confounds=wf.lzin.confounds,
+            dwi_t1=wf.lzin.dwi_t1,
+            t1_b0_series=wf.lzin.t1_b0_series,
+            t1_b0_ref=wf.lzin.t1_b0_ref,
+            dwi_mask_t1=wf.lzin.dwi_mask_t1
         )
     )
     wf.add(
         qsiprep.interfaces.reports.GradientPlot(
             name="gradient_plot",
-            orig_bvec_files=wf.inputnode.lzout.bvec_files,
-            orig_bval_files=wf.inputnode.lzout.bval_files,
-            source_files=wf.inputnode.lzout.original_files,
+            orig_bvec_files=wf.lzin.bvec_files,
+            orig_bval_files=wf.lzin.bval_files,
+            source_files=wf.lzin.original_files,
             final_bvec_file=wf.outputnode.lzout.bvecs_t1
         )
     )
@@ -909,25 +904,25 @@ def qsiprep():
             bvec_file=wf.transform_dwis_t1.lzout.outputnode.rotated_bvecs
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         qsiprep.interfaces.reports.InteractiveReport(
             name="interactive_report",
-            series_qc_file=wf.inputnode.lzout.series_qc_file,
-            carpetplot_data=wf.inputnode.lzout.carpetplot_data,
-            raw_dwi_file=wf.inputnode.lzout.raw_dwi_file,
-            processed_dwi_file=wf.inputnode.lzout.processed_dwi_file,
-            confounds_file=wf.inputnode.lzout.confounds_file,
-            mask_file=wf.inputnode.lzout.mask_file,
+            series_qc_file=wf.lzin.series_qc_file,
+            carpetplot_data=wf.lzin.carpetplot_data,
+            raw_dwi_file=wf.lzin.raw_dwi_file,
+            processed_dwi_file=wf.lzin.processed_dwi_file,
+            confounds_file=wf.lzin.confounds_file,
+            mask_file=wf.lzin.mask_file,
             color_fa=wf.tensor_fit.lzout.color_fa_image
         )
     )
@@ -943,16 +938,16 @@ def qsiprep():
             big_delta=None,
             little_delta=None,
             b0_threshold=50,
-            dwi_file=wf.inputnode.lzout.processed_dwi_file,
-            bval_file=wf.inputnode.lzout.bval_file,
-            bvec_file=wf.inputnode.lzout.bvec_file,
-            mask_file=wf.inputnode.lzout.mask_file
+            dwi_file=wf.lzin.processed_dwi_file,
+            bval_file=wf.lzin.bval_file,
+            bvec_file=wf.lzin.bvec_file,
+            mask_file=wf.lzin.mask_file
         )
     )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
-            hmc_optimization_data=wf.inputnode.lzout.hmc_optimization_data,
+            hmc_optimization_data=wf.lzin.hmc_optimization_data,
             bvals_t1=wf.transform_dwis_t1.lzout.outputnode.bvals,
             bvecs_t1=wf.transform_dwis_t1.lzout.outputnode.rotated_bvecs,
             cnr_map_t1=wf.transform_dwis_t1.lzout.outputnode.cnr_map_resampled,
@@ -970,8 +965,8 @@ def qsiprep():
         qsiprep.interfaces.reports.SeriesQC(
             name="series_qc",
             output_file_name="sub-1",
-            pre_qc=wf.inputnode.lzout.raw_qc_file,
-            confounds_file=wf.inputnode.lzout.confounds,
+            pre_qc=wf.lzin.raw_qc_file,
+            confounds_file=wf.lzin.confounds,
             t1_cnr_file=wf.transform_dwis_t1.lzout.outputnode.cnr_map_resampled,
             t1_qc=wf.transform_dwis_t1.lzout.outputnode.resampled_qc,
             t1_qc_postproc=wf.final_denoise_wf.lzout.outputnode.series_qc_postproc,
@@ -983,7 +978,7 @@ def qsiprep():
     wf.add(
         qsiprep.interfaces.anatomical.DiceOverlap(
             name="calculate_dice",
-            dwi_mask=wf.inputnode.lzout.dwi_mask,
+            dwi_mask=wf.lzin.dwi_mask,
             anatomical_mask=wf.downsample_t1_mask.lzout.out_file
         )
     )
@@ -994,26 +989,26 @@ def qsiprep():
             num_threads=1,
             outputtype="NIFTI_GZ",
             environ={},
-            in_file=wf.inputnode.lzout.anatomical_mask,
-            master=wf.inputnode.lzout.dwi_mask
+            in_file=wf.lzin.anatomical_mask,
+            master=wf.lzin.dwi_mask
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
             dice_score=wf.calculate_dice.lzout.dice_score
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+    # wf.add(
+    #     nipype.interfaces.utility.base.IdentityInterface(
+    #         name="inputnode"
+    #     )
+    # )
     wf.add(
         qsiprep.interfaces.dsi_studio.DSIStudioMergeQC(
             name="merged_qc",
@@ -1059,9 +1054,9 @@ def qsiprep():
             bvec_convention="DIPY",
             num_threads=1,
             environ={},
-            input_nifti_file=wf.inputnode.lzout.dwi_file,
-            input_bvals_file=wf.inputnode.lzout.bval_file,
-            input_bvecs_file=wf.inputnode.lzout.bvec_file
+            input_nifti_file=wf.lzin.dwi_file,
+            input_bvals_file=wf.lzin.bval_file,
+            input_bvecs_file=wf.lzin.bvec_file
         )
     )
     wf.add(
@@ -1075,7 +1070,7 @@ def qsiprep():
     wf.add(
         qsiprep.interfaces.ants.GetImageType(
             name="cnr_image_type",
-            image=wf.inputnode.lzout.cnr_map
+            image=wf.lzin.cnr_map
         )
     )
     wf.add(
@@ -1087,8 +1082,8 @@ def qsiprep():
             float=True,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            input_image=wf.inputnode.lzout.cnr_map,
-            reference_image=wf.inputnode.lzout.output_grid,
+            input_image=wf.lzin.cnr_map,
+            reference_image=wf.lzin.output_grid,
             input_image_type=wf.cnr_image_type.lzout.image_type
         )
     )
@@ -1103,13 +1098,13 @@ def qsiprep():
             default_value=0.0,
             float=False,
             environ={},
-            reference_image=wf.inputnode.lzout.output_grid,
-            dwi_files=wf.inputnode.lzout.dwi_files,
-            hmc_affines=wf.inputnode.lzout.hmc_xforms,
-            hmcsdc_dwi_ref_to_t1w_affine=wf.inputnode.lzout.itk_b0_to_t1,
-            fieldwarps=wf.inputnode.lzout.fieldwarps,
-            b0_to_intramodal_template_transforms=wf.inputnode.lzout.b0_to_intramodal_template_transforms,
-            intramodal_template_to_t1_warp=wf.inputnode.lzout.intramodal_template_to_t1_warp
+            reference_image=wf.lzin.output_grid,
+            dwi_files=wf.lzin.dwi_files,
+            hmc_affines=wf.lzin.hmc_xforms,
+            hmcsdc_dwi_ref_to_t1w_affine=wf.lzin.itk_b0_to_t1,
+            fieldwarps=wf.lzin.fieldwarps,
+            b0_to_intramodal_template_transforms=wf.lzin.b0_to_intramodal_template_transforms,
+            intramodal_template_to_t1_warp=wf.lzin.intramodal_template_to_t1_warp
         )
     )
     wf.add(
@@ -1121,8 +1116,8 @@ def qsiprep():
             interpolation="Linear",
             num_threads=1,
             out_postfix="_trans",
-            input_image=wf.inputnode.lzout.dwi_files,
-            reference_image=wf.inputnode.lzout.output_grid,
+            input_image=wf.lzin.dwi_files,
+            reference_image=wf.lzin.output_grid,
             transforms=wf.compose_transforms.lzout.out_warps,
             interpolation=wf.get_interpolation.lzout.interpolation_method
         )
@@ -1131,7 +1126,7 @@ def qsiprep():
         qsiprep.interfaces.gradients.ExtractB0s(
             name="extract_b0_series",
             b0_threshold=50,
-            b0_indices=wf.inputnode.lzout.b0_indices,
+            b0_indices=wf.lzin.b0_indices,
             dwi_series=wf.merge.lzout.out_file
         )
     )
@@ -1140,7 +1135,7 @@ def qsiprep():
             name="b0ref_reportlet",
             out_report="report.svg",
             compress_report="auto",
-            before=wf.inputnode.lzout.b0_template,
+            before=wf.lzin.b0_template,
             after=wf.synthstrip_wf.lzout.outputnode.brain_image,
             wm_seg=wf.synthstrip_wf.lzout.outputnode.brain_mask
         )
@@ -1158,26 +1153,26 @@ def qsiprep():
             in_file=wf.b0ref_reportlet.lzout.out_report
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
-            raw_ref_image=wf.inputnode.lzout.b0_template,
-            ref_image=wf.inputnode.lzout.b0_template,
+            raw_ref_image=wf.lzin.b0_template,
+            ref_image=wf.lzin.b0_template,
             ref_image_brain=wf.synthstrip_wf.lzout.outputnode.brain_image,
             dwi_mask=wf.synthstrip_wf.lzout.outputnode.brain_mask,
             validation_report=wf.b0ref_reportlet.lzout.out_report
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.ants.utils.MultiplyImages(
             name="mask_brain",
@@ -1185,7 +1180,7 @@ def qsiprep():
             output_product_image="masked_brain.nii",
             num_threads=1,
             environ={"NSLOTS": "1"},
-            first_input=wf.inputnode.lzout.original_image,
+            first_input=wf.lzin.original_image,
             second_input=wf.mask_to_original_grid.lzout.output_image
         )
     )
@@ -1200,7 +1195,7 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            reference_image=wf.inputnode.lzout.original_image,
+            reference_image=wf.lzin.original_image,
             input_image=wf.synthstrip.lzout.out_brain_mask
         )
     )
@@ -1211,11 +1206,11 @@ def qsiprep():
             brain_image=wf.mask_brain.lzout.output_product_image
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -1239,7 +1234,7 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            input_image=wf.inputnode.lzout.image,
+            input_image=wf.lzin.image,
             reference_image=wf.prepare_synthstrip_reference.lzout.prepared_image
         )
     )
@@ -1250,7 +1245,7 @@ def qsiprep():
             num_threads=1,
             outputtype="NIFTI_GZ",
             environ={},
-            in_file=wf.inputnode.lzout.image
+            in_file=wf.lzin.image
         )
     )
     wf.add(
@@ -1281,29 +1276,29 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            input_image=wf.inputnode.lzout.t1_mask,
-            reference_image=wf.inputnode.lzout.b0_template
+            input_image=wf.lzin.t1_mask,
+            reference_image=wf.lzin.b0_template
         )
     )
     wf.add(
         qsiprep.interfaces.images.ChooseInterpolator(
             name="get_interpolation",
             output_resolution=1.25,
-            dwi_files=wf.inputnode.lzout.dwi_files
+            dwi_files=wf.lzin.dwi_files
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         qsiprep.interfaces.nilearn.Merge(
             name="merge",
             dtype="f4",
             compress=False,
             is_dwi=True,
-            header_source=wf.inputnode.lzout.name_source,
+            header_source=wf.lzin.name_source,
             in_files=wf.scale_dwis.lzout.scaled_images
         )
     )
@@ -1322,9 +1317,9 @@ def qsiprep():
     wf.add(
         qsiprep.interfaces.gradients.GradientRotation(
             name="rotate_gradients",
-            bvec_files=wf.inputnode.lzout.bvec_files,
-            bval_files=wf.inputnode.lzout.bval_files,
-            original_images=wf.inputnode.lzout.dwi_files,
+            bvec_files=wf.lzin.bvec_files,
+            bval_files=wf.lzin.bval_files,
+            original_images=wf.lzin.dwi_files,
             affine_transforms=wf.compose_transforms.lzout.out_affines
         )
     )
@@ -1339,11 +1334,11 @@ def qsiprep():
             default_value=0.0,
             float=False,
             environ={},
-            scaling_image_files=wf.inputnode.lzout.sdc_scaling_images,
-            reference_image=wf.inputnode.lzout.output_grid,
-            hmcsdc_dwi_ref_to_t1w_affine=wf.inputnode.lzout.itk_b0_to_t1,
-            b0_to_intramodal_template_transforms=wf.inputnode.lzout.b0_to_intramodal_template_transforms,
-            intramodal_template_to_t1_warp=wf.inputnode.lzout.intramodal_template_to_t1_warp,
+            scaling_image_files=wf.lzin.sdc_scaling_images,
+            reference_image=wf.lzin.output_grid,
+            hmcsdc_dwi_ref_to_t1w_affine=wf.lzin.itk_b0_to_t1,
+            b0_to_intramodal_template_transforms=wf.lzin.b0_to_intramodal_template_transforms,
+            intramodal_template_to_t1_warp=wf.lzin.intramodal_template_to_t1_warp,
             dwi_files=wf.dwi_transform.lzout.output_image
         )
     )
@@ -1381,15 +1376,15 @@ def qsiprep():
             verbose=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            fixed_image=wf.inputnode.lzout.t1_brain,
-            moving_image=wf.inputnode.lzout.ref_b0_brain
+            fixed_image=wf.lzin.t1_brain,
+            moving_image=wf.lzin.ref_b0_brain
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -1411,17 +1406,17 @@ def qsiprep():
         qsiprep.interfaces.utils.AddTSVHeader(
             name="add_motion_headers",
             columns=["trans_x", "trans_y", "trans_z", "rot_x", "rot_y", "rot_z"],
-            in_file=wf.inputnode.lzout.motion_params
+            in_file=wf.lzin.motion_params
         )
     )
     wf.add(
         qsiprep.interfaces.confounds.GatherConfounds(
             name="concat",
-            sliceqc_file=wf.inputnode.lzout.sliceqc_file,
-            original_bvals=wf.inputnode.lzout.bval_file,
-            original_bvecs=wf.inputnode.lzout.bvec_file,
-            original_files=wf.inputnode.lzout.original_files,
-            denoising_confounds=wf.inputnode.lzout.denoising_confounds,
+            sliceqc_file=wf.lzin.sliceqc_file,
+            original_bvals=wf.lzin.bval_file,
+            original_bvecs=wf.lzin.bvec_file,
+            original_files=wf.lzin.original_files,
+            denoising_confounds=wf.lzin.denoising_confounds,
             fd=wf.fdisp.lzout.out_file,
             motion=wf.add_motion_headers.lzout.out_file
         )
@@ -1437,14 +1432,14 @@ def qsiprep():
             normalize=False,
             figdpi=100,
             figsize=[11.7, 2.3],
-            in_file=wf.inputnode.lzout.motion_params
+            in_file=wf.lzin.motion_params
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -1511,14 +1506,14 @@ def qsiprep():
             normalize=True,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            images=wf.inputnode.lzout.b0_images
+            images=wf.lzin.b0_images
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.Merge(
             name="iteration_templates",
@@ -1612,8 +1607,8 @@ def qsiprep():
             winsorize_lower_quantile=0.002,
             winsorize_upper_quantile=0.998,
             write_composite_transform=False,
-            moving_image=wf.inputnode.lzout.image_paths,
-            fixed_image=wf.inputnode.lzout.template_image
+            moving_image=wf.lzin.image_paths,
+            fixed_image=wf.lzin.template_image
         )
     )
     wf.add(
@@ -1716,8 +1711,8 @@ def qsiprep():
             winsorize_lower_quantile=0.002,
             winsorize_upper_quantile=0.998,
             write_composite_transform=False,
-            moving_image=wf.inputnode.lzout.image_paths,
-            fixed_image=wf.inputnode.lzout.template_image
+            moving_image=wf.lzin.image_paths,
+            fixed_image=wf.lzin.template_image
         )
     )
     wf.add(
@@ -1820,8 +1815,8 @@ def qsiprep():
             winsorize_lower_quantile=0.002,
             winsorize_upper_quantile=0.998,
             write_composite_transform=False,
-            moving_image=wf.inputnode.lzout.image_paths,
-            fixed_image=wf.inputnode.lzout.template_image
+            moving_image=wf.lzin.image_paths,
+            fixed_image=wf.lzin.template_image
         )
     )
     wf.add(
@@ -1851,16 +1846,16 @@ def qsiprep():
             aligned_images=wf.iterative_alignment_002.lzout.outputnode.registered_image_paths
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
-            raw_ref_image=wf.inputnode.lzout.b0_template,
-            ref_image=wf.inputnode.lzout.b0_template,
+            raw_ref_image=wf.lzin.b0_template,
+            ref_image=wf.lzin.b0_template,
             ref_image_brain=wf.synthstrip_wf.lzout.outputnode.brain_image,
             dwi_mask=wf.synthstrip_wf.lzout.outputnode.brain_mask
         )
@@ -1897,16 +1892,16 @@ def qsiprep():
             verbose=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            fixed_image=wf.inputnode.lzout.t1_brain,
-            fixed_image_masks=wf.inputnode.lzout.t1_mask,
-            moving_image=wf.inputnode.lzout.b0_template
+            fixed_image=wf.lzin.t1_brain,
+            fixed_image_masks=wf.lzin.t1_mask,
+            moving_image=wf.lzin.b0_template
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.ants.utils.MultiplyImages(
             name="mask_brain",
@@ -1914,7 +1909,7 @@ def qsiprep():
             output_product_image="masked_brain.nii",
             num_threads=1,
             environ={"NSLOTS": "1"},
-            first_input=wf.inputnode.lzout.original_image,
+            first_input=wf.lzin.original_image,
             second_input=wf.mask_to_original_grid.lzout.output_image
         )
     )
@@ -1929,7 +1924,7 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            reference_image=wf.inputnode.lzout.original_image,
+            reference_image=wf.lzin.original_image,
             input_image=wf.synthstrip.lzout.out_brain_mask
         )
     )
@@ -1940,11 +1935,11 @@ def qsiprep():
             brain_image=wf.mask_brain.lzout.output_product_image
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -1968,7 +1963,7 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            input_image=wf.inputnode.lzout.image,
+            input_image=wf.lzin.image,
             reference_image=wf.prepare_synthstrip_reference.lzout.prepared_image
         )
     )
@@ -1979,7 +1974,7 @@ def qsiprep():
             num_threads=1,
             outputtype="NIFTI_GZ",
             environ={},
-            in_file=wf.inputnode.lzout.image
+            in_file=wf.lzin.image
         )
     )
     wf.add(
@@ -2010,8 +2005,8 @@ def qsiprep():
             float=False,
             num_threads=1,
             environ={"NSLOTS": "1"},
-            input_image=wf.inputnode.lzout.t1_mask,
-            reference_image=wf.inputnode.lzout.b0_template,
+            input_image=wf.lzin.t1_mask,
+            reference_image=wf.lzin.b0_template,
             transforms=wf.register_t1_to_raw.lzout.forward_transforms
         )
     )
@@ -2040,13 +2035,13 @@ def qsiprep():
     wf.add(
         qsiprep.interfaces.shoreline.B0Mean(
             name="b0_mean",
-            b0_images=wf.inputnode.lzout.warped_b0_images
+            b0_images=wf.lzin.warped_b0_images
         )
     )
     wf.add(
         qsiprep.interfaces.shoreline.CalculateCNR(
             name="calculate_cnr",
-            mask_image=wf.inputnode.lzout.warped_b0_mask,
+            mask_image=wf.lzin.warped_b0_mask,
             hmc_warped_images=wf.reorder_dwi_xforms.lzout.hmc_warped_images,
             predicted_images=wf.reorder_dwi_xforms.lzout.full_predicted_dwi_series
         )
@@ -2090,25 +2085,25 @@ def qsiprep():
     wf.add(
         qsiprep.interfaces.shoreline.ExtractDWIsForModel(
             name="extract_dwis",
-            dwi_files=wf.inputnode.lzout.dwi_files,
-            bval_files=wf.inputnode.lzout.bval_files,
-            bvec_files=wf.inputnode.lzout.bvec_files,
-            transforms=wf.inputnode.lzout.initial_transforms,
-            b0_indices=wf.inputnode.lzout.b0_indices
+            dwi_files=wf.lzin.dwi_files,
+            bval_files=wf.lzin.bval_files,
+            bvec_files=wf.lzin.bvec_files,
+            transforms=wf.lzin.initial_transforms,
+            b0_indices=wf.lzin.b0_indices
         )
     )
     wf.add(
         qsiprep.interfaces.gradients.CombineMotions(
             name="calculate_motion",
-            source_files=wf.inputnode.lzout.original_dwi_files,
-            ref_file=wf.inputnode.lzout.b0_mean
+            source_files=wf.lzin.original_dwi_files,
+            ref_file=wf.lzin.b0_mean
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -2122,8 +2117,8 @@ def qsiprep():
     wf.add(
         qsiprep.interfaces.gradients.GradientRotation(
             name="post_bvec_transforms",
-            bvec_files=wf.inputnode.lzout.original_bvecs,
-            bval_files=wf.inputnode.lzout.bvals
+            bvec_files=wf.lzin.original_bvecs,
+            bval_files=wf.lzin.bvals
         )
     )
     wf.add(
@@ -2131,11 +2126,11 @@ def qsiprep():
             name="predict_dwis",
             minimal_q_distance=2.0,
             model="3dSHORE",
-            aligned_dwis=wf.inputnode.lzout.approx_aligned_dwi_files,
-            aligned_bvecs=wf.inputnode.lzout.approx_aligned_bvecs,
-            bvals=wf.inputnode.lzout.bvals,
-            aligned_b0_mean=wf.inputnode.lzout.b0_mean,
-            aligned_mask=wf.inputnode.lzout.b0_mask
+            aligned_dwis=wf.lzin.approx_aligned_dwi_files,
+            aligned_bvecs=wf.lzin.approx_aligned_bvecs,
+            bvals=wf.lzin.bvals,
+            aligned_b0_mean=wf.lzin.b0_mean,
+            aligned_mask=wf.lzin.b0_mask
         )
     )
     wf.add(
@@ -2170,16 +2165,16 @@ def qsiprep():
             winsorize_lower_quantile=0.002,
             winsorize_upper_quantile=0.998,
             write_composite_transform=False,
-            moving_image=wf.inputnode.lzout.original_dwi_files,
-            fixed_image_masks=wf.inputnode.lzout.b0_mask,
+            moving_image=wf.lzin.original_dwi_files,
+            fixed_image_masks=wf.lzin.b0_mask,
             fixed_image=wf.predict_dwis.lzout.predicted_image
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -2193,9 +2188,9 @@ def qsiprep():
     wf.add(
         qsiprep.interfaces.shoreline.ReorderOutputs(
             name="reorder_dwi_xforms",
-            warped_b0_images=wf.inputnode.lzout.warped_b0_images,
-            b0_indices=wf.inputnode.lzout.b0_indices,
-            initial_transforms=wf.inputnode.lzout.initial_transforms,
+            warped_b0_images=wf.lzin.warped_b0_images,
+            b0_indices=wf.lzin.b0_indices,
+            initial_transforms=wf.lzin.initial_transforms,
             b0_mean=wf.b0_mean.lzout.average_image,
             model_based_transforms=wf.shoreline_iteration001.lzout.outputnode.hmc_transforms,
             model_predicted_images=wf.shoreline_iteration001.lzout.outputnode.predicted_dwis,
@@ -2205,15 +2200,15 @@ def qsiprep():
     wf.add(
         qsiprep.interfaces.gradients.CombineMotions(
             name="calculate_motion",
-            source_files=wf.inputnode.lzout.original_dwi_files,
-            ref_file=wf.inputnode.lzout.b0_mean
+            source_files=wf.lzin.original_dwi_files,
+            ref_file=wf.lzin.b0_mean
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -2227,8 +2222,8 @@ def qsiprep():
     wf.add(
         qsiprep.interfaces.gradients.GradientRotation(
             name="post_bvec_transforms",
-            bvec_files=wf.inputnode.lzout.original_bvecs,
-            bval_files=wf.inputnode.lzout.bvals
+            bvec_files=wf.lzin.original_bvecs,
+            bval_files=wf.lzin.bvals
         )
     )
     wf.add(
@@ -2236,11 +2231,11 @@ def qsiprep():
             name="predict_dwis",
             minimal_q_distance=2.0,
             model="3dSHORE",
-            aligned_dwis=wf.inputnode.lzout.approx_aligned_dwi_files,
-            aligned_bvecs=wf.inputnode.lzout.approx_aligned_bvecs,
-            bvals=wf.inputnode.lzout.bvals,
-            aligned_b0_mean=wf.inputnode.lzout.b0_mean,
-            aligned_mask=wf.inputnode.lzout.b0_mask
+            aligned_dwis=wf.lzin.approx_aligned_dwi_files,
+            aligned_bvecs=wf.lzin.approx_aligned_bvecs,
+            bvals=wf.lzin.bvals,
+            aligned_b0_mean=wf.lzin.b0_mean,
+            aligned_mask=wf.lzin.b0_mask
         )
     )
     wf.add(
@@ -2275,15 +2270,15 @@ def qsiprep():
             winsorize_lower_quantile=0.002,
             winsorize_upper_quantile=0.998,
             write_composite_transform=False,
-            moving_image=wf.inputnode.lzout.original_dwi_files,
-            fixed_image_masks=wf.inputnode.lzout.b0_mask,
+            moving_image=wf.lzin.original_dwi_files,
+            fixed_image_masks=wf.lzin.b0_mask,
             fixed_image=wf.predict_dwis.lzout.predicted_image
         )
     )
     wf.add(
         qsiprep.interfaces.shoreline.SHORELineReport(
             name="shoreline_report",
-            original_images=wf.inputnode.lzout.dwi_files,
+            original_images=wf.lzin.dwi_files,
             iteration_summary=wf.summarize_iterations.lzout.iteration_summary_file,
             model_predicted_images=wf.reorder_dwi_xforms.lzout.full_predicted_dwi_series,
             registered_images=wf.reorder_dwi_xforms.lzout.hmc_warped_images
@@ -2295,16 +2290,16 @@ def qsiprep():
             collected_motion_files=wf.collect_motion_params.lzout.out
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         qsiprep.interfaces.gradients.MatchTransforms(
             name="match_transforms",
-            dwi_files=wf.inputnode.lzout.dwi_files,
-            b0_indices=wf.inputnode.lzout.b0_indices
+            dwi_files=wf.lzin.dwi_files,
+            b0_indices=wf.lzin.b0_indices
         )
     )
     wf.add(
@@ -2329,16 +2324,16 @@ def qsiprep():
             invert_transform_flags=[True],
             num_threads=1,
             out_postfix="_trans",
-            reference_image=wf.inputnode.lzout.dwi_files,
+            reference_image=wf.lzin.dwi_files,
             input_image=wf.dwi_model_hmc_wf.lzout.outputnode.model_predicted_images,
             transforms=wf.dwi_model_hmc_wf.lzout.outputnode.hmc_transforms
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -2367,8 +2362,8 @@ def qsiprep():
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
             method="None",
-            b0_ref=wf.inputnode.lzout.b0_ref,
-            b0_mask=wf.inputnode.lzout.b0_mask
+            b0_ref=wf.lzin.b0_ref,
+            b0_mask=wf.lzin.b0_mask
         )
     )
     wf.add(
@@ -2386,8 +2381,8 @@ def qsiprep():
             name="split_bvals",
             deoblique_bvecs=True,
             b0_threshold=100,
-            bval_file=wf.inputnode.lzout.bval_file,
-            bvec_file=wf.inputnode.lzout.bvec_file,
+            bval_file=wf.lzin.bval_file,
+            bvec_file=wf.lzin.bvec_file,
             split_files=wf.split_dwis.lzout.out_files
         )
     )
@@ -2399,7 +2394,7 @@ def qsiprep():
             num_threads=1,
             outputtype="AFNI",
             environ={},
-            in_file=wf.inputnode.lzout.dwi_file
+            in_file=wf.lzin.dwi_file
         )
     )
     wf.add(
@@ -2409,11 +2404,11 @@ def qsiprep():
             source_files=wf.dwi_hmc_wf.lzout.outputnode.final_template
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
@@ -2438,11 +2433,11 @@ def qsiprep():
             carpetplot_data=wf.conf_plot.lzout.carpetplot_json
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         qsiprep.interfaces.dsi_studio.DSIStudioMergeQC(
             name="merged_qc",
@@ -2488,9 +2483,9 @@ def qsiprep():
             bvec_convention="DIPY",
             num_threads=1,
             environ={},
-            input_nifti_file=wf.inputnode.lzout.dwi_file,
-            input_bvals_file=wf.inputnode.lzout.bval_file,
-            input_bvecs_file=wf.inputnode.lzout.bvec_file
+            input_nifti_file=wf.lzin.dwi_file,
+            input_bvals_file=wf.lzin.bval_file,
+            input_bvecs_file=wf.lzin.bvec_file
         )
     )
     wf.add(
@@ -2574,7 +2569,7 @@ def qsiprep():
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="buffer00",
-            dwi_file=wf.inputnode.lzout.dwi_file
+            dwi_file=wf.lzin.dwi_file
         )
     )
     wf.add(
@@ -2609,7 +2604,7 @@ def qsiprep():
             clip_negative_vals=False,
             shift_intensity=True,
             out_report="patch2self_report.svg",
-            bval_file=wf.inputnode.lzout.bval_file,
+            bval_file=wf.lzin.bval_file,
             in_file=wf.buffer00.lzout.dwi_file
         )
     )
@@ -2646,11 +2641,11 @@ def qsiprep():
             in_files=wf.merge_confounds.lzout.out
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         nipype.interfaces.utility.base.Merge(
             name="merge_confounds",
@@ -2664,17 +2659,17 @@ def qsiprep():
     wf.add(
         nipype.interfaces.utility.base.IdentityInterface(
             name="outputnode",
-            bval_file=wf.inputnode.lzout.bval_file,
-            bvec_file=wf.inputnode.lzout.bvec_file,
+            bval_file=wf.lzin.bval_file,
+            bvec_file=wf.lzin.bvec_file,
             dwi_file=wf.buffer02.lzout.dwi_file,
             confounds=wf.hstack_confounds.lzout.confounds_file
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         qsiprep.interfaces.dsi_studio.DSIStudioMergeQC(
             name="merged_qc",
@@ -2720,9 +2715,9 @@ def qsiprep():
             bvec_convention="DIPY",
             num_threads=1,
             environ={},
-            input_nifti_file=wf.inputnode.lzout.dwi_file,
-            input_bvals_file=wf.inputnode.lzout.bval_file,
-            input_bvecs_file=wf.inputnode.lzout.bvec_file
+            input_nifti_file=wf.lzin.dwi_file,
+            input_bvals_file=wf.lzin.bval_file,
+            input_bvecs_file=wf.lzin.bvec_file
         )
     )
     wf.add(
@@ -2813,17 +2808,17 @@ def qsiprep():
             test1=wf.pre_hmc_wf.lzout.outputnode.raw_concatenated
         )
     )
-    wf.add(
-        nipype.interfaces.utility.base.IdentityInterface(
-            name="inputnode"
-        )
-    )
+#    wf.add(
+#        nipype.interfaces.utility.base.IdentityInterface(
+#            name="inputnode"
+#        )
+#    )
     wf.add(
         qsiprep.interfaces.reports.SubjectSummary(
             name="summary",
             dwi_groupings={"sub-1": {"dwi_series": ["/Users/tclose/Data/openneuro/ds000114/sub-01/ses-test/dwi/sub-01_ses-test_dwi.nii.gz"], "fieldmap_info": {"suffix": None}, "dwi_series_pedir": "j", "concatenated_bids_name": "sub-1"}},
             template="MNI152NLin2009cAsym",
-            subjects_dir=wf.inputnode.lzout.subjects_dir,
+            subjects_dir=wf.lzin.subjects_dir,
             t1w=wf.bidssrc.lzout.t1w,
             t2w=wf.bidssrc.lzout.t2w,
             subject_id=wf.bids_info.lzout.subject_id
