@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "australianimagingservice"
+description = "Curated analysis pipelienes for the Australian Imaging Service"
+readme="README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "fileformats",
+    "fileformats-medimage",
+    "pydra >=0.23a0",
+    # "pydra-mrtrix3",
+    # "pydra-fastsurfer",
+]
+license = "CC-BY-4.0"
+authors = [
+    {name = "Thomas G. Close", email = "tom.g.close@gmail.com"},
+]
+maintainers = [
+    {name = "Thomas G. Close", email = "tom.g.close@gmail.com"},
+]
+keywords = [
+    "file formats",
+    "data",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "pre-commit",
+    "codespell",
+    "flake8",
+    "flake8-pyproject",
+]
+test = [
+    "pytest >=6.2.5",
+    "pytest-env>=0.6.2",
+    "pytest-cov>=2.12.1",
+]
+
+
+[project.urls]
+repository = "https://github.com/Australian-Imaging-Service/pipelines-community"
+
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = {root = ".."}
+
+[tool.hatch.build.hooks.vcs]
+version-file = "australianimagingservice/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["australianimagingservice"]
+
+[tool.black]
+target-version = ['py38']
+exclude = "australianimagingservice/_version.py"
+
+[tool.codespell]
+ignore-words = ".codespell-ignorewords"
+
+[tool.flake8]
+doctests = true
+per-file-ignores = [
+    "__init__.py:F401"
+]
+max-line-length = 88
+select = "C,E,F,W,B,B950"
+extend-ignore = ['E203', 'E501', 'E129', 'W503']
