@@ -52,35 +52,54 @@ ants.utils.AverageImages
 ants.utils.MultiplyImages
 
 
-Misc
-----
+Function utils
+--------------
 FramewiseDisplacement
 
 
 QSIPrep - modified
-----------------
+==================
+
+
+ANTs
+----
+ANTSRegistration (niworkflows.ANTSRegistrationRPT)
+GetImageType
+
+
+Dipy (function)
+---------------
+Patch2Self
+TensorReconstruction
+
+DSI Studio
+----------
+DSIStudioBTable
+DSIStudioCreateSrc
+DSIStudioFibQC
+DSIStudioGQIReconstruction
+DSIStudioMergeQC
+DSIStudioSrcQC
+
+Freesurfer
+----------
+SynthStrip (freesurfer.FixHeaderSynthStrip)
+SynthSeg
+
+Nilearn
+-------
+nilearn.Merge
+
+Function utils
+--------------
 anatomical.DiceOverlap
 anatomical.GetTemplate
-ants.GetImageType
-bids.BIDSDataGrabber
-bids.BIDSInfo
-bids.DerivativesDataSink
 confounds.DMRISummary
 confounds.GatherConfounds
-dipy.Patch2Self
-dipy.TensorReconstruction
-dsi_studio.DSIStudioBTable
-dsi_studio.DSIStudioCreateSrc
-dsi_studio.DSIStudioFibQC
-dsi_studio.DSIStudioGQIReconstruction
-dsi_studio.DSIStudioMergeQC
-dsi_studio.DSIStudioSrcQC
 dwi_merge.MergeDWIs
 dwi_merge.StackConfounds
 fmap.ApplyScalingImages
-freesurfer.FixHeaderSynthStrip
 freesurfer.PrepareSynthStripGrid
-freesurfer.SynthSeg
 gradients.CombineMotions
 gradients.ComposeTransforms
 gradients.ExtractB0s
@@ -94,16 +113,8 @@ images.SplitDWIsBvals
 images.TSplit
 itk.AffineToRigid
 itk.DisassembleTransform
-mrtrix.MRDeGibbs
-mrtrix.MRTrixGradientTable
-nilearn.Merge
-niworkflows.ANTSRegistrationRPT
-reports.AboutSummary
-reports.DiffusionSummary
-reports.GradientPlot
-reports.InteractiveReport
-reports.SeriesQC
-reports.SubjectSummary
+utils.AddTSVHeader
+utils.TestInput
 shoreline.B0Mean
 shoreline.CalculateCNR
 shoreline.ExtractDWIsForModel
@@ -111,12 +122,16 @@ shoreline.IterationSummary
 shoreline.ReorderOutputs
 shoreline.SHORELineReport
 shoreline.SignalPrediction
-utils.AddTSVHeader
-utils.TestInput
 
-niworkflows
------------
-interfaces.images.TemplateDimensions
-interfaces.masks.ROIsPlot
+
+Niworkflows
+============
+
+Function utils
+--------------
+images.TemplateDimensions
+masks.ROIsPlot
 interfaces.registration.RobustMNINormalizationRPT
 interfaces.registration.SimpleBeforeAfterRPT
+
+
