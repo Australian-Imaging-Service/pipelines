@@ -1,5 +1,5 @@
 ---
-source_file: specs/mri/human/neuro/bidsapps/smriprep.yaml
+source_file: /home/runner/work/pipelines/pipelines/australian-imaging-service/mri/human/neuro/bidsapps/smriprep.yaml
 title: smriprep
 weight: 10
 
@@ -8,39 +8,41 @@ weight: 10
 ## Package Info
 |Key|Value|
 |---|-----|
-|App version|0.9.2|
+|Name|smriprep|
+|Title|Structural MRI data preprocessing pipeline|
+|Package version|0.9.2|
+|Build|3|
 |Base image|`nipreps/smriprep:0.9.2`|
+|Maintainer|Mahdieh Dashtbani-Moghari (mahdieh.dashtbanimoghari@sydney.edu.au)|
 |Info URL|https://www.nipreps.org/smriprep/master/index.html|
 
+SMRIPrep: a structural MRI data preprocessing pipeline including Freesurfer
+
+
 ### Required licenses
-|Source file|Info|
-|-----------|----|
-|`freesurfer.txt`|`sMRIPRep` uses FreeSurfer tools, which require a license to run.<br> See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
-|
+|Name|URL|Description|
+|----|---|-----------|
+|freesurfer|`https://surfer.nmr.mgh.harvard.edu/registration.html`|`sMRIPRep` uses FreeSurfer tools, which require a license to run.|
 
-## Commands
-### smriprep
-"SMRIPrep: a structural MRI data preprocessing pipeline..."
-
-
+## Command
 |Key|Value|
 |---|-----|
-|Short description|structural MRI data preprocessing pipeline|
-|Operates on|Session|
+|Task|arcana.bids:bids_app|
+|Operates on|session|
 #### Inputs
-|Name|Format|Description|
-|----|------|-----------|
-|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|T1-weighted anatomical scan|
-|`T2w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|T2-weighted anatomical scan|
+|Name|Required data-type|Default column data-type|Description|
+|----|------------------|------------------------|-----------|
+|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|T1-weighted anatomical scan|
+|`T2w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|T2-weighted anatomical scan|
 
 #### Outputs
-|Name|Format|Description|
-|----|------|-----------|
-|`smriprep`|||
+|Name|Required data-type|Default column data-type|Description|
+|----|------------------|------------------------|-----------|
+|`smriprep`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Preprocessed sMRI data|
 
 #### Parameters
 |Name|Data type|Description|
 |----|---------|-----------|
-|`smriprep_flags`|`string`|Command line flags passed on directly to sMRIPrep|
-|`json_edits`|`string`|JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to handle special cases where the dcm2niix fails to produce valid a BIDS|
+|`smriprep_flags`|`str`|Command line flags passed on directly to sMRIPrep|
+|`json_edits`|`str`|JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to handle special cases where the dcm2niix fails to produce valid a BIDS|
 

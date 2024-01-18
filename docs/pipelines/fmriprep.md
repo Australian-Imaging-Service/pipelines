@@ -1,5 +1,5 @@
 ---
-source_file: specs/mri/human/neuro/bidsapps/fmriprep.yaml
+source_file: /home/runner/work/pipelines/pipelines/australian-imaging-service/mri/human/neuro/bidsapps/fmriprep.yaml
 title: fmriprep
 weight: 10
 
@@ -8,18 +8,15 @@ weight: 10
 ## Package Info
 |Key|Value|
 |---|-----|
-|App version|22.0.2|
-|Base image|`nipreps/fmriprep:22.0.2`|
+|Name|fmriprep|
+|Title|Functional MRI data preprocessing pipeline|
+|Package version|23.1.4|
+|Build|0|
+|Base image|`nipreps/fmriprep:23.1.4`|
+|Maintainer|Thomas G. Close (thomas.close@sydney.edu.au)|
 |Info URL|https://fmriprep.org|
+|Known issues|https://github.com/nipreps/fmriprep/issues|
 
-### Required licenses
-|Source file|Info|
-|-----------|----|
-|`freesurfer.txt`|`fMRIPRep` uses FreeSurfer tools, which require a license to run. See [FreeSurfer Download and Registration](https://surfer.nmr.mgh.harvard.edu/registration.html) for more details.
-|
-
-## Commands
-### fmriprep
 `fMRIPrep` is a functional magnetic resonance imaging (fMRI) data preprocessing
 pipeline that is designed to provide an easily accessible, state-of-the-art
 interface that is robust to variations in scan acquisition protocols and that
@@ -59,34 +56,39 @@ Optional flags that can be provided to the `fmriprep_flags` parameter:
 ```
 
 
+### Required licenses
+|Name|URL|Description|
+|----|---|-----------|
+|freesurfer|`https://surfer.nmr.mgh.harvard.edu/registration.html`|`fMRIPRep` uses FreeSurfer tools, which require a license to run.|
+
+## Command
 |Key|Value|
 |---|-----|
-|Short description|functional fMRI data preprocessing pipeline|
-|Operates on|Session|
-|Known issues|https://github.com/nipreps/fmriprep/issues|
+|Task|arcana.bids:bids_app|
+|Operates on|session|
 #### Inputs
-|Name|Format|Description|
-|----|------|-----------|
-|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|T1-weighted anatomical scan|
-|`T2w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|T2-weighted anatomical scan|
-|`bold`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|functional MRI|
-|`fmap_magnitude1`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 1 & 2: magnitude of first echo|
-|`fmap_magnitude2`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 1 & 2: magnitude of second echo|
-|`fmap_magnitude`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 3: magnitude image used for anatomical reference|
-|`fmap_phasediff`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times|
-|`fmap_phase1`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 2: phase of first echo|
-|`fmap_phase2`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 2: phase of second echo|
-|`fmap_fieldmap`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 3: directly reconstructed field map|
-|`fmap_epi`|<span data-toggle="tooltip" data-placement="bottom" title="medimage:Dicom" aria-label="medimage:Dicom">Dicom (Directory)</span>|Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field|
+|Name|Required data-type|Default column data-type|Description|
+|----|------------------|------------------------|-----------|
+|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|T1-weighted anatomical scan|
+|`T2w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|T2-weighted anatomical scan|
+|`bold`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|functional MRI|
+|`fmap_magnitude1`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|Field map - BIDS Case 1 & 2: magnitude of first echo|
+|`fmap_magnitude2`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|Field map - BIDS Case 1 & 2: magnitude of second echo|
+|`fmap_magnitude`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|Field map - BIDS Case 3: magnitude image used for anatomical reference|
+|`fmap_phasediff`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times|
+|`fmap_phase1`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|Field map - BIDS Case 2: phase of first echo|
+|`fmap_phase2`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|Field map - BIDS Case 2: phase of second echo|
+|`fmap_fieldmap`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|Field map - BIDS Case 3: directly reconstructed field map|
+|`fmap_epi`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz-x" aria-label="medimage/nifti-gz-x">medimage/nifti-gz-x</span>|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-series" aria-label="medimage/dicom-series">medimage/dicom-series</span>|Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field|
 
 #### Outputs
-|Name|Format|Description|
-|----|------|-----------|
-|`fmriprep`|||
+|Name|Required data-type|Default column data-type|Description|
+|----|------------------|------------------------|-----------|
+|`fmriprep`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Preprocessed fMRI data|
 
 #### Parameters
 |Name|Data type|Description|
 |----|---------|-----------|
-|`fmriprep_flags`|`string`|Command line flags passed on directly to fMRIPrep|
-|`json_edits`|`string`|JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to handle special cases where the dcm2niix fails to produce valid a BIDS|
+|`fmriprep_flags`|`str`|Command line flags passed on directly to fMRIPrep|
+|`json_edits`|`str`|JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to handle special cases where the dcm2niix fails to produce valid a BIDS|
 
