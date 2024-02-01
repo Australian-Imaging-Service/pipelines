@@ -49,26 +49,31 @@ logger = getLogger(__name__)
 
 
 def dwipreproc(
-    input: MedicalImage,
-    output: MedicalImage,
-    json_import,
-    pe_dir: str,
-    readout_time: float,
-    se_epi,
-    align_seepi,
-    topup_options,
-    topup_files,
-    eddy_mask,
-    eddy_slspec,
-    eddy_options,
-    eddyqc_text,
-    eddyqc_all,
-    grad_import,
-    grad_export,
-    rpe_none,
-    rpe_pair,
-    rpe_all,
-    rpe_header,
+    have_se_epi: bool,
+    # align_seepi: bool,  # TODO: work out what to do with this (Rob's struggle)
+    rpe_strategy: str,  # TODO: Enum: none, pair, all
+    
+    # How am I estimating my susceptility field?
+    # - I'm not ("rpe-none")
+    # - I have a pair of b=0 images with reversed phase encoding,
+    #   which are going to be provided to the workflow as a separate image
+    #   (-se_epi) ("rpe-pair")
+    # - I will extract the b=0 violumes from my DWI series, and
+    #   use those to estimate the susceptibility field ("rpe-all")
+    #
+    # Does the set of images provided to topup need to be "tweaked"
+    #   in any way to ensure that they align with the DWIs?
+    # - Yes, because the "se-epi" image is on a completely different voxel grid
+    #   and therefore needs to e first resampled
+    # - Yes, because a susceptibility fierld can't be estimated from the "SE-EPI"
+    #   image alone, because it doesn't have any phase encoding contrast
+    # - Yes, because it's recommended that the first volume in the topup input
+    #   be the same as the first volue in the eddy input
+    # - No, because those data are being pulled from the DWIs themselves ("-rpe_all")
+    #
+    # Am I going to perform explicit volume recombination?
+    # - Yes, because my data support it ("rpe-all") 
+    # - No
 ):
     """
     Perform diffusion image pre-processing using FSL\'s eddy tool; including inhomogeneity
@@ -215,44 +220,28 @@ def dwipreproc(
     wf = Workflow(
         name="dwipreproc",
         input_spec={
-            "input": ImageIn,
-            # "output": ImageOut,
-            "json_import": Json,
-            "pe_dir": str,
-            "readout_time": float,
+            "input": Mif,
             "se_epi": ImageIn,
+            "pe_dir": str,
+            "json_import": Json,
+            "readout_time": float,
             "align_seepi": bool,
-            "topup_options": str,
-            "topup_files": str,
-            "eddy_mask": ImageIn,
-            "eddy_slspec": str,
-            "eddy_options": str,
-            "eddyqc_text": str,
-            "eddyqc_all": str,
-            "grad_import": str,
-            "grad_export": str,
-            "rpe_none": bool,
-            "rpe_pair": bool,
-            "rpe_all": bool,
-            "rpe_header": bool,
-            "grad": BFile,
-            "fslgrad": ty.Tuple[Bvec, Bval],
         },
     )
 
-    from mrtrix3 import (
-        CONFIG,
-        RuntimeError,
-    )  # pylint: disable=no-name-in-module, import-outside-toplevel
-    from mrtrix3 import (
-        app,
-        fsl,
-        image,
-        matrix,
-        path,
-        phaseencoding,
-        run,
-    )  # pylint: disable=no-name-in-module, import-outside-toplevel
+    # from mrtrix3 import (
+    #     CONFIG,
+    #     RuntimeError,
+    # )  # pylint: disable=no-name-in-module, import-outside-toplevel
+    # from mrtrix3 import (
+    #     app,
+    #     fsl,
+    #     image,
+    #     matrix,
+    #     path,
+    #     phaseencoding,
+    #     run,
+    # )  # pylint: disable=no-name-in-module, import-outside-toplevel
 
     if len(input.dims()) < 3:
         raise RuntimeError(f"Image '{input}' does not contain 3 spatial dimensions")
@@ -313,7 +302,7 @@ def dwipreproc(
 
     # Export the gradient table to the path requested by the user if necessary
 
-    if ARGS.export_grad_mrtrix:
+    if export_grad_mrtrix:
         check_output_path(path.from_user(ARGS.export_grad_mrtrix, False))
         grad_export = {"export_grad_mrtrix", path.from_user(ARGS.export_grad_mrtrix)}
     if ARGS.export_grad_fsl:
