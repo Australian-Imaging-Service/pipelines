@@ -42,6 +42,8 @@ from pydra.tasks.mrtrix3.auto import (
 from pydra.tasks.fsl.auto import TOPUP, Eddy, ApplyTOPUP, EddyQuad
 from .strategy_identification import strategy_identification_wf
 from .susceptibility_est import susceptibility_estimation_wf
+from .eddy_current_corr import eddy_current_corr_wf
+
 
 logger = getLogger(__name__)
 
@@ -595,6 +597,15 @@ def dwipreproc(
             se_epi=wf.import_seepi.lzout.output,
         )
     )
+
+    
+    wf.add(
+        eddy_current_corr_wf(have_topup, slice_to_volume, dwi_has_pe_contrast)(
+            input=wf.lzin.input,
+            topup_fieldcoeff=wf.susceptibility_estimation_wf.topup_fieldcoeff,
+            slice_timings=wf.stragy_identification.slice_timings,
+        )
+    )    
 
     
     # Find the index of the first DWI volume that is a b=0 volume
