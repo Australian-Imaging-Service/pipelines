@@ -1,9 +1,10 @@
 import pydra.mark
 import typing as ty
 import logging
+import itertools
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
-from pydra.tasks.mrtrix3.v3_0 import mrinfo, dirstat, mrconvert
-from pydra.tasks.fsl.v6_0 import ApplyTOPUP
+from pydra.tasks.mrtrix3.v3_0 import mrinfo, dirstat, mrconvert, mrcat, dwi2mask, maskfilter, mrgrid
+from pydra.tasks.fsl.v6_0 import ApplyTOPUP, Eddy
 from fileformats.datascience import TextVector, TextArray
 from .utils import calculate_mrgrid_spatial_padding
 
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def eddy_current_corr_wf(
-    have_topup: bool, slice_to_volume: bool, dwi_has_pe_contrast: bool
+    have_topup: bool, slice_to_volume: bool, dwi_has_pe_contrast: bool, dwi2mask_algorithm: str
 ):
     """Identify the strategy for DWI processing
 
@@ -27,7 +28,14 @@ def eddy_current_corr_wf(
 
     wf = pydra.Workflow(
         name="eddy_current_corr_wf",
-        input_spec=["input", "topup_fieldcoeff", "dwi_first_bzero_index", "slice_timings"],
+        input_spec=[
+            "input",
+            "topup_fieldcoeff",
+            "dwi_first_bzero_index",
+            "slice_encoding_direction",
+            "slice_timings",
+            "eddy_use_slm",
+        ],
     )
 
     wf.add(
@@ -84,8 +92,6 @@ def eddy_current_corr_wf(
         # [[1,2,3,4],[5,6,7,8]]
         # For each element in this list, we run mrconvert, providing the "coord" option
         # to extract the relevant volumes, and then run applytopup on the resulting data.
-
-        
 
         @pydra.mark.task
         @pydra.mark.annotate(
@@ -247,46 +253,85 @@ def eddy_current_corr_wf(
         dwi_mrconvert_in = wf.lzin.input
         mask_mrconvert_in = wf.dilate_brain_mask.lzout.output
 
-    # TODO Missing pieces:
-    # - Slice timing vector may need to be converted into eddy "slspec" format
-    dwi_permvols_preeddy = (
-        str(dwi_first_bzero_index)
-        + ",0"
-        + (
-            ":" + str(dwi_first_bzero_index - 1)
-            if dwi_first_bzero_index > 1
-            else ""
-        )
-        + (
-            "," + str(dwi_first_bzero_index + 1)
-            if dwi_first_bzero_index < dwi_num_volumes - 1
-            else ""
-        )
-        + (
-            ":" + str(dwi_num_volumes - 1)
-            if dwi_first_bzero_index < dwi_num_volumes - 2
-            else ""
+    @pydra.mark.task
+    def permvols_preddy(
+        slice_to_volume: bool, dwi_first_bzero_index: int, num_volumes: int
+    ) -> ty.Tuple[int, str]:
+        return (3, (
+            str(dwi_first_bzero_index)
+            + ",0"
+            + (
+                ":" + str(dwi_first_bzero_index - 1)
+                if dwi_first_bzero_index > 1
+                else ""
+            )
+            + (
+                "," + str(dwi_first_bzero_index + 1)
+                if dwi_first_bzero_index < num_volumes - 1
+                else ""
+            )
+            + (
+                ":" + str(num_volumes - 1)
+                if dwi_first_bzero_index < num_volumes - 2
+                else ""
+            )
+        ))
+
+    wf.add(
+        permvols_preddy(
+            slice_to_volume=slice_to_volume,
+            dwi_first_bzero_index=wf.lzin.dwi_first_bzero_index,
+            num_volumes=wf.mrinfo.lzout.num_volumes,
+            name="permvols_preddy",
         )
     )
 
-
     if slice_to_volume:
 
-        # Slice timing vector must be of same length as number of slices
-        # For padded slices, pretend they were acquired at time 0
-        padded_slice_timings = wf.slice_timings
-        padded_slice_timings.extend([0.0] * dwi_padding[2])
+        @pydra.mark.task
+        def save_eddy_slspec(
+            slice_timings: ty.List[float], slice_encoding_direction: ty.List[int]
+        ) -> str:
+            # Slice timing vector must be of same length as number of slices
+            # For padded slices, pretend they were acquired at time 0
+            slice_timings.extend([0.0] * dwi_padding[2])
 
+            # TODO Not sure if the need for this was ever tested using real data?
+            if sum(slice_encoding_direction) < 0:
+                slice_timings = reversed(slice_timings)
 
-        
+            slice_groups = [
+                [x[0] for x in g]
+                for _, g in itertools.groupby(
+                    sorted(enumerate(slice_timings), key=lambda x: x[1]),
+                    key=lambda x: x[1],
+                )
+            ]
 
-        
+            slice_groups_file = TextArray("slice_groups.txt")
+            slice_groups_file.save(slice_groups)
+            return slice_groups_file
 
+        wf.add(
+            save_eddy_slspec(
+                slice_timings=wf.lzin.slice_timings,
+                slice_encoding_direction=wf.lzin.slice_encoding_direction,
+                name="save_eddy_slspec",
+            )
+        )
 
+    # TODO Find out if it is recommended that we use the second-level model in eddy
+    wf.add(mrinfo(image_=wf.lzin.input, shell_bvalues=True, name="mrinfo"))
 
-    
+    wf.add(dirstat(image_=wf.lzin.input, output="asym", name="dirstat"))
 
-
+    wf.add(
+        eddy_requires_slm(
+            mrinfo_shell_bvalues_out=wf.mrinfo_shell_bvalues_out.lzout.stdout,
+            dirstat_asym_out=wf.dirstat_asym_out.lzout.stdout,
+            name="eddy_requires_slm",
+        )
+    )
 
     # TODO Convert image data in preparation for eddy
     wf.add(
@@ -294,7 +339,7 @@ def eddy_current_corr_wf(
             input=dwi_mrconvert_in,
             datatype="float32",
             strides="-1,+2,+3,+4",
-            coord=(3, dwi_permvols_preeddy),
+            coord=wf.dwi_permvols_preeddy.lzout.out,
             export_pe_eddy=True,
             export_grad_fsl=True,
             name="convert_dwi_for_eddy",
@@ -309,19 +354,37 @@ def eddy_current_corr_wf(
         )
     )
 
-≈
+    eddy_variable_args = {}
+    if have_topup:
+        eddy_variable_args["topup"] = wf.lzin.topup_fieldcoeff
+    if slice_to_volume:
+        eddy_variable_args["slspec"] = wf.save_eddy_slspec.lzout.output
+    # TODO if using slice-to-volume motion correction,
+    #   need to calculate the appropriate factor, and add that to the invocation
+    # TODO What to do about potentially using CUDA vs. OpenMP?
+    # TODO Want to incorporate MRtrix3_connectome's loop?
+    # - What if eddy complains about data not being shelled, even if we think they are?
+    #   Can't process non-shelled data due to dwibiasnormmask performing MSMT CSD
+    #   Could add very early check of data shelled-ness using mrinfo, and if that succeeds,
+    #   just always include the --data-is-shelled option
+    # - What if eddy fails due to not being able to find any individual slice that does
+    #   not contain any outliers? One potential solution to at least succeeed with processing
+    #   is to increase the stringency of the thresholding by which outlier slices are detected,
+    #   making it more likely for there to be at least one volume with precisely zero outliers.
+    wf.add(Eddy(imain=wf.convert_dwi_for_eddy.lzout.output,
+                mask=wf.convert_mask_for_eddy.lzout.output,
+                acqp=wf.generate_applytopup_textfiles.lzout.export_pe_eddy[0],
+                index=wf.generate_applytopup_textfiles.lzout.export_pe_eddy[1],
+                bvecs=wf.convert_dwi_for_eddy.export_grad_fsl[0],
+                bvals=wf.convert_dwi_for_eddy.export_grad_fsl[1],
+                slm=wf.eddy_requires_slm.lzout.output,
+                repol=True,
+                resamp="jac",
+                *eddy_variable_args))
 
-    wf.add(mrinfo(image_=wf.lzin.input, shell_bvalues=True, name="mrinfo"))
-
-    wf.add(dirstat(image_=wf.lzin.input, output="asym", name="dirstat"))
-
-    wf.add(
-        eddy_requires_slm(
-            mrinfo_shell_bvalues_out=wf.mrinfo_shell_bvalues_out.lzout.stdout,
-            dirstat_asym_out=wf.dirstat_asym_out.lzout.stdout,
-            name="eddy_requires_slm",
-        )
-    )
+    # TODO Convert the output of eddy back to MIF
+    # Include any requisite reversal of volume permutation
+    # Include import of rotated bvecs
 
     wf.set_output()
 
@@ -329,7 +392,7 @@ def eddy_current_corr_wf(
 
 
 @pydra.mark.task
-def eddy_requires_slm(mrinfo_shell_bvalues_out: str, dirstat_asym_out: str) -> bool:
+def eddy_select_slm(mrinfo_shell_bvalues_out: str, dirstat_asym_out: str) -> str:
     """Check whether eddy distortion correction requires use of --slm=linear"""
     shell_bvalues = [
         int(round(float(value))) for value in mrinfo_shell_bvalues_out.split()
@@ -347,10 +410,10 @@ def eddy_requires_slm(mrinfo_shell_bvalues_out: str, dirstat_asym_out: str) -> b
             + str(len(shell_asymmetries))
             + ")"
         )
-    requires_slm = False
+    slm = "none"
     for bvalue, asymmetry in zip(shell_bvalues, shell_asymmetries):
         if asymmetry >= 0.1:
-            requires_slm = True
+            slm = "linear"
             logger.warning(
                 "sampling of b="
                 + str(bvalue)
@@ -358,4 +421,4 @@ def eddy_requires_slm(mrinfo_shell_bvalues_out: str, dirstat_asym_out: str) -> b
                 + ("strongly" if asymmetry >= 0.4 else "moderately")
                 + " asymmetric; linear second level model in eddy will be activated"
             )
-    return requires_slm
+    return slm
