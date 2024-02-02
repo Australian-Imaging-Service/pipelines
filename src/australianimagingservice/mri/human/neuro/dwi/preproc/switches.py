@@ -1,3 +1,33 @@
+import pydra.mark
+import attrs
+from fileformats.medimage_mrtrix3 import ImageFormat as Mif
+
+
+@pydra.mark.task
+def requires_regrid_switch(
+    in_image: Mif, se_epi: Mif
+) -> bool:
+    if se_epi is not attrs.NOTHING:
+        dims_match = (
+            in_image.dims()[:3] == se_epi.dims()[:3]
+            and in_image.vox_sizes()[:3] == se_epi.vox_sizes()[:3]
+        )
+    else:
+        dims_match = False
+    return not dims_match
+
+
+@pydra.mark.task
+def field_estimation_data_formation_strategy_switch(
+    in_image: Mif, se_epi: Mif
+) -> str:
+    pass
+
+
+#####################
+# Unprocessed below #
+#####################
+
 
 # Deal with the phase-encoding of the images to be fed to topup (if applicable)
 #execute_topup = (not pe_design == "None") and not topup_file_userpath

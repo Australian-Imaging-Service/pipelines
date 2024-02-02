@@ -30,27 +30,6 @@ from .volume_recombination import volume_recombination_wf
 logger = getLogger(__name__)
 
 
-@pydra.mark.task
-def requires_regrid_switch(
-    in_image: Mif, se_epi: Mif
-) -> bool:
-    if se_epi is not attrs.NOTHING:
-        dims_match = (
-            in_image.dims()[:3] == se_epi.dims()[:3]
-            and in_image.vox_sizes()[:3] == se_epi.vox_sizes()[:3]
-        )
-    else:
-        dims_match = False
-    return not dims_match
-
-
-@pydra.mark.task
-def field_estimation_data_formation_strategy_switch(
-    in_image: Mif, se_epi: Mif
-) -> str:
-    pass
-
-
 def dwipreproc(
     # How am I estimating my susceptility field?
     # - I'm not ("rpe-none")
