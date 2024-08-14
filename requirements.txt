@@ -1,5 +1,5 @@
-arcana >=0.10.11
-arcana-xnat >= 0.3.6
+pydra2app >=0.12
+pdyra2app-xnat >= 0.6.2
 fileformats >= 0.8.6
 fileformats-extras >= 0.2.1
 fileformats-datascience >= 0.1.0
