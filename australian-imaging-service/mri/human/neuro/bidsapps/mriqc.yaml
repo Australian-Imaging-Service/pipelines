@@ -1,5 +1,5 @@
-arcana_spec_version: 1.0
-title: 'Extract quality control metrics from T1w, T2W and fMRI data'
+schema_version: 1.0
+title: "Extract quality control metrics from T1w, T2W and fMRI data"
 version:
   package: &package_version "22.0.6"
   build: "3"
@@ -11,7 +11,7 @@ base_image:
   tag: *package_version
   package_manager: apt
 docs:
-  info_url: https://mriqc.readthedocs.io  
+  info_url: https://mriqc.readthedocs.io
   description: |
     MRIQC extracts no-reference IQMs (image quality metrics) from
     structural (T1w and T2w) and functional MRI (magnetic resonance
