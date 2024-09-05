@@ -52,7 +52,7 @@ def examine_metadata_wf(slice_to_volume: bool, bzero_threshold: float = 10.0):
     )
 
     wf.add(
-        examine_diffusion_scheme(
+        find_first_bzero(
             in_image=wf.lzin.input,
             bzero_threshold=bzero_threshold,
             shell_bvalues=wf.parse_mrinfo_output.lzout.shell_bvalues,
@@ -194,21 +194,12 @@ def examine_slice_encoding(in_image: Mif) -> ty.Tuple[int, ty.List[float]]:
 
 @pydra.mark.task
 @pydra.mark.annotate({"return": {"index_of_first_bzero": int}})
-def examine_diffusion_scheme(
+def find_first_bzero(
     in_image: Mif,
     bzero_threshold: float,
-    shell_bvalues: ty.List[float],
+    shell_bvalues: ty.List[float],  # FIXME: Rob, these aren't being used
     shell_indices: ty.List[ty.List[int]],
-) -> ty.List[ty.Tuple[int, int]]:
-    # For each volume index, store the index of the shell to which it is attributed
-    #   (this will make it much faster to determine whether or not two volumes belong to the same shell)
-    dwi_num_volumes = in_image.dims()[3]
-    grad = in_image.encoding.array
-    vol2shell = [-1] * dwi_num_volumes
-    for index, volumes in enumerate(shell_indices):
-        for volume in volumes:
-            vol2shell[volume] = index
-    assert all(index >= 0 for index in vol2shell)
+) -> int:
     # Find the index of the first DWI volume that is a b=0 volume
     # This needs to occur at the outermost loop as it is pertinent information
     #   not only for the -align_seepi option, but also for when the -se_epi option
@@ -224,8 +215,28 @@ def examine_diffusion_scheme(
             "No b=0 images found in DWI series; cannot proceed with inhomogeneity field estimation. "
             f"threshold: {bzero_threshold}, bvals: {in_image.encoding.bvals}"
         )
+    return index_of_first_bzero
 
-    # FIXME: Rob, this function isn't used, is it the same as the one inside mrinfo?
+
+@pydra.mark.task
+@pydra.mark.annotate({"return": {"index_of_first_bzero": int}})
+def determine_volume_pairs(
+    in_image: Mif,
+    bzero_threshold: float,
+    shell_bvalues: ty.List[float],
+    shell_indices: ty.List[ty.List[int]],
+) -> ty.List[ty.Tuple[int, int]]:
+
+    # For each volume index, store the index of the shell to which it is attributed
+    #   (this will make it much faster to determine whether or not two volumes belong to the same shell)
+    dwi_num_volumes = in_image.dims()[3]
+    grad = in_image.encoding.grad
+    vol2shell = [-1] * dwi_num_volumes
+    for index, volumes in enumerate(shell_indices):
+        for volume in volumes:
+            vol2shell[volume] = index
+    assert all(index >= 0 for index in vol2shell)
+
     def grads_match(one, two):
         # Are the two volumes assigned to different b-value shells?
         if vol2shell[one] != vol2shell[two]:
@@ -252,37 +263,36 @@ def examine_diffusion_scheme(
             return False
         return True
 
-        if dwi_num_volumes % 2:
-            raise RuntimeError(
-                "Input DWI contains odd number of volumes; "
-                "cannot possibly pair up volumes for reversed phase-encode direction combination"
-            )
-        grads_matched = [dwi_num_volumes] * dwi_num_volumes
-        grad_pairs = []
-        logger.debug(
-            "Commencing gradient direction matching; %s volumes", dwi_num_volumes
+    if dwi_num_volumes % 2:
+        raise RuntimeError(
+            "Input DWI contains odd number of volumes; "
+            "cannot possibly pair up volumes for reversed phase-encode direction combination"
         )
-        for index1 in range(int(dwi_num_volumes / 2)):
-            if grads_matched[index1] == dwi_num_volumes:  # As yet unpaired
-                for index2 in range(int(dwi_num_volumes / 2), dwi_num_volumes):
-                    if grads_matched[index2] == dwi_num_volumes:  # Also as yet unpaired
-                        if grads_match(index1, index2):
-                            grads_matched[index1] = index2
-                            grads_matched[index2] = index1
-                            grad_pairs.append((index1, index2))
-                            logger.debug(
-                                f"Matched volume {index1} with {index2} : {grad[index1]} {grad[index2]}"
-                            )
-                            break
-                else:
-                    raise RuntimeError(
-                        "Unable to determine matching reversed phase-encode direction volume for DWI volume "
-                        + str(index1)
-                    )
-        if not len(grad_pairs) == dwi_num_volumes / 2:
-            raise RuntimeError(
-                "Unable to determine complete matching DWI volume pairs for reversed phase-encode combination"
-            )
+    grads_matched = [dwi_num_volumes] * dwi_num_volumes
+    grad_pairs = []
+    logger.debug(
+        "Commencing gradient direction matching; %s volumes", dwi_num_volumes
+    )
+    for index1 in range(int(dwi_num_volumes / 2)):
+        if grads_matched[index1] == dwi_num_volumes:  # As yet unpaired
+            for index2 in range(int(dwi_num_volumes / 2), dwi_num_volumes):
+                if grads_matched[index2] == dwi_num_volumes:  # Also as yet unpaired
+                    if grads_match(index1, index2):
+                        grads_matched[index1] = index2
+                        grads_matched[index2] = index1
+                        grad_pairs.append((index1, index2))
+                        logger.debug(
+                            f"Matched volume {index1} with {index2} : {grad[index1]} {grad[index2]}"
+                        )
+                        break
+            else:
+                raise RuntimeError(
+                    "Unable to determine matching reversed phase-encode direction volume for DWI volume "
+                    + str(index1)
+                )
+    if not len(grad_pairs) == dwi_num_volumes / 2:
+        raise RuntimeError(
+            "Unable to determine complete matching DWI volume pairs for reversed phase-encode combination"
+        )
 
-        return grad_pairs
-    return index_of_first_bzero
+    return grad_pairs
