@@ -478,10 +478,10 @@ def dwipreproc(
     if json_import:
         json_import_option = " -json_import " + wf.lzin.json_import
     json_export_option = " -json_export " + path.to_scratch("dwi.json", True)
-    wf.add(mrconvert(" " +  + wf.lzin.input + " " + path.to_scratch("dwi.mif") + grad_import_option + json_import_option + json_export_option , name="NODE"))
+    wf.add(mrconvert(input=wf.lzin.input, + " " + path.to_scratch("dwi.mif") + grad_import_option + json_import_option + json_export_option , name="NODE"))
     if se_epi:
         image.check_3d_nonunity(wf.lzin.se_epi, False)
-        wf.add(mrconvert(" "  + wf.lzin.se_epi + " " + path.to_scratch("se_epi.mif") , name="NODE"))
+        wf.add(mrconvert(input=wf.lzin.se_epi, + " " + path.to_scratch("se_epi.mif") , name="NODE"))
     if topup_file_userpath:
         run.function( shutil.copyfile, topup_input_movpar, path.to_scratch("field_movpar.txt", False), )
         # Can't run field spline coefficients image through mrconvert:
@@ -489,7 +489,7 @@ def dwipreproc(
         #   applytopup requires that these be set, but mrconvert will wipe them
         run.function( shutil.copyfile, topup_input_fieldcoef, path.to_scratch( "field_fieldcoef.nii" + (".gz" if topup_input_fieldcoef.endswith(".nii.gz") else ""), False, ), )
     if eddy_mask:
-        wf.add(mrconvert(" " + wf.lzin.eddy_mask + " " + path.to_scratch("eddy_mask.mif") + " -datatype bit" , name="NODE"))
+        wf.add(mrconvert(input=wf.lzin.eddy_mask, + " " + path.to_scratch("eddy_mask.mif") + " -datatype bit" , name="NODE"))
 
     app.goto_scratch_dir()
 
