@@ -34,6 +34,7 @@ def field_estimation_data_formation_strategy_switch(
 overwrite_se_epi_pe_scheme = False
 se_epi_path = wf.import_seepi.lzout.output
 dwi_permvols_preeddy = None
+dwi_permvols_posteddy = None  # inverse of previous
 dwi_permvols_posteddy_slice = None
 dwi_bzero_added_to_se_epi = False
 se_epi_path = new_se_epi_path
