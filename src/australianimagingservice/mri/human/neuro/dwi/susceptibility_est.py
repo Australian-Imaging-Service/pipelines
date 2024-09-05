@@ -11,6 +11,46 @@ from pydra.tasks.fsl import TOPUP
 
 logger = logging.getLogger(__name__)
 
+# This is a duplicate of the contents of $FSLDIR/etc/flirtsch/b02b0_4.cnf
+# Note that 'scale' is changed from an int (0 or 1) to a boolean
+TOPUP_CONFIG = {
+    "warp_res": [20, 16, 14, 12, 10, 6, 4, 4, 4],
+    # Subsampling level (a value of 2 indicates that a 2x2x2 neighbourhood is collapsed to 1 voxel)
+    "subsamp": [4, 4, 2, 2, 2, 1, 1, 1, 1],
+    # FWHM of gaussian smoothing
+    "fwhm": [8, 6, 4, 3, 3, 2, 1, 0, 0],
+    # Maximum number of iterations
+    "miter": [5, 5, 5, 5, 5, 10, 10, 20, 20],
+    # Relative weight of regularisation
+    "reg_lambda": [
+        0.035,
+        0.006,
+        0.0001,
+        0.000015,
+        0.000005,
+        0.0000005,
+        0.00000005,
+        0.0000000005,
+        0.00000000001,
+    ],
+    # If set to 1 lambda is multiplied by the current average squared difference
+    "ssqlambda": 1,
+    # Regularisation model
+    "regmod": "bending_energy",
+    # If set to 1 movements are estimated along with the field
+    "estmov": [1, 1, 1, 1, 1, 0, 0, 0, 0],
+    # "0": Levenberg-Marquardt, 1=Scaled Conjugate Gradient
+    "minmet": [0, 0, 0, 0, 0, 1, 1, 1, 1],
+    # Quadratic or cubic splines
+    "splineorder": 3,
+    # Precision for calculation and storage of Hessian
+    "numprec": "double",
+    # Linear or spline interpolation
+    "interp": "spline",
+    # If set to 1 the images are individually scaled to a common mean intensity
+    "scale": True,
+}
+
 
 def susceptibility_estimation_wf(
     field_estimation_data_formation_strategy: str,
@@ -228,49 +268,16 @@ def susceptibility_estimation_wf(
         TOPUP(
             in_file=wf.generate_topup_inputs.lzout.output,
             encoding_file=wf.generate_topup_inputs.lzout.export_pe_table,
-            # out_base="field",
-            # out_field="field_map" + fsl_suffix,
-            warp_res=[20, 16, 14, 12, 10, 6, 4, 4, 4],
-            # Subsampling level (a value of 2 indicates that a 2x2x2 neighbourhood is collapsed to 1 voxel)
-            subsamp=[4, 4, 2, 2, 2, 1, 1, 1, 1],
-            # FWHM of gaussian smoothing
-            fwhm=[8, 6, 4, 3, 3, 2, 1, 0, 0],
-            # Maximum number of iterations
-            miter=[5, 5, 5, 5, 5, 10, 10, 20, 20],
-            # Relative weight of regularisation
-            reg_lambda=[
-                0.035,
-                0.006,
-                0.0001,
-                0.000015,
-                0.000005,
-                0.0000005,
-                0.00000005,
-                0.0000000005,
-                0.00000000001,
-            ],
-            # If set to 1 lambda is multiplied by the current average squared difference
-            ssqlambda=1,
-            # Regularisation model
-            regmod="bending_energy",
-            # If set to 1 movements are estimated along with the field
-            estmov=[1, 1, 1, 1, 1, 0, 0, 0, 0],
-            # 0=Levenberg-Marquardt, 1=Scaled Conjugate Gradient
-            minmet=[0, 0, 0, 0, 0, 1, 1, 1, 1],
-            # Quadratic or cubic splines
-            splineorder=3,
-            # Precision for calculation and storage of Hessian
-            numprec="double",
-            # Linear or spline interpolation
-            interp="spline",
-            # If set to 1 the images are individually scaled to a common mean intensity
-            scale="1%",
+            **TOPUP_CONFIG,
             name="topup",
         )
     )
 
     wf.set_output(
-        [("", wf.num_encodings.lzout.num_encodings)],
+        [
+            ("susceptibility_field_image", wf.topup.lzout.out_field),
+            ("topup_fieldcoeff", wf.topup.lzout.out_fieldcoef)
+        ],
     )
 
     return wf
