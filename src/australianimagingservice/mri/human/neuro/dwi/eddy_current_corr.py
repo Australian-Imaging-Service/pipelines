@@ -3,7 +3,15 @@ import typing as ty
 import logging
 import itertools
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
-from pydra.tasks.mrtrix3.v3_0 import mrinfo, dirstat, mrconvert, mrcat, dwi2mask, maskfilter, mrgrid
+from pydra.tasks.mrtrix3.v3_0 import (
+    mrinfo,
+    dirstat,
+    mrconvert,
+    mrcat,
+    dwi2mask,
+    maskfilter,
+    mrgrid,
+)
 from pydra.tasks.fsl.v6_0 import ApplyTOPUP, Eddy
 from fileformats.datascience import TextVector, TextArray
 from .utils import calculate_mrgrid_spatial_padding
@@ -11,9 +19,16 @@ from .utils import calculate_mrgrid_spatial_padding
 
 logger = logging.getLogger(__name__)
 
+EDDY_VERSIONS = ["openmp", "cuda"]
+
 
 def eddy_current_corr_wf(
-    have_topup: bool, slice_to_volume: bool, dwi_has_pe_contrast: bool, dwi2mask_algorithm: str
+    have_topup: bool,
+    slice_to_volume: bool,
+    dwi_has_pe_contrast: bool,
+    dwi2mask_algorithm: str,
+    eddy_version: str = "openmp",
+    eddy_qc_all: bool = False,
 ):
     """Identify the strategy for DWI processing
 
@@ -25,6 +40,32 @@ def eddy_current_corr_wf(
     wf : pydra.Workflow
         Workflow object
     """
+
+    if eddy_version not in EDDY_VERSIONS:
+        raise ValueError(
+            f"eddy version, '{eddy_version}', not recognised; must be one of {EDDY_VERSIONS}"
+        )
+
+    eddy_suppl_files = [
+        "eddy_parameters",
+        "eddy_movement_rms",
+        "eddy_restricted_movement_rms",
+        "eddy_post_eddy_shell_alignment_parameters",
+        "eddy_post_eddy_shell_PE_translation_parameters",
+        "eddy_outlier_report",
+        "eddy_outlier_map",
+        "eddy_outlier_n_stdev_map",
+        "eddy_outlier_n_sqr_stdev_map",
+        "eddy_movement_over_time",
+    ]
+    if eddy_qc_all:
+        eddy_suppl_files.extend(
+            [
+                "eddy_outlier_free_data.nii.gz",
+                "eddy_cnr_maps.nii.gz",
+                "eddy_residuals.nii.gz",
+            ]
+        )        
 
     wf = pydra.Workflow(
         name="eddy_current_corr_wf",
@@ -257,25 +298,14 @@ def eddy_current_corr_wf(
     def permvols_preddy(
         slice_to_volume: bool, dwi_first_bzero_index: int, num_volumes: int
     ) -> ty.Tuple[int, str]:
-        return (3, (
-            str(dwi_first_bzero_index)
-            + ",0"
-            + (
-                ":" + str(dwi_first_bzero_index - 1)
-                if dwi_first_bzero_index > 1
-                else ""
-            )
-            + (
-                "," + str(dwi_first_bzero_index + 1)
-                if dwi_first_bzero_index < num_volumes - 1
-                else ""
-            )
-            + (
-                ":" + str(num_volumes - 1)
-                if dwi_first_bzero_index < num_volumes - 2
-                else ""
-            )
-        ))
+        slice_str = f"{dwi_first_bzero_index},0"
+        if dwi_first_bzero_index > 1:
+            slice_str += f":{dwi_first_bzero_index - 1}"
+        if dwi_first_bzero_index < num_volumes - 1:
+            slice_str += f",{dwi_first_bzero_index + 1}"
+        if dwi_first_bzero_index < num_volumes - 2:
+            slice_str += f":{num_volumes - 1}"
+        return (3, slice_str)
 
     wf.add(
         permvols_preddy(
@@ -325,8 +355,40 @@ def eddy_current_corr_wf(
 
     wf.add(dirstat(image_=wf.lzin.input, output="asym", name="dirstat"))
 
+    @pydra.mark.task
+    def eddy_select_slm(mrinfo_shell_bvalues_out: str, dirstat_asym_out: str) -> str:
+        """Check whether eddy distortion correction requires use of --slm=linear"""
+        shell_bvalues = [
+            int(round(float(value))) for value in mrinfo_shell_bvalues_out.split()
+        ]
+        shell_asymmetries = [float(value) for value in dirstat_asym_out.splitlines()]
+        # dirstat will skip any b=0 shell by default; therefore for correspondence between
+        #   shell_bvalues and shell_symmetry, need to remove any b=0 from the former
+        if len(shell_bvalues) == len(shell_asymmetries) + 1:
+            shell_bvalues = shell_bvalues[1:]
+        elif len(shell_bvalues) != len(shell_asymmetries):
+            raise RuntimeError(
+                "Number of b-values reported by mrinfo ("
+                + str(len(shell_bvalues))
+                + ") does not match number of outputs provided by dirstat ("
+                + str(len(shell_asymmetries))
+                + ")"
+            )
+        slm = "none"
+        for bvalue, asymmetry in zip(shell_bvalues, shell_asymmetries):
+            if asymmetry >= 0.1:
+                slm = "linear"
+                logger.warning(
+                    "sampling of b="
+                    + str(bvalue)
+                    + " shell is "
+                    + ("strongly" if asymmetry >= 0.4 else "moderately")
+                    + " asymmetric; linear second level model in eddy will be activated"
+                )
+        return slm
+
     wf.add(
-        eddy_requires_slm(
+        eddy_select_slm(
             mrinfo_shell_bvalues_out=wf.mrinfo_shell_bvalues_out.lzout.stdout,
             dirstat_asym_out=wf.dirstat_asym_out.lzout.stdout,
             name="eddy_requires_slm",
@@ -356,12 +418,11 @@ def eddy_current_corr_wf(
 
     eddy_variable_args = {}
     if have_topup:
-        eddy_variable_args["topup"] = wf.lzin.topup_fieldcoeff
+        eddy_variable_args["in_topup_fieldcoef"] = wf.lzin.topup_fieldcoeff
     if slice_to_volume:
-        eddy_variable_args["slspec"] = wf.save_eddy_slspec.lzout.output
+        eddy_variable_args["slice_order"] = wf.save_eddy_slspec.lzout.output
     # TODO if using slice-to-volume motion correction,
     #   need to calculate the appropriate factor, and add that to the invocation
-    # TODO What to do about potentially using CUDA vs. OpenMP?
     # TODO Want to incorporate MRtrix3_connectome's loop?
     # - What if eddy complains about data not being shelled, even if we think they are?
     #   Can't process non-shelled data due to dwibiasnormmask performing MSMT CSD
@@ -371,16 +432,22 @@ def eddy_current_corr_wf(
     #   not contain any outliers? One potential solution to at least succeeed with processing
     #   is to increase the stringency of the thresholding by which outlier slices are detected,
     #   making it more likely for there to be at least one volume with precisely zero outliers.
-    wf.add(Eddy(imain=wf.convert_dwi_for_eddy.lzout.output,
-                mask=wf.convert_mask_for_eddy.lzout.output,
-                acqp=wf.generate_applytopup_textfiles.lzout.export_pe_eddy[0],
-                index=wf.generate_applytopup_textfiles.lzout.export_pe_eddy[1],
-                bvecs=wf.convert_dwi_for_eddy.export_grad_fsl[0],
-                bvals=wf.convert_dwi_for_eddy.export_grad_fsl[1],
-                slm=wf.eddy_requires_slm.lzout.output,
-                repol=True,
-                resamp="jac",
-                *eddy_variable_args))
+
+    wf.add(
+        Eddy(
+            executable=f"eddy_{eddy_version}",
+            in_file=wf.convert_dwi_for_eddy.lzout.output,
+            in_mask=wf.convert_mask_for_eddy.lzout.output,
+            in_acqp=wf.generate_applytopup_textfiles.lzout.export_pe_eddy[0],
+            in_index=wf.generate_applytopup_textfiles.lzout.export_pe_eddy[1],
+            in_bvec=wf.convert_dwi_for_eddy.export_grad_fsl[0],
+            in_bval=wf.convert_dwi_for_eddy.export_grad_fsl[1],
+            slm=wf.eddy_requires_slm.lzout.output,
+            repol=True,
+            method="jac",
+            *eddy_variable_args,
+        )
+    )
 
     # TODO Convert the output of eddy back to MIF
     # Include any requisite reversal of volume permutation
@@ -389,36 +456,3 @@ def eddy_current_corr_wf(
     wf.set_output()
 
     return wf
-
-
-@pydra.mark.task
-def eddy_select_slm(mrinfo_shell_bvalues_out: str, dirstat_asym_out: str) -> str:
-    """Check whether eddy distortion correction requires use of --slm=linear"""
-    shell_bvalues = [
-        int(round(float(value))) for value in mrinfo_shell_bvalues_out.split()
-    ]
-    shell_asymmetries = [float(value) for value in dirstat_asym_out.splitlines()]
-    # dirstat will skip any b=0 shell by default; therefore for correspondence between
-    #   shell_bvalues and shell_symmetry, need to remove any b=0 from the former
-    if len(shell_bvalues) == len(shell_asymmetries) + 1:
-        shell_bvalues = shell_bvalues[1:]
-    elif len(shell_bvalues) != len(shell_asymmetries):
-        raise RuntimeError(
-            "Number of b-values reported by mrinfo ("
-            + str(len(shell_bvalues))
-            + ") does not match number of outputs provided by dirstat ("
-            + str(len(shell_asymmetries))
-            + ")"
-        )
-    slm = "none"
-    for bvalue, asymmetry in zip(shell_bvalues, shell_asymmetries):
-        if asymmetry >= 0.1:
-            slm = "linear"
-            logger.warning(
-                "sampling of b="
-                + str(bvalue)
-                + " shell is "
-                + ("strongly" if asymmetry >= 0.4 else "moderately")
-                + " asymmetric; linear second level model in eddy will be activated"
-            )
-    return slm
