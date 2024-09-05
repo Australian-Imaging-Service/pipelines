@@ -10,7 +10,7 @@ from pydra.tasks.mrtrix3 import mrinfo
 logger = logging.getLogger(__name__)
 
 
-def strategy_identification_wf(slice_to_volume: bool, bzero_threshold: float = 10.0):
+def examine_metadata_wf(slice_to_volume: bool, bzero_threshold: float = 10.0):
     """Identify the strategy for DWI processing
 
     Parameters
@@ -52,7 +52,7 @@ def strategy_identification_wf(slice_to_volume: bool, bzero_threshold: float = 1
     )
 
     wf.add(
-        match_rpe_pairs(
+        examine_diffusion_scheme(
             in_image=wf.lzin.input,
             bzero_threshold=bzero_threshold,
             shell_bvalues=wf.parse_mrinfo_output.lzout.shell_bvalues,
@@ -66,6 +66,7 @@ def strategy_identification_wf(slice_to_volume: bool, bzero_threshold: float = 1
             ("num_encodings", wf.examine_image_dims.lzout.num_encodings),
             ("slice_timings", wf.examine_slice_encoding.lzout.slice_timings),
             ("se_dims_match", wf.num_encodings.lzout.se_dims_match),
+            ("index_of_first_bzero", wf.examine_diffusion_scheme.lzout.index_of_first_bzero),
         ],
     )
 
@@ -192,7 +193,8 @@ def examine_slice_encoding(in_image: Mif) -> ty.Tuple[int, ty.List[float]]:
 
 
 @pydra.mark.task
-def match_rpe_pairs(
+@pydra.mark.annotate({"return": {"index_of_first_bzero": int}})
+def examine_diffusion_scheme(
     in_image: Mif,
     bzero_threshold: float,
     shell_bvalues: ty.List[float],
@@ -207,7 +209,23 @@ def match_rpe_pairs(
         for volume in volumes:
             vol2shell[volume] = index
     assert all(index >= 0 for index in vol2shell)
+    # Find the index of the first DWI volume that is a b=0 volume
+    # This needs to occur at the outermost loop as it is pertinent information
+    #   not only for the -align_seepi option, but also for when the -se_epi option
+    #   is not provided at all, and the input to topup is extracted solely from the DWIs
+    index_of_first_bzero = None
+    for i, bval in enumerate(in_image.encoding.bvals):
+        if bval <= bzero_threshold:
+            logger.debug("Index of first b=0 image in DWIs is %s" + i)
+            index_of_first_bzero = i
+            break
+    if index_of_first_bzero is None:
+        raise ValueError(
+            "No b=0 images found in DWI series; cannot proceed with inhomogeneity field estimation. "
+            f"threshold: {bzero_threshold}, bvals: {in_image.encoding.bvals}"
+        )
 
+    # FIXME: Rob, this function isn't used, is it the same as the one inside mrinfo?
     def grads_match(one, two):
         # Are the two volumes assigned to different b-value shells?
         if vol2shell[one] != vol2shell[two]:
@@ -242,9 +260,7 @@ def match_rpe_pairs(
         grads_matched = [dwi_num_volumes] * dwi_num_volumes
         grad_pairs = []
         logger.debug(
-            "Commencing gradient direction matching; "
-            + str(dwi_num_volumes)
-            + " volumes"
+            "Commencing gradient direction matching; %s volumes", dwi_num_volumes
         )
         for index1 in range(int(dwi_num_volumes / 2)):
             if grads_matched[index1] == dwi_num_volumes:  # As yet unpaired
@@ -269,3 +285,4 @@ def match_rpe_pairs(
             )
 
         return grad_pairs
+    return index_of_first_bzero
