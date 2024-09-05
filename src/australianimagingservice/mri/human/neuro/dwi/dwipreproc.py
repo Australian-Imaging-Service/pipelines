@@ -18,13 +18,18 @@
 import glob
 import itertools
 import json
+import typing as ty
 import math
+from pathlib import Path
 import os
 import shutil
 import sys
 import shlex
 from logging import getLogger
-from fileformats.medimage import MedicalImage
+import numpy as np
+from fileformats.application import Json
+from fileformats.medimage import MedicalImage, Bvec, Bval
+from fileformats.medimage_mrtrix3 import ImageIn, ImageOut, BFile, ImageFormat as Mif
 from pydra import Workflow
 
 logger = getLogger(__name__)
@@ -194,28 +199,30 @@ def dwipreproc(
     Andersson, J. L. R.; Graham, M. S.; Drobnjak, I.; Zhang, H.; Filippini, N. & Bastiani, M. Towards a comprehensive framework for movement and distortion correction of diffusion MR images: Within volume movement. NeuroImage, 2017, 152, 450-466, if including "--mporder" in -eddy_options input
     Bastiani, M.; Cottaar, M.; Fitzgibbon, S.P.; Suri, S.; Alfaro-Almagro, F.; Sotiropoulos, S.N.; Jbabdi, S.; Andersson, J.L.R. Automated quality control for within and between studies diffusion MRI data using a non-parametric framework for movement and distortion correction. NeuroImage, 2019, 184, 801-812', if using -eddyqc_text or -eddyqc_all option and eddy_quad is installed
     """
-    wf = Workflow(name="dwipreproc", input_spec=[
-        "input",
-        "output",
-        "json_import",
-        "pe_dir",
-        "readout_time",
-        "se_epi",
-        "align_seepi",
-        "topup_options",
-        "topup_files",
-        "eddy_mask",
-        "eddy_slspec",
-        "eddy_options",
-        "eddyqc_text",
-        "eddyqc_all",
-        "grad_import",
-        "grad_export",
-        "rpe_none",
-        "rpe_pair",
-        "rpe_all",
-        "rpe_header",
-    ])
+    wf = Workflow(name="dwipreproc", input_spec={
+        "input": ImageIn,
+        # "output": ImageOut,
+        "json_import": Json,
+        "pe_dir": str,
+        "readout_time": float,
+        "se_epi": ImageIn,
+        "align_seepi": bool,
+        "topup_options": str,
+        "topup_files": str,
+        "eddy_mask": ImageIn,
+        "eddy_slspec": str,
+        "eddy_options": str,
+        "eddyqc_text": str,
+        "eddyqc_all": str,
+        "grad_import": str,
+        "grad_export": str,
+        "rpe_none": bool,
+        "rpe_pair": bool,
+        "rpe_all": bool,
+        "rpe_header": bool,
+        "grad": BFile,
+        "fslgrad": ty.Tuple[Bvec, Bval],
+    })
 
     from mrtrix3 import (
         CONFIG,
@@ -470,55 +477,56 @@ def dwipreproc(
                 topup_input_movpar[: -len("_movpar.txt")]
             )
 
-    # Convert all input images into MRtrix format and store in scratch directory first
-    app.make_scratch_dir()
 
-    grad_import_option = app.read_dwgrad_import_options()
-    json_import_option = ""
-    if json_import:
-        json_import_option = " -json_import " + wf.lzin.json_import
-    json_export_option = " -json_export " + path.to_scratch("dwi.json", True)
-    wf.add(mrconvert(input=wf.lzin.input, output=path.to_scratch("dwi.mif"), grad_import_option + json_import_option + json_export_option, name="import_dwi"))
+    wf.add(mrconvert(input=wf.lzin.input, grad=wf.lzin.grad, json_import=wf.lzin.json_import, json_export=wf.lzin.json_export, name="import_dwi"))  # output=path.to_scratch("dwi.mif")
     if se_epi:
         image.check_3d_nonunity(wf.lzin.se_epi, False)
-        wf.add(mrconvert(input=wf.lzin.se_epi, output=path.to_scratch("se_epi.mif"), name="import_seepi"))
+        wf.add(mrconvert(input=wf.lzin.se_epi, name="import_seepi"))  # output=path.to_scratch("se_epi.mif")
+
+
+    # ROB: What is the topup_file_userpath
     if topup_file_userpath:
         run.function( shutil.copyfile, topup_input_movpar, path.to_scratch("field_movpar.txt", False), )
         # Can't run field spline coefficients image through mrconvert:
         #   topup encodes voxel sizes within the three NIfTI intent parameters, and
         #   applytopup requires that these be set, but mrconvert will wipe them
         run.function( shutil.copyfile, topup_input_fieldcoef, path.to_scratch( "field_fieldcoef.nii" + (".gz" if topup_input_fieldcoef.endswith(".nii.gz") else ""), False, ), )
+
+        
     if eddy_mask:
-        wf.add(mrconvert(input=wf.lzin.eddy_mask, output=path.to_scratch("eddy_mask.mif"), "-datatype bit", name="import_eddy_mask"))
+        wf.add(mrconvert(input=wf.lzin.eddy_mask, datatype="bit", name="import_eddy_mask"))  # output=path.to_scratch("eddy_mask.mif"), 
 
     app.goto_scratch_dir()
 
     # Get information on the input images, and check their validity
-    dwi_header = image.Header("dwi.mif")
-    if not len(dwi_header.size()) == 4:
-        raise RuntimeError("Input DWI must be a 4D image")
-    dwi_num_volumes = dwi_header.size()[3]
-    app.debug("Number of DWI volumes: " + str(dwi_num_volumes))
-    dwi_num_slices = dwi_header.size()[2]
-    app.debug("Number of DWI slices: " + str(dwi_num_slices))
-    dwi_pe_scheme = phaseencoding.get_scheme(dwi_header)
-    if se_epi:
-        se_epi_header = image.Header("se_epi.mif")
-        # This doesn't necessarily apply any more: May be able to combine e.g. a P>>A from -se_epi with an A>>P b=0 image from the DWIs
-        #  if not len(se_epi_header.size()) == 4:
-        #    raise RuntimeError('File provided using -se_epi option must contain more than one image volume')
-        se_epi_pe_scheme = phaseencoding.get_scheme(se_epi_header)
-    if "dw_scheme" not in dwi_header.keyval():
-        raise RuntimeError("No diffusion gradient table found")
-    grad = dwi_header.keyval()["dw_scheme"]
-    if not len(grad) == dwi_num_volumes:
-        raise RuntimeError(
-            "Number of lines in gradient table ("
-            + str(len(grad))
-            + ") does not match input image ("
-            + str(dwi_num_volumes)
-            + " volumes); check your input data"
-        )
+    @pydra.mark.task
+    @pydra.mark.annotate({"return": {"num_encodings": int}})
+    def validate_image_header(in_image: ImageIn, se_epi: ImageIn) -> int:
+        if not len(in_image.dims()) == 4:
+            raise RuntimeError("Input DWI must be a 4D image")
+        dwi_num_volumes = image_in.dims()[3]
+        logger.debug("Number of DWI volumes: " + str(dwi_num_volumes))
+        dwi_num_slices = image_in.dims()[2]
+        logger.debug("Number of DWI slices: " + str(dwi_num_slices))
+        if se_epi:
+            se_epi_header = image.Header("se_epi.mif")
+            # This doesn't necessarily apply any more: May be able to combine e.g. a P>>A from -se_epi with an A>>P b=0 image from the DWIs
+            #  if not len(se_epi_header.size()) == 4:
+            #    raise RuntimeError('File provided using -se_epi option must contain more than one image volume')
+            se_epi_pe_scheme = se_epi.encoding.array
+        if "dw_scheme" not in dwi_header.keyval():
+            raise RuntimeError("No diffusion gradient table found")
+        if not len(in_image.encoding.array) == dwi_num_volumes:
+            raise RuntimeError(
+                "Number of lines in gradient table ("
+                + str(len(grad))
+                + ") does not match input image ("
+                + str(dwi_num_volumes)
+                + " volumes); check your input data"
+            )
+        return dwi_num_volumes
+
+    wf.add(validate_image_header())
 
     # Deal with slice timing information for eddy slice-to-volume correction
     slice_encoding_axis = 2
@@ -917,10 +925,17 @@ def dwipreproc(
         dwi_pe_scheme = dwi_manual_pe_scheme  # May be needed later for triggering volume recombination
 
     # This may be required by -rpe_all for extracting b=0 volumes while retaining phase-encoding information
-    import_dwi_pe_table_option = ""
-    if dwi_manual_pe_scheme:
-        phaseencoding.save("dwi_manual_pe_scheme.txt", dwi_manual_pe_scheme)
-        import_dwi_pe_table_option = " -import_pe_table dwi_manual_pe_scheme.txt"
+    @pydra.mark.task
+    def save_encoding_scheme(dwi: ImageIn, filename: Path):
+        filename = Path(filename)
+        np.savetxt(filename, dwi.encoding.array)
+        return filename.absolute()
+
+    wf.add(save_encoding_scheme(input=wf.import_dwi.lzout.output, filename="dwi_pe_scheme.txt", name="save_dwi_pe_scheme"))
+    # import_dwi_pe_table_option = {}
+    # if dwi_manual_pe_scheme:
+    #     phaseencoding.save("dwi_manual_pe_scheme.txt", dwi_manual_pe_scheme)
+    #     import_dwi_pe_table_option = {"import_pe_table": "dwi_manual_pe_scheme.txt"}
 
     # Find the index of the first DWI volume that is a b=0 volume
     # This needs to occur at the outermost loop as it is pertinent information
@@ -936,7 +951,7 @@ def dwipreproc(
     # Deal with the phase-encoding of the images to be fed to topup (if applicable)
     execute_topup = (not pe_design == "None") and not topup_file_userpath
     overwrite_se_epi_pe_scheme = False
-    se_epi_path = "se_epi.mif"
+    se_epi_path = wf.import_seepi.lzout.output
     dwi_permvols_preeddy_option = ""
     dwi_permvols_posteddy_option = ""
     dwi_bzero_added_to_se_epi = False
@@ -948,8 +963,62 @@ def dwipreproc(
                 "the latter will be automatically re-gridded to match the former"
             )
             new_se_epi_path = "se_epi_regrid.mif"
-            wf.add(mrtransform(input=se_epi_path, output="-", tempate=wf.import_dwi.output, "-reorient_fod no -interp sinc", name="regrid_seepi_to_dwi_transform"))
-            wf.add(mrcalc(input=wf.regrid_seepi_to_dwi_transform.output, output=new_se_epi_path, "0.0 -max", name="regrid_seepi_to_dwi_nonnegative"))
+            wf.add(mrtransform(input=se_epi_path, tempate=wf.import_dwi.lzout.output, reorient_fod="no", interp="sinc", name="regrid_seepi_to_dwi_transform"))
+
+            regrid_seepi_to_dwi_input_spec = SpecInfo(
+                name="Input",
+                fields=[
+                    ( "input", ImageIn,
+                    { "help_string": "input image",
+                        "argstr": "",
+                        "position": 0,
+                        "mandatory": True } ),
+                    ( "operand", float,
+                    { "help_string": "operand",
+                        "argstr": "",
+                        "position": 1,
+                        "mandatory": True } ),
+                    ( "operator", str,
+                    { "help_string": "the operation to apply",
+                        "argstr": "-{operator}",
+                        "position": 2,
+                        "mandatory": True } ),
+                    ( "output", Path,
+                    { "help_string": "the operation to apply",
+                        "argstr": "",
+                        "position": -1,
+                        "output_file_template": "output.mif",
+                        "mandatory": True } ),
+                ],
+                bases=(ShellSpec,) 
+            )
+
+            regrid_seepi_to_dwi_output_spec=SpecInfo(
+                name="Output",
+                fields=[
+                ( "output", Mif,
+                { "help_string": "the output file",
+                    "argstr": "--tval",
+                    "position": -1,
+                    "mandatory": True } ),
+                ],
+                bases=(ShellOutSpec,) 
+            )
+
+            ###########################
+            # mri_surf2surf task - lh #
+            ###########################
+
+            
+            wf.add(ShellCommandTask(
+                name="regrid_seepi_to_dwi_nonnegative",
+                executable="mrcalc",
+                input_spec=regrid_seepi_to_dwi_input_spec, 
+                output_spec=regrid_seepi_to_dwi_output_spec, 
+                input=wf.regrid_seepi_to_dwi_transform.lzout.output,
+                operand=0.0,
+                operator="max",
+            ))
             app.cleanup(se_epi_path)
             se_epi_path = new_se_epi_path
             se_epi_header = image.Header(se_epi_path)
@@ -1026,8 +1095,8 @@ def dwipreproc(
                         os.path.splitext(se_epi_path)[0] + "_dwibzeros.mif"
                     )
                     # Don't worry about trying to produce a balanced scheme here
-                    wf.add(dwiextract(input="dwi.mif", output="-", "-bzero", name="dwi_bzeros_for_align_seepi"))
-                    wf.add(mrcat(input=(wf.dwi_bzeros_for_align_seepi.output, se_epi_path), output=new_se_epi_path, "-axis 3" , name="cat_dwi_bzeros_seepi_for_align_seepi"))
+                    wf.add(dwiextract(input=wf.import_dwi.lzout.output, bzero=True, name="dwi_bzeros_for_align_seepi"))
+                    wf.add(mrcat(input=(wf.dwi_bzeros_for_align_seepi.lzout.output, se_epi_path), output=new_se_epi_path, axis=3 , name="cat_dwi_bzeros_seepi_for_align_seepi"))
                     se_epi_header = image.Header(new_se_epi_path)
                     se_epi_pe_scheme_has_contrast = (
                         "pe_scheme" in se_epi_header.keyval()
@@ -1084,7 +1153,7 @@ def dwipreproc(
             # If b=0 volumes from the DWIs have already been added to the SE-EPI image due to an
             #   absence of phase-encoding contrast in the latter, we don't need to perform the following
             elif not dwi_bzero_added_to_se_epi:
-                wf.add(mrconvert(input=wf.import_dwi.output, output="dwi_first_bzero.mif", "-coord 3 " + str(dwi_first_bzero_index) + " -axes 0,1,2", name="dwi_extract_first_bzero"))
+                wf.add(mrconvert(input=wf.import_dwi.lzout.output, coord=(3, dwi_first_bzero_index), axes="0,1,2", name="dwi_extract_first_bzero"))  # output="dwi_first_bzero.mif"
                 dwi_first_bzero_pe = (
                     dwi_manual_pe_scheme[dwi_first_bzero_index]
                     if overwrite_dwi_pe_scheme
@@ -1111,8 +1180,9 @@ def dwipreproc(
                         + str(se_epi_volume_to_remove)
                         + " will be removed and replaced with first b=0 from DWIs"
                     )
-                    wf.add(mrconvert(input=se_epi_path, output="-", "-coord 3 " + ",".join( [ str(index) for index in range(len(se_epi_pe_scheme)) if not index == se_epi_volume_to_remove ] ), name="seepi_remove_one_volume_with_dwi_pe"))
-                    wf.add(mrcat(input=(wf.dwi_extract_first_bzero.output, wf.seepi_remove_one_volume_with_dwi_pe.output), "-axis 3" , name="balanced_concat_dwibzero_seepi"))
+                    
+                    wf.add(mrconvert(input=se_epi_path, coord=(3 + [index for index in range(len(se_epi_pe_scheme)) if not index == se_epi_volume_to_remove ]), name="seepi_remove_one_volume_with_dwi_pe"))
+                    wf.add(mrcat(input=[wf.dwi_extract_first_bzero.lzout.output, wf.seepi_remove_one_volume_with_dwi_pe.lzout.output], axis=3 , name="balanced_concat_dwibzero_seepi"))
                     # Also need to update the phase-encoding scheme appropriately if it's being set manually
                     #   (if embedded within the image headers, should be updated through the command calls)
                     if se_epi_manual_pe_scheme:
@@ -1135,7 +1205,7 @@ def dwipreproc(
                         app.console(
                             "Unbalanced phase-encoding scheme detected in series provided via -se_epi option; first DWI b=0 volume will be inserted to start of series"
                         )
-                    wf.add(mrcat(input=(wf.dwi_extract_first_bzero.output, wf.import_seepi.output), output=new_se_epi_path, "-axis 3" , name="unbalanced_concat_dwibzero_seepi"))
+                    wf.add(mrcat(input=(wf.dwi_extract_first_bzero.lzout.output, wf.import_seepi.lzout.output), output=new_se_epi_path, axis=3 , name="unbalanced_concat_dwibzero_seepi"))
                     # Also need to update the phase-encoding scheme appropriately
                     if se_epi_manual_pe_scheme:
                         first_line = list(manual_pe_dir)
@@ -1161,8 +1231,8 @@ def dwipreproc(
         # Preferably also make sure that there's some phase-encoding contrast in there...
         # With -rpe_all, need to write inferred phase-encoding to file and import before using dwiextract so that the phase-encoding
         #   of the extracted b=0's is propagated to the generated b=0 series
-        wf.add(mrconvert(input=wf.import_dwi.output, output="-", import_dwi_pe_table_option, name="dwi_insert_pe_table"))
-        wf.add(dwiextract(input=wf.dwi_insert_pe_table.output, output=se_epi_path, "-bzero", name="extract_dwi_bzero_for_seepi"))
+        wf.add(mrconvert(input=wf.import_dwi.lzout.output, import_pe_table=wf.save_dwi_pe_scheme.lzout.output, name="dwi_insert_pe_table"))
+        wf.add(dwiextract(input=wf.dwi_insert_pe_table.lzout.output, output=se_epi_path, bzero=True, name="extract_dwi_bzero_for_seepi"))
         se_epi_header = image.Header(se_epi_path)
 
         # If there's no contrast remaining in the phase-encoding scheme, it'll be written to
@@ -1243,19 +1313,19 @@ def dwipreproc(
             app.debug("Post: " + str(dwi_permvols_posteddy_option))
 
     # This may be required when setting up the topup call
-    se_epi_manual_pe_table_option = ""
+    se_epi_manual_pe_table_option = {}
     if se_epi_manual_pe_scheme:
         phaseencoding.save("se_epi_manual_pe_scheme.txt", se_epi_manual_pe_scheme)
-        se_epi_manual_pe_table_option = " -import_pe_table se_epi_manual_pe_scheme.txt"
+        se_epi_manual_pe_table_option = {"import_pe_table": "se_epi_manual_pe_scheme.txt"}
 
     # Need gradient table if running dwi2mask after applytopup to derive a brain mask for eddy
-    wf.add(mrinfo(input=wf.import_dwi.output, export_grad_mrtrix="grad.b", name="dwi_export_dwscheme"))
+    wf.add(mrinfo(input=wf.import_dwi.lzout.output, export_grad_mrtrix="grad.b", name="dwi_export_dwscheme"))
     dwi2mask_algo = CONFIG["Dwi2maskAlgorithm"]
 
     eddy_in_topup_option = ""
     dwi_post_eddy_crop_option = ""
     slice_padded = False
-    dwi_path = "dwi.mif"
+    dwi_path = wf.import_dwi.lzout.output
     if execute_topup:
         # topup will crash if its input image has a spatial dimension with a non-even size;
         #   presumably due to a downsampling by a factor of 2 in a multi-resolution scheme
@@ -1281,44 +1351,46 @@ def dwipreproc(
                 + " erased afterwards"
             )
             for axis, axis_size in enumerate(dwi_header.size()[:3]):
-                if int(axis_size % 2):
-                    new_se_epi_path = (
-                        os.path.splitext(se_epi_path)[0] + "_pad" + str(axis) + ".mif"
-                    )
-                    wf.add(mrconvert(input=se_epi_path, output="-", "-coord " + str(axis) + " " + str(axis_size - 1), name="seepi_extract_slice_for_padding_axis%d" % axis))
-                    wf.add(mrcat(input=(se_epi_path, getattr(wf, "seepi_extract_slice_for_padding_axis%d" % axis).output), output=new_se_epi_path, "-axis " + str(axis), name="seepi_pad_axis%d" % axis))
-                    app.cleanup(se_epi_path)
-                    se_epi_path = new_se_epi_path
-                    new_dwi_path = (
-                        os.path.splitext(dwi_path)[0] + "_pad" + str(axis) + ".mif"
-                    )
-                    wf.add(mrconvert(input=dwi_path, output="-", "-coord " + str(axis) + " " + str(axis_size - 1) + " -clear dw_scheme", name="dwi_extract_slice_for_padding_axis%d" % axis))
-                    wf.add(mrcat(input=(dwi_path, getattr(wf, "dwi_extract_slice_for_padding_axis%d" % axis).output), output=new_dwi_path, "-axis " + str(axis), name="dwi_pad_axis%d" % axis))
-                    app.cleanup(dwi_path)
-                    dwi_path = new_dwi_path
-                    dwi_post_eddy_crop_option += (
-                        " -coord " + str(axis) + " 0:" + str(axis_size - 1)
-                    )
-                    if axis == slice_encoding_axis:
-                        slice_padded = True
-                        dwi_num_slices += 1
-                        # If we are padding the slice axis, and performing slice-to-volume correction,
-                        #   then we need to perform the corresponding padding to the slice timing
-                        if eddy_mporder:
-                            # At this point in the script, this information may be encoded either within
-                            #   the slice timing vector (as imported from the image header), or as
-                            #   slice groups (i.e. in the format expected by eddy). How these data are
-                            #   stored affects how the padding is performed.
-                            if slice_timing:
-                                slice_timing.append(slice_timing[-1])
-                            elif slice_groups:
-                                # Can't edit in place when looping through the list
-                                new_slice_groups = []
-                                for group in slice_groups:
-                                    if axis_size - 1 in group:
-                                        group.append(axis_size)
-                                    new_slice_groups.append(group)
-                                slice_groups = new_slice_groups
+
+            axis_wf = Workflow(name="axis_processing", input_spec=["axis", "se_epi_path", "dwi_path"])
+            if int(axis_size % 2):
+                new_se_epi_path = (
+                    os.path.splitext(se_epi_path)[0] + "_pad" + str(axis) + ".mif"
+                )
+                axis_wf.add(mrconvert(input=se_epi_path, output="-", coord=axis_wf.lzin.axis, " " + str(axis_size - 1), name="seepi_extract_slice_for_padding_axis%d" % axis))
+                axis_wf.add(mrcat(input=(se_epi_path, getattr(wf, "seepi_extract_slice_for_padding_axis%d" % axis).output), output=new_se_epi_path, "-axis " + str(axis), name="seepi_pad_axis%d" % axis))
+                app.cleanup(se_epi_path)
+                se_epi_path = new_se_epi_path
+                new_dwi_path = (
+                    os.path.splitext(dwi_path)[0] + "_pad" + str(axis) + ".mif"
+                )
+                axis_wf.add(mrconvert(input=dwi_path, output="-", coord=axis_wf.lzin.axis, + " " + str(axis_size - 1) + clear="dw_scheme", name="dwi_extract_slice_for_padding_axis%d" % axis))
+                axis_wf.add(mrcat(input=(dwi_path, getattr(wf, "dwi_extract_slice_for_padding_axis%d" % axis).output), output=new_dwi_path, axis=axis_wf.lzin.axis, name="dwi_pad_axis%d" % axis))
+                app.cleanup(dwi_path)
+                dwi_path = new_dwi_path
+                dwi_post_eddy_crop_option += (
+                    " -coord " + str(axis) + " 0:" + str(axis_size - 1)
+                )
+                if axis == slice_encoding_axis:
+                    slice_padded = True
+                    dwi_num_slices += 1
+                    # If we are padding the slice axis, and performing slice-to-volume correction,
+                    #   then we need to perform the corresponding padding to the slice timing
+                    if eddy_mporder:
+                        # At this point in the script, this information may be encoded either within
+                        #   the slice timing vector (as imported from the image header), or as
+                        #   slice groups (i.e. in the format expected by eddy). How these data are
+                        #   stored affects how the padding is performed.
+                        if slice_timing:
+                            slice_timing.append(slice_timing[-1])
+                        elif slice_groups:
+                            # Can't edit in place when looping through the list
+                            new_slice_groups = []
+                            for group in slice_groups:
+                                if axis_size - 1 in group:
+                                    group.append(axis_size)
+                                new_slice_groups.append(group)
+                            slice_groups = new_slice_groups
 
         # Do the conversion in preparation for topup
         wf.add(mrconvert(input=se_epi_path, output="topup_in.nii", se_epi_manual_pe_table_option + " -strides -1,+2,+3,+4 -export_pe_table topup_datain.txt", name="seepi_export_for_topup"))
@@ -1345,7 +1417,7 @@ def dwipreproc(
         #   details may vary between volumes
         if dwi_manual_pe_scheme:
             wf.add(mrconvert(input=dwi_path, output="-", import_dwi_pe_table_option, name="dwi_import_manual_pe_scheme_for_applytopup"))
-            wf.add(mrinfo(input=wf.dwi_import_manual_pe_scheme_for_applytopup.output, export_pe_eddy=("applytopup_config.txt", "applytopup_indices.txt"), name="generate_applytopup_textfiles"))
+            wf.add(mrinfo(input=wf.dwi_import_manual_pe_scheme_for_applytopup.lzout.output, export_pe_eddy=("applytopup_config.txt", "applytopup_indices.txt"), name="generate_applytopup_textfiles"))
         else:
             wf.add(mrinfo(input=dwi_path, export_pe_eddy=("applytopup_config.txt", "applytopup_indices.txt"), name="generate_applytopup_textfiles"))
 
@@ -1387,10 +1459,10 @@ def dwipreproc(
                 dwi2mask_in_path = applytopup_image_list[0]
             else:
                 dwi2mask_in_path = "dwi2mask_in.mif"
-                wf.add(mrcat(input=applytopup_image_list, output=dwi2mask_in_path, "-axis 3" , name="post_applytopup_concat_groups"))
+                wf.add(mrcat(input=applytopup_image_list, output=dwi2mask_in_path, axis=3 , name="post_applytopup_concat_groups"))
             wf.add(dwi2mask(input=dwi2mask_in_path, algorithm=dwi2mask_algo, output=dwi2mask_out_path, name="post_applytopup_dwi2mask_for_eddy"))
             wf.add(maskfilter(input=dwi2mask_out_path, operation="dilate", output="-", name="dilate_post_applytopup_brainmask"))
-            wf.add(mrconvert(input=wf.dilate_post_applytopup_brainmask.output, output="eddy_mask.nii", "-datatype float32 -strides -1,+2,+3", name="export_brainmask_for_eddy"))
+            wf.add(mrconvert(input=wf.dilate_post_applytopup_brainmask.lzout.output, output="eddy_mask.nii", "-datatype float32 -strides -1,+2,+3", name="export_brainmask_for_eddy"))
             if len(applytopup_image_list) > 1:
                 app.cleanup(dwi2mask_in_path)
             app.cleanup(dwi2mask_out_path)
@@ -1405,20 +1477,20 @@ def dwipreproc(
             dwi2mask_out_path = "dwi2mask_out.mif"
             wf.add(dwi2mask(input=dwi_path, algorithm=dwi2mask_algo, output=dwi2mask_out_path, name="dwi2mask_pre_eddy"))
             wf.add(maskfilter(input=dwi2mask_out_path, operation="dilate", output="-", name="dilate_brainmask_for_eddy"))
-            wf.add(mrconvert(input=wf.dilate_brainmask_for_eddy.output, output="eddy_mask.nii", "-datatype float32 -strides -1,+2,+3" , name="export_brainmask_for_eddy"))
+            wf.add(mrconvert(input=wf.dilate_brainmask_for_eddy.lzout.output, output="eddy_mask.nii", datatype="float32", strides="-1,+2,+3" , name="export_brainmask_for_eddy"))
             app.cleanup(dwi2mask_out_path)
 
     # Use user supplied mask for eddy instead of one derived from the images using dwi2mask
     if eddy_mask:
         if image.match("eddy_mask.mif", dwi_path, up_to_dim=3):
-            wf.add(mrconvert(input=wf.import_eddy_mask.output, output="eddy_mask.nii", "-datatype float32 -stride -1,+2,+3" , name="convert_manual_brainmask_for_eddy"))
+            wf.add(mrconvert(input=wf.import_eddy_mask.lzout.output, output="eddy_mask.nii", datatype="float32", stride="-1,+2,+3" , name="convert_manual_brainmask_for_eddy"))
         else:
             app.warn(
                 "User-provided processing mask for eddy does not match DWI voxel grid; resampling"
             )
-            wf.add(mrtransform(input=import_eddy_mask.output, output="-", template=wf.import_dwi.output, "-interp linear", name="resample_manual_brainmask_to_dwi"))
-            wf.add(mrthreshold(input=wf.resample_manual_brainmask_to_dwi.output, output="-", "-abs 0.5", name="threshold_resampled_manual_brainmask"))
-            wf.add(mrconvert(input=wf.threshold_resampled_manual_brainmask.output, output="eddy_mask.nii", "-datatype float32 -stride -1,+2,+3" , name="convert_resampled_brainmask_for_eddy"))
+            wf.add(mrtransform(input=import_eddy_mask.lzout.output, output="-", template=wf.import_dwi.lzout.output, interp="linear", name="resample_manual_brainmask_to_dwi"))
+            wf.add(mrthreshold(input=wf.resample_manual_brainmask_to_dwi.lzout.output, output="-", "-abs 0.5", name="threshold_resampled_manual_brainmask"))
+            wf.add(mrconvert(input=wf.threshold_resampled_manual_brainmask.lzout.output, output="eddy_mask.nii", datatype="float32", stride="-1,+2,+3", name="convert_resampled_brainmask_for_eddy"))
         app.cleanup("eddy_mask.mif")
 
     # Generate the text file containing slice timing / grouping information if necessary
@@ -1466,8 +1538,8 @@ def dwipreproc(
     )
 
     # Prepare input data for eddy
-    wf.add(mrconvert(input=dwi_path, output="eddy_in.nii", import_dwi_pe_table_option + dwi_permvols_preeddy_option + " -strides -1,+2,+3,+4 -export_grad_fsl bvecs bvals -export_pe_eddy eddy_config.txt eddy_indices.txt", name="convert_inputs_to_eddy"))
-    app.cleanup(dwi_path)
+    wf.add(mrconvert(input=dwi_path, output="eddy_in.nii", import_dwi_pe_table_option + dwi_permvols_preeddy_option, strides="-1,+2,+3,+4", export_grad_fsl=("bvecs", "bvals"), export_pe_eddy=("eddy_config.txt", "eddy_indices.txt"), name="convert_inputs_to_eddy"))
+
 
     # Run eddy
     # If a CUDA version is in PATH, run that first; if it fails, re-try using the non-CUDA version
@@ -1661,7 +1733,7 @@ def dwipreproc(
                 progress.done()
 
             eddyqc_options = (
-                " -idx eddy_indices.txt -par eddy_config.txt -b bvals -m " + eddyqc_mask
+                idx="eddy_indices.txt", par="eddy_config.txt", b="bvals", -m " + eddyqc_mask
             )
             if os.path.isfile(eddyqc_prefix + ".eddy_residuals.nii.gz"):
                 eddyqc_options += " -g " + bvecs_path
@@ -1822,7 +1894,7 @@ def dwipreproc(
                 "topup output field image has erroneous header; recommend updating FSL to version 5.0.8 or later"
             )
             new_field_map_image = "field_map_fix.mif"
-            wf.add(mrtransform(input=field_map_image, output=new_field_map_image, "-replace topup_in.nii", name="fix_topup_fieldmap_transform"))
+            wf.add(mrtransform(input=field_map_image, output=new_field_map_image, replace="topup_in.nii",", name="fix_topup_fieldmap_transform"))
             app.cleanup(field_map_image)
             field_map_image = new_field_map_image
         # In FSL 6.0.0, field map image is erroneously constructed with the same number of volumes as the input image,
@@ -1858,8 +1930,8 @@ def dwipreproc(
             sign_multiplier = " -1.0 -mult" if config[pe_axis] < 0 else ""
             field_derivative_path = "field_deriv_pe_" + str(index + 1) + ".mif"
             wf.add(mrcalc(field_map_image, str(total_readout_time), "-mult", sign_multiplier, output="-", name="pegroup%d_scale_fieldmap_trt" % index))
-            wf.add(mrfilter(input=getattr(wf, "pegroup%d_scale_trt" % index).output, operation="gradient", output="-", name="pegroup%d_scaled_fieldmap_3dgradient" % index))
-            wf.add(mrconvert(input=getattr(wf, "pegroup%d_scaled_fieldmap_gradient" % index).output, output="field_derivative_path", "-coord 3 " + str(pe_axis) + " -axes 0,1,2" , name="pegroup%d_scaled_fieldmap_pegradient" % index))
+            wf.add(mrfilter(input=getattr(wf, "pegroup%d_scale_trt" % index).lzout.output, operation="gradient", output="-", name="pegroup%d_scaled_fieldmap_3dgradient" % index))
+            wf.add(mrconvert(input=getattr(wf, "pegroup%d_scaled_fieldmap_gradient" % index).lzout.output, output="field_derivative_path", "-coord 3 " + str(pe_axis) + " -axes 0,1,2" , name="pegroup%d_scaled_fieldmap_pegradient" % index))
             jacobian_path = "jacobian_" + str(index + 1) + ".mif"
             wf.add(mrcalc("1.0", field_derivative_path, "-add", "0.0", "-max", output=jacobian_path, name="pegroup%d_pejacobian" % index))
             app.cleanup(field_derivative_path)
@@ -1911,8 +1983,8 @@ def dwipreproc(
             app.cleanup("weight" + str(index + 1) + ".mif")
 
         # Finally the recombined volumes must be concatenated to produce the resulting image series
-        wf.add(mrcat(input=combined_image_list, output="-", "-axis 3", name="dwi_recombined_concatenate"))
-        wf.add(mrconvert(input=wf.dwi_recombined_concatenate.output, output="result.mif", "-fslgrad bvecs_combined bvals_combined" + dwi_post_eddy_crop_option + stride_option, name="generate_final_dwi"))
+        wf.add(mrcat(input=combined_image_list, output="-", axis=3, name="dwi_recombined_concatenate"))
+        wf.add(mrconvert(input=wf.dwi_recombined_concatenate.lzout.output, output="result.mif", fslgrad=("bvecs_combined", "bvals_combined"), + dwi_post_eddy_crop_option + stride_option, name="generate_final_dwi"))
         app.cleanup(combined_image_list)
 
     # Grab any relevant files that eddy has created, and copy them to the requested directory
