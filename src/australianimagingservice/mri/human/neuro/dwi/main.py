@@ -41,8 +41,23 @@ from pydra.tasks.mrtrix3.auto import (
 )
 from pydra.tasks.fsl.auto import TOPUP, Eddy, ApplyTOPUP, EddyQuad
 from .strategy_identification import strategy_identification_wf
+from .susceptibility_est import susceptibility_estimation_wf
 
 logger = getLogger(__name__)
+
+
+@pydra.mark.task
+def requires_regrid_switch(
+    in_image: Mif, se_epi: Mif
+) -> bool:
+    if se_epi is not attrs.NOTHING:
+        dims_match = (
+            in_image.dims()[:3] == se_epi.dims()[:3]
+            and in_image.vox_sizes()[:3] == se_epi.vox_sizes()[:3]
+        )
+    else:
+        dims_match = False
+    return not dims_match
 
 
 def dwipreproc(
@@ -50,8 +65,6 @@ def dwipreproc(
     # align_seepi: bool,  # TODO: work out what to do with this (Rob's struggle)
     rpe_strategy: str,  # TODO: Enum: none, pair, all
     eddyqc_all: bool = False,  # whether to include large eddy qc files in outputs
-    slice_to_volume: bool = True,  # whether to include slice-to-volume registration
-    
     # How am I estimating my susceptility field?
     # - I'm not ("rpe-none")
     # - I have a pair of b=0 images with reversed phase encoding,
@@ -63,12 +76,50 @@ def dwipreproc(
     # Does the set of images provided to topup need to be "tweaked"
     #   in any way to ensure that they align with the DWIs?
     # - Yes, because the "se-epi" image is on a completely different voxel grid
-    #   and therefore needs to e first resampled
+    #   and therefore needs to be first resampled
     # - Yes, because a susceptibility field can't be estimated from the "SE-EPI"
     #   image alone, because it doesn't have any phase encoding contrast
     # - Yes, because it's recommended that the first volume in the topup input
     #   be the same as the first volue in the eddy input
     # - No, because those data are being pulled from the DWIs themselves ("-rpe_all")
+    # se_epi_to_dwi_merge: str,
+    
+
+    # What is going to form the input to topup for susceptibility field estimation?
+    # - I'm not performing susceptibility field estimation ("rpe-none")
+    # - I'm providing a separate image series with reversed phase encoding;
+    #   these will be used as-is, without any further manipulation
+    #   ("rpe-pair" without "-align_seepi")
+    #   (Not recommended)
+    # - I'm providing a separate image series with reversed phase encoding;
+    #   to ensure alignment of these data with the DWIs, the first volume in
+    #   this series that has the same phase encoding as the first b=0 volume
+    #   in the DWIs will be stripped out and concatenated to becomes the first
+    #   volume in that series
+    #   ("rpe_pair" with "-align_seepi")
+    #   -  If that separate image series contains the same number of volumes in 
+    #      each phase encoding direction, then the addition of the first b=0 volume
+    #      coincides with removal of one of the volumes in the spin-echo EPI series
+    #      in order to keep the data "balanced"
+    #   -  If not, just do the concatenation without erasure
+    #   
+    # - I'm providing a separate image series, which has different phase encoding
+    #   to the DWI b=0 volumes; the input to topup will be formed by concatenating
+    #   the b=0 DWI volumes with this additional series
+    #   ("-rpe_header" when SE EPI series does not contain any phase encoding contrast)
+    # - b=0 volumes in the DWI series themselves will be extracted and used;
+    #   this has the advantage of being intrinsically aligned when the data are
+    #   subsequently processed by eddy with no further explicit manipulation
+    #   ("-rpe_all" in the absence of "-se_epi")
+    #
+    # Does the SE EPI series need to be resampled onto the voxel grid of the DWIs,
+    #   or is it already on the same grid, in which case the requisite concatenation
+    #   operations can be performed directly?
+    #   ("True" only makes sense for a subset of the options above)
+    field_estimation_data_formation_strategy: str,
+    requires_regrid: bool,
+    slice_to_volume: bool = True,  # whether to include slice-to-volume registration
+    bzero_threshold: float = 10.0,    
     #
     # Am I going to perform explicit volume recombination?
     # - Yes, because my data support it ("rpe-all") 
@@ -509,273 +560,21 @@ def dwipreproc(
     # Deal with slice timing information for eddy slice-to-volume correction
     wf.add(
         strategy_identification_wf(
-            input=wf.lzin.input,
             slice_to_volume=slice_to_volume,
+            bzero_threshold=bzero_threshold,
+        )(
+            input=wf.lzin.input,    
             name="stragy_identification"
         )
     )
 
-    # Use new features of dirstat to query the quality of the diffusion acquisition scheme
-    # Need to know the mean b-value in each shell, and the asymmetry value of each shell
-    # But don't bother testing / warning the user if they're already controlling for this
-    if not eddy_options or not any(
-        s.startswith("--slm=") for s in eddy_options.split()
-    ):
-
-    # Since we want to access user-defined phase encoding information regardless of whether or not
-    #   such information is present in the header, let's grab it here
-    manual_pe_dir = None
-    if pe_dir:
-        manual_pe_dir = [float(i) for i in phaseencoding.direction(pe_dir)]
-    logger.debug("Manual PE direction: " + str(manual_pe_dir))
-    manual_trt = None
-    if readout_time:
-        manual_trt = float(readout_time)
-    logger.debug("Manual readout time: " + str(manual_trt))
-
-    # Utilise the b-value clustering algorithm in src/dwi/shells.*
-    shell_indices = [
-        [int(i) for i in entry.split(",")]
-        for entry in image.mrinfo("dwi.mif", "shell_indices").split(" ")
-    ]
-    shell_bvalues = [
-        float(f) for f in image.mrinfo("dwi.mif", "shell_bvalues").split(" ")
-    ]
-    bzero_threshold = float(CONFIG.get("BZeroThreshold", 10.0))
-
-    # For each volume index, store the index of the shell to which it is attributed
-    #   (this will make it much faster to determine whether or not two volumes belong to the same shell)
-    vol2shell = [-1] * dwi_num_volumes
-    for index, volumes in enumerate(shell_indices):
-        for volume in volumes:
-            vol2shell[volume] = index
-    assert all(index >= 0 for index in vol2shell)
-
-    def grads_match(one, two):
-        # Are the two volumes assigned to different b-value shells?
-        if vol2shell[one] != vol2shell[two]:
-            return False
-        # Does this shell correspond to b=0?
-        if shell_bvalues[vol2shell[one]] <= bzero_threshold:
-            return True
-        # Dot product between gradient directions
-        # First, need to check for zero-norm vectors:
-        # - If both are zero, skip this check
-        # - If one is zero and the other is not, volumes don't match
-        # - If neither is zero, test the dot product
-        if any(grad[one][0:3]):
-            if not any(grad[two][0:3]):
-                return False
-            dot_product = (
-                grad[one][0] * grad[two][0]
-                + grad[one][1] * grad[two][1]
-                + grad[one][2] * grad[two][2]
-            )
-            if abs(dot_product) < 0.999:
-                return False
-        elif any(grad[two][0:3]):
-            return False
-        return True
-
-    # Manually generate a phase-encoding table for the input DWI based on user input
-    dwi_manual_pe_scheme = None
-    se_epi_manual_pe_scheme = None
-    auto_trt = 0.1
-    dwi_auto_trt_warning = False
-    if manual_pe_dir:
-        if manual_trt:
-            trt = manual_trt
-        else:
-            trt = auto_trt
-            dwi_auto_trt_warning = True
-
-        # Still construct the manual PE scheme even with 'None' or 'Pair':
-        #   there may be information in the header that we need to compare against
-        if pe_design == "None":
-            line = list(manual_pe_dir)
-            line.append(trt)
-            dwi_manual_pe_scheme = [line] * dwi_num_volumes
-            logger.debug(
-                "Manual DWI PE scheme for 'None' PE design: "
-                + str(dwi_manual_pe_scheme)
-            )
-
-        # With 'Pair', also need to construct the manual scheme for SE EPIs
-        elif pe_design == "Pair":
-            line = list(manual_pe_dir)
-            line.append(trt)
-            dwi_manual_pe_scheme = [line] * dwi_num_volumes
-            logger.debug(
-                "Manual DWI PE scheme for 'Pair' PE design: "
-                + str(dwi_manual_pe_scheme)
-            )
-            if len(se_epi_header.size()) != 4:
-                raise RuntimeError(
-                    "If using -rpe_pair option, image provided using -se_epi must be a 4D image"
-                )
-            se_epi_num_volumes = se_epi_header.size()[3]
-            if se_epi_num_volumes % 2:
-                raise RuntimeError(
-                    "If using -rpe_pair option, image provided using -se_epi must contain an even number of volumes"
-                )
-            # Assume that first half of volumes have same direction as series;
-            #   second half have the opposite direction
-            se_epi_manual_pe_scheme = [line] * int(se_epi_num_volumes / 2)
-            line = [(-i if i else 0.0) for i in manual_pe_dir]
-            line.append(trt)
-            se_epi_manual_pe_scheme.extend([line] * int(se_epi_num_volumes / 2))
-            logger.debug(
-                "Manual SEEPI PE scheme for 'Pair' PE design: "
-                + str(se_epi_manual_pe_scheme)
-            )
-
-        # If -rpe_all, need to scan through grad and figure out the pairings
-        # This will be required if relying on user-specified phase encode direction
-        # It will also be required at the end of the script for the manual recombination
-        # Update: The possible permutations of volume-matched acquisition is limited within the
-        #   context of the -rpe_all option. In particular, the potential for having more
-        #   than one b=0 volume within each half means that it is not possible to permit
-        #   arbitrary ordering of those pairs, since b=0 volumes would then be matched
-        #   despite having the same phase-encoding direction. Instead, explicitly enforce
-        #   that volumes must be matched between the first and second halves of the DWI data.
-        elif pe_design == "All":
-            if dwi_num_volumes % 2:
-                raise RuntimeError(
-                    "If using -rpe_all option, input image must contain an even number of volumes"
-                )
-            grads_matched = [dwi_num_volumes] * dwi_num_volumes
-            grad_pairs = []
-            logger.debug(
-                "Commencing gradient direction matching; "
-                + str(dwi_num_volumes)
-                + " volumes"
-            )
-            for index1 in range(int(dwi_num_volumes / 2)):
-                if grads_matched[index1] == dwi_num_volumes:  # As yet unpaired
-                    for index2 in range(int(dwi_num_volumes / 2), dwi_num_volumes):
-                        if (
-                            grads_matched[index2] == dwi_num_volumes
-                        ):  # Also as yet unpaired
-                            if grads_match(index1, index2):
-                                grads_matched[index1] = index2
-                                grads_matched[index2] = index1
-                                grad_pairs.append([index1, index2])
-                                logger.debug(
-                                    "Matched volume "
-                                    + str(index1)
-                                    + " with "
-                                    + str(index2)
-                                    + ": "
-                                    + str(grad[index1])
-                                    + " "
-                                    + str(grad[index2])
-                                )
-                                break
-                    else:
-                        raise RuntimeError(
-                            "Unable to determine matching reversed phase-encode direction volume for DWI volume "
-                            + str(index1)
-                        )
-            if not len(grad_pairs) == dwi_num_volumes / 2:
-                raise RuntimeError(
-                    "Unable to determine complete matching DWI volume pairs for reversed phase-encode combination"
-                )
-            # Construct manual PE scheme here:
-            #   Regardless of whether or not there's a scheme in the header, need to have it:
-            #   if there's one in the header, want to compare to the manually-generated one
-            dwi_manual_pe_scheme = []
-            for index in range(0, dwi_num_volumes):
-                line = list(manual_pe_dir)
-                if index >= int(dwi_num_volumes / 2):
-                    line = [(-i if i else 0.0) for i in line]
-                line.append(trt)
-                dwi_manual_pe_scheme.append(line)
-            logger.debug(
-                "Manual DWI PE scheme for 'All' PE design: " + str(dwi_manual_pe_scheme)
-            )
-
-    else:  # No manual phase encode direction defined
-        if not pe_design == "Header":
-            raise RuntimeError(
-                "If not using -rpe_header, phase encoding direction must be provided using the -pe_dir option"
-            )
-
-    def scheme_dirs_match(one, two):
-        for line_one, line_two in zip(one, two):
-            if not line_one[0:3] == line_two[0:3]:
-                return False
-        return True
-
-    def scheme_times_match(one, two):
-        for line_one, line_two in zip(one, two):
-            if abs(line_one[3] - line_two[3]) > 5e-3:
-                return False
-        return True
-
-    # Determine whether or not the phase encoding table generated manually should be used
-    #   (possibly instead of a table present in the image header)
-    overwrite_dwi_pe_scheme = False
-    if dwi_pe_scheme:
-        if manual_pe_dir:
-            # Compare manual specification to that read from the header;
-            #   overwrite & give warning to user if they differ
-            # Bear in mind that this could even be the case for -rpe_all;
-            #   relying on earlier code having successfully generated the 'appropriate'
-            #   PE scheme for the input volume based on the diffusion gradient table
-            if not scheme_dirs_match(dwi_pe_scheme, dwi_manual_pe_scheme):
-                logger.warning(
-                    "User-defined phase-encoding direction design does not match what is stored in DWI image header; proceeding with user specification"
-                )
-                overwrite_dwi_pe_scheme = True
-        if manual_trt:
-            # Compare manual specification to that read from the header
-            if not scheme_times_match(dwi_pe_scheme, dwi_manual_pe_scheme):
-                logger.warning(
-                    "User-defined total readout time does not match what is stored in DWI image header; proceeding with user specification"
-                )
-                overwrite_dwi_pe_scheme = True
-        if overwrite_dwi_pe_scheme:
-            dwi_pe_scheme = dwi_manual_pe_scheme  # May be used later for triggering volume recombination
-        else:
-            dwi_manual_pe_scheme = (
-                None  # To guarantee that these generated data are never used
-            )
-    else:
-        # Nothing in the header; rely entirely on user specification
-        if pe_design == "Header":
-            raise RuntimeError(
-                "No phase encoding information found in DWI image header"
-            )
-        if not manual_pe_dir:
-            raise RuntimeError(
-                "No phase encoding information provided either in header or at command-line"
-            )
-        if dwi_auto_trt_warning:
-            logger.info(
-                "Total readout time not provided at command-line; assuming sane default of "
-                + str(auto_trt)
-            )
-        dwi_pe_scheme = dwi_manual_pe_scheme  # May be needed later for triggering volume recombination
-
-    # This may be required by -rpe_all for extracting b=0 volumes while retaining phase-encoding information
-    @pydra.mark.task
-    def save_encoding_scheme(dwi: ImageIn, filename: Path):
-        filename = Path(filename)
-        np.savetxt(filename, dwi.encoding.array)
-        return filename.absolute()
-
     wf.add(
-        save_encoding_scheme(
-            input=wf.import_dwi.lzout.output,
-            filename="dwi_pe_scheme.txt",
-            name="save_dwi_pe_scheme",
-        )
+        susceptibility_estimation_wf(have_se_epi)(
+            input=wf.lzin.input,
+            se_epi=wf.import_seepi.lzout.output,
     )
-    # import_dwi_pe_table_option = {}
-    # if dwi_manual_pe_scheme:
-    #     phaseencoding.save("dwi_manual_pe_scheme.txt", dwi_manual_pe_scheme)
-    #     import_dwi_pe_table_option = {"import_pe_table": "dwi_manual_pe_scheme.txt"}
 
+    
     # Find the index of the first DWI volume that is a b=0 volume
     # This needs to occur at the outermost loop as it is pertinent information
     #   not only for the -align_seepi option, but also for when the -se_epi option
@@ -787,14 +586,17 @@ def dwipreproc(
         dwi_first_bzero_index += 1
     logger.debug("Index of first b=0 image in DWIs is " + str(dwi_first_bzero_index))
 
+
+
     # Deal with the phase-encoding of the images to be fed to topup (if applicable)
-    execute_topup = (not pe_design == "None") and not topup_file_userpath
+    #execute_topup = (not pe_design == "None") and not topup_file_userpath
+    execute_topup = 
     overwrite_se_epi_pe_scheme = False
     se_epi_path = wf.import_seepi.lzout.output
     dwi_permvols_preeddy = None
     dwi_permvols_posteddy_slice = None
     dwi_bzero_added_to_se_epi = False
-    if se_epi:
+    if have_se_epi:
         # Newest version of eddy requires that topup field be on the same grid as the eddy input DWI
         if not image.match(dwi_header, se_epi_header, up_to_dim=3):
             logger.info(
