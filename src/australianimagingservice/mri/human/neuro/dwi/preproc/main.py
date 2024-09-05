@@ -17,9 +17,7 @@
 
 from logging import getLogger
 import typing as ty
-import attrs
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
-import pydra.mark
 from pydra import Workflow
 from .examine_metadata import examine_metadata_wf
 from .susceptibility_est import susceptibility_estimation_wf
@@ -50,8 +48,6 @@ def dwipreproc(
     #   be the same as the first volue in the eddy input
     # - No, because those data are being pulled from the DWIs themselves ("-rpe_all")
     # se_epi_to_dwi_merge: str,
-    
-
     # What is going to form the input to topup for susceptibility field estimation?
     # - I'm not performing susceptibility field estimation ("rpe-none")
     # - I'm providing a separate image series with reversed phase encoding;
@@ -64,13 +60,13 @@ def dwipreproc(
     #   in the DWIs will be stripped out and concatenated to becomes the first
     #   volume in that series
     #   ("rpe_pair" with "-align_seepi")
-    #   -  If that separate image series contains the same number of volumes in 
+    #   -  If that separate image series contains the same number of volumes in
     #      each phase encoding direction, then the addition of the first b=0 volume
     #      coincides with removal of one of the volumes in the spin-echo EPI series
     #      in order to keep the data "balanced"
     #   -  If the SE-EPI images do not contain any phase encoding contrast at all, and therefore no susceptibility field estimation can be performed, then concatenate _all_ DWI bzero volumes with the SE-EPI series
     #   -  Otherwise, just do the concatenation without erasure
-    #   
+    #
     # - I'm providing a separate image series, which has different phase encoding
     #   to the DWI b=0 volumes; the input to topup will be formed by concatenating
     #   the b=0 DWI volumes with this additional series
@@ -82,14 +78,14 @@ def dwipreproc(
     #
     # At the point of workflow construction, 3.2 and 4 are in fact identical
     #
-    # ['none', 
+    # ['none',
     #  'se_epi_standalone',
     #  'se_epi_concat_first_bzero_unbalanced',
     #  'se_epi_concat_first_bzero_balanced',
     #  'se_epi_concat_all_bzeros',
     #  'bzeros']
     # -> Note that fir niw, we are not going to discriminate between unbalanced and balanced when concatenating the first DWI b=0 to the SE-EPI. This may be a future augmentation, Therefore the classification for now is going to be:
-    # ['none', 
+    # ['none',
     #  'se_epi_standalone',
     #  'se_epi_concat_first_bzero',
     #  'se_epi_concat_all_bzeros',
@@ -104,13 +100,13 @@ def dwipreproc(
     have_se_epi: bool,
     have_topup: bool,
     dwi_has_pe_contrast: bool,
-    eddy_qc_all: bool = False,  # whether to include large eddy qc files in outputs    
+    eddy_qc_all: bool = False,  # whether to include large eddy qc files in outputs
     slice_to_volume: bool = True,  # whether to include slice-to-volume registration
     bzero_threshold: float = 10.0,
     volume_pairs: ty.List[ty.Tuple[int, int]] = None,
     #
     # Am I going to perform explicit volume recombination?
-    # - Yes, because my data support it ("rpe-all") 
+    # - Yes, because my data support it ("rpe-all")
     # - No
 ):
     """
@@ -271,28 +267,24 @@ def dwipreproc(
         examine_metadata_wf(
             slice_to_volume=slice_to_volume,
             bzero_threshold=bzero_threshold,
-        )(
-            input=wf.lzin.input,    
-            name="stragy_identification"
-        )
+        )(input=wf.lzin.input, name="stragy_identification")
     )
 
     wf.add(
-        susceptibility_estimation_wf(
-            have_se_epi=have_se_epi
-        )(
+        susceptibility_estimation_wf(have_se_epi=have_se_epi)(
             input=wf.lzin.input,
             se_epi=wf.import_seepi.lzout.output,
             dwi_first_bzero_index=wf.examine_metadata_wf.lzout.dwi_first_bzero_index,
-            name="susceptibility_estimation_wf"
+            name="susceptibility_estimation_wf",
         )
     )
 
     wf.add(
         eddy_current_corr_wf(
             have_topup=have_topup,
-            slice_to_volume=slice_to_volume, dwi_has_pe_contrast=dwi_has_pe_contrast,
-            eddy_qc_all=eddy_qc_all
+            slice_to_volume=slice_to_volume,
+            dwi_has_pe_contrast=dwi_has_pe_contrast,
+            eddy_qc_all=eddy_qc_all,
         )(
             input=wf.lzin.input,
             topup_fieldcoeff=wf.susceptibility_estimation_wf.lzout.topup_fieldcoeff,
@@ -302,9 +294,7 @@ def dwipreproc(
     )
 
     wf.add(
-        qc_wf(
-            eddy_qc_all=eddy_qc_all
-        )(
+        qc_wf(eddy_qc_all=eddy_qc_all)(
             input=wf.lzin.input,
             name="qc_wf",
         )
@@ -319,7 +309,9 @@ def dwipreproc(
         )
     )
 
-    wf.set_output([
-        ("output", wf.volume_recombination_wf.lzout.output),
-        ("qc_dir", wf.qc_wf.lzout.qc_dir)
-    ])
+    wf.set_output(
+        [
+            ("output", wf.volume_recombination_wf.lzout.output),
+            ("qc_dir", wf.qc_wf.lzout.qc_dir),
+        ]
+    )
