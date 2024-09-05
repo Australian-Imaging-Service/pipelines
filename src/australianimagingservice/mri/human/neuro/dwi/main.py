@@ -15,10 +15,8 @@
 #
 # For more details, see http://www.mrtrix.org/.
 
-import glob
 import itertools
 import json
-import typing as ty
 import math
 from pathlib import Path
 import os
@@ -26,9 +24,7 @@ import shutil
 import sys
 from logging import getLogger
 import numpy as np
-from fileformats.application import Json
-from fileformats.medimage import MedicalImage, Bvec, Bval
-from fileformats.medimage_mrtrix3 import ImageIn, BFile, ImageFormat as Mif
+from fileformats.medimage_mrtrix3 import ImageIn, ImageFormat as Mif
 import pydra.mark
 from pydra import Workflow, ShellCommandTask
 from pydra.tasks.mrtrix3.auto import (
@@ -44,6 +40,7 @@ from pydra.tasks.mrtrix3.auto import (
     mrfilter,
 )
 from pydra.tasks.fsl.auto import TOPUP, Eddy, ApplyTOPUP, EddyQuad
+from .strategy_identification import strategy_identification_wf
 
 logger = getLogger(__name__)
 
@@ -52,6 +49,8 @@ def dwipreproc(
     have_se_epi: bool,
     # align_seepi: bool,  # TODO: work out what to do with this (Rob's struggle)
     rpe_strategy: str,  # TODO: Enum: none, pair, all
+    eddyqc_all: bool = False,  # whether to include large eddy qc files in outputs
+    slice_to_volume: bool = True,  # whether to include slice-to-volume registration
     
     # How am I estimating my susceptility field?
     # - I'm not ("rpe-none")
@@ -239,39 +238,18 @@ def dwipreproc(
     #     run,
     # )  # pylint: disable=no-name-in-module, import-outside-toplevel
 
-    if len(input.dims()) < 3:
-        raise RuntimeError(f"Image '{input}' does not contain 3 spatial dimensions")
-    if min(input.dims()[:3]) == 1:
-        raise RuntimeError(
-            f"Image '{input}' does not contain 3D spatial information (has axis with size 1)"
-        )
-    logger.debug(
-        f"Image '{input}' is >= 3D, and does not contain a unity spatial dimension"
-    )
+    # @pydra.mark.task
+    # def check_image_dims(input: ImageIn) -> None:
+    #     if len(input.dims()) < 3:
+    #         raise RuntimeError(f"Image '{input}' does not contain 3 spatial dimensions")
+    #     if min(input.dims()[:3]) == 1:
+    #         raise RuntimeError(
+    #             f"Image '{input}' does not contain 3D spatial information (has axis with size 1)"
+    #         )
+    #     logger.debug(
+    #         f"Image '{input}' is >= 3D, and does not contain a unity spatial dimension"
+    #     )
 
-    pe_design = ""
-    if rpe_none:
-        pe_design = "None"
-    elif rpe_pair:
-        pe_design = "Pair"
-        if not se_epi:
-            raise RuntimeError(
-                "If using the -rpe_pair option, the -se_epi option must be used to "
-                "provide the spin-echo EPI data to be used by topup"
-            )
-    elif rpe_all:
-        pe_design = "All"
-    elif rpe_header:
-        pe_design = "Header"
-    else:
-        raise RuntimeError(
-            "Must explicitly specify phase-encoding acquisition design (even if none)"
-        )
-
-    if align_seepi and not se_epi:
-        raise RuntimeError(
-            "-align_seepi option is only applicable when the -se_epi option is also used"
-        )
 
     # fsl_path = os.environ.get("FSLDIR", "")
     # if not fsl_path:
@@ -293,26 +271,25 @@ def dwipreproc(
 
     # if not fsl.eddy_binary(True) and not fsl.eddy_binary(False):
     #     raise RuntimeError("Could not find any version of FSL eddy command")
-    fsl_suffix = fsl.suffix()
-    app.check_output_path(output)
+    # fsl_suffix = fsl.suffix()
 
     # Export the gradient table to the path requested by the user if necessary
 
-    if export_grad_mrtrix:
-        check_output_path(path.from_user(ARGS.export_grad_mrtrix, False))
-        grad_export = {"export_grad_mrtrix", path.from_user(ARGS.export_grad_mrtrix)}
-    if ARGS.export_grad_fsl:
-        check_output_path(path.from_user(ARGS.export_grad_fsl[0], False))
-        check_output_path(path.from_user(ARGS.export_grad_fsl[1], False))
-        grad_export = {
-            "export_grad_fsl": (
-                path.from_user(ARGS.export_grad_fsl[0]),
-                path.from_user(ARGS.export_grad_fsl[1]),
-            )
-        }
+    # if export_grad_mrtrix:
+    #     check_output_path(path.from_user(ARGS.export_grad_mrtrix, False))
+    #     grad_export = {"export_grad_mrtrix", path.from_user(ARGS.export_grad_mrtrix)}
+    # if ARGS.export_grad_fsl:
+    #     check_output_path(path.from_user(ARGS.export_grad_fsl[0], False))
+    #     check_output_path(path.from_user(ARGS.export_grad_fsl[1], False))
+    #     grad_export = {
+    #         "export_grad_fsl": (
+    #             path.from_user(ARGS.export_grad_fsl[0]),
+    #             path.from_user(ARGS.export_grad_fsl[1]),
+    #         )
+    #     }
 
-    eddyqc_path = None
-    eddyqc_files = [
+    # eddyqc_path = None
+    eddy_suppl_files = [
         "eddy_parameters",
         "eddy_movement_rms",
         "eddy_restricted_movement_rms",
@@ -324,11 +301,8 @@ def dwipreproc(
         "eddy_outlier_n_sqr_stdev_map",
         "eddy_movement_over_time",
     ]
-    if eddyqc_text:
-        eddyqc_path = wf.lzin.eddyqc_text, False
-    elif eddyqc_all:
-        eddyqc_path = wf.lzin.eddyqc_all, False
-        eddyqc_files.extend(
+    if eddyqc_all:
+        eddy_suppl_files.extend(
             [
                 "eddy_outlier_free_data.nii.gz",
                 "eddy_cnr_maps.nii.gz",
@@ -343,7 +317,7 @@ def dwipreproc(
     #                 for filename in eddyqc_files
     #             ):
     #                 if app.FORCE_OVERWRITE:
-    #                     app.warn(
+    #                     logger.warning(
     #                         "Output eddy QC directory already contains relevant files; these will be overwritten on completion"
     #                     )
     #                 else:
@@ -352,7 +326,7 @@ def dwipreproc(
     #                     )
     #         else:
     #             if app.FORCE_OVERWRITE:
-    #                 app.warn(
+    #                 logger.warning(
     #                     "Target for eddy QC output is not a directory; it will be overwritten on completion"
     #                 )
     #             else:
@@ -360,52 +334,52 @@ def dwipreproc(
     #                     "Target for eddy QC output exists, and is not a directory (use -force to override)"
     #                 )
 
-    eddy_manual_options = []
-    topup_file_userpath = None
-    if eddy_options:
-        # Initially process as a list; we'll convert back to a string later
-        eddy_manual_options = eddy_options.strip().split()
-        # Check for erroneous usages before we perform any data importing
-        if any(entry.startswith("--mask=") for entry in eddy_manual_options):
-            raise RuntimeError(
-                'Cannot provide eddy processing mask via -eddy_options "--mask=..." as manipulations are required; use -eddy_mask option instead'
-            )
-        if any(entry.startswith("--slspec=") for entry in eddy_manual_options):
-            raise RuntimeError(
-                'Cannot provide eddy slice specification file via -eddy_options "--slspec=..." as manipulations are required; use -eddy_slspec option instead'
-            )
-        if "--resamp=lsr" in eddy_manual_options:
-            raise RuntimeError(
-                "dwifslpreproc does not currently support least-squares reconstruction; this cannot be simply passed via -eddy_options"
-            )
-        eddy_topup_entry = [
-            entry for entry in eddy_manual_options if entry.startswith("--topup=")
-        ]
-        if len(eddy_topup_entry) > 1:
-            raise RuntimeError(
-                'Input to -eddy_options contains multiple "--topup=" entries'
-            )
-        if eddy_topup_entry:
-            # -topup_files and -se_epi are mutually exclusive, but need to check in case
-            #   pre-calculated topup output files were provided this way instead
-            if se_epi:
-                raise RuntimeError(
-                    'Cannot use both -eddy_options "--topup=" and -se_epi'
-                )
-            topup_file_userpath = path.from_user(
-                eddy_topup_entry[0][len("--topup=") :], False
-            )
-            eddy_manual_options = [
-                entry
-                for entry in eddy_manual_options
-                if not entry.startswith("--topup=")
-            ]
+    # eddy_manual_options = []
+    # topup_file_userpath = None
+    # if eddy_options:
+    #     # Initially process as a list; we'll convert back to a string later
+    #     eddy_manual_options = eddy_options.strip().split()
+    #     # Check for erroneous usages before we perform any data importing
+    #     if any(entry.startswith("--mask=") for entry in eddy_manual_options):
+    #         raise RuntimeError(
+    #             'Cannot provide eddy processing mask via -eddy_options "--mask=..." as manipulations are required; use -eddy_mask option instead'
+    #         )
+    #     if any(entry.startswith("--slspec=") for entry in eddy_manual_options):
+    #         raise RuntimeError(
+    #             'Cannot provide eddy slice specification file via -eddy_options "--slspec=..." as manipulations are required; use -eddy_slspec option instead'
+    #         )
+    #     if "--resamp=lsr" in eddy_manual_options:
+    #         raise RuntimeError(
+    #             "dwifslpreproc does not currently support least-squares reconstruction; this cannot be simply passed via -eddy_options"
+    #         )
+    #     eddy_topup_entry = [
+    #         entry for entry in eddy_manual_options if entry.startswith("--topup=")
+    #     ]
+    #     if len(eddy_topup_entry) > 1:
+    #         raise RuntimeError(
+    #             'Input to -eddy_options contains multiple "--topup=" entries'
+    #         )
+    #     if eddy_topup_entry:
+    #         # -topup_files and -se_epi are mutually exclusive, but need to check in case
+    #         #   pre-calculated topup output files were provided this way instead
+    #         if se_epi:
+    #             raise RuntimeError(
+    #                 'Cannot use both -eddy_options "--topup=" and -se_epi'
+    #             )
+    #         topup_file_userpath = path.from_user(
+    #             eddy_topup_entry[0][len("--topup=") :], False
+    #         )
+    #         eddy_manual_options = [
+    #             entry
+    #             for entry in eddy_manual_options
+    #             if not entry.startswith("--topup=")
+    #         ]
 
-    # Don't import slspec file directly; just make sure it exists
-    if eddy_slspec and not os.path.isfile(wf.lzin.eddy_slspec, False):
-        raise RuntimeError(
-            f'Unable to find file "{eddy_slspec}" provided via -eddy_slspec option'
-        )
+    # # Don't import slspec file directly; just make sure it exists
+    # if eddy_slspec and not os.path.isfile(wf.lzin.eddy_slspec, False):
+    #     raise RuntimeError(
+    #         f'Unable to find file "{eddy_slspec}" provided via -eddy_slspec option'
+    #     )
 
     # # Attempt to find pre-generated topup files before constructing the scratch directory
     # topup_input_movpar = None
@@ -419,270 +393,127 @@ def dwipreproc(
 
     # execute_applytopup = pe_design != "None" or topup_files
     # if execute_applytopup:
-    applytopup_cmd = fsl.exe_name("applytopup")
+    # applytopup_cmd = fsl.exe_name("applytopup")
 
-    if topup_file_userpath:
-        # Find files based on what the user may or may not have specified:
-        # - Path to the movement parameters text file
-        # - Path to the field coefficients image
-        # - Path prefix including the underscore
-        # - Path prefix omitting the underscore
+    # if topup_file_userpath:
+    #     # Find files based on what the user may or may not have specified:
+    #     # - Path to the movement parameters text file
+    #     # - Path to the field coefficients image
+    #     # - Path prefix including the underscore
+    #     # - Path prefix omitting the underscore
 
-        def check_movpar():
-            if not os.path.isfile(topup_input_movpar):
-                raise RuntimeError(
-                    'No topup movement parameter file found based on path "'
-                    + topup_file_userpath
-                    + '" (expected location: '
-                    + topup_input_movpar
-                    + ")"
-                )
+    #     def check_movpar():
+    #         if not os.path.isfile(topup_input_movpar):
+    #             raise RuntimeError(
+    #                 'No topup movement parameter file found based on path "'
+    #                 + topup_file_userpath
+    #                 + '" (expected location: '
+    #                 + topup_input_movpar
+    #                 + ")"
+    #             )
 
-        def find_fieldcoef(fieldcoef_prefix):
-            fieldcoef_candidates = glob.glob(fieldcoef_prefix + "_fieldcoef.nii*")
-            if not fieldcoef_candidates:
-                raise RuntimeError(
-                    'No topup field coefficient image found based on path "'
-                    + topup_file_userpath
-                    + '"'
-                )
-            if len(fieldcoef_candidates) > 1:
-                raise RuntimeError(
-                    'Multiple topup field coefficient images found based on path "'
-                    + topup_file_userpath
-                    + '": '
-                    + str(fieldcoef_candidates)
-                )
-            return fieldcoef_candidates[0]
+    #     def find_fieldcoef(fieldcoef_prefix):
+    #         fieldcoef_candidates = glob.glob(fieldcoef_prefix + "_fieldcoef.nii*")
+    #         if not fieldcoef_candidates:
+    #             raise RuntimeError(
+    #                 'No topup field coefficient image found based on path "'
+    #                 + topup_file_userpath
+    #                 + '"'
+    #             )
+    #         if len(fieldcoef_candidates) > 1:
+    #             raise RuntimeError(
+    #                 'Multiple topup field coefficient images found based on path "'
+    #                 + topup_file_userpath
+    #                 + '": '
+    #                 + str(fieldcoef_candidates)
+    #             )
+    #         return fieldcoef_candidates[0]
 
-        if os.path.isfile(topup_file_userpath):
-            if topup_file_userpath.endswith("_movpar.txt"):
-                topup_input_movpar = topup_file_userpath
-                topup_input_fieldcoef = find_fieldcoef(
-                    topup_file_userpath[: -len("_movpar.txt")]
-                )
-            elif topup_file_userpath.endswith(
-                "_fieldcoef.nii"
-            ) or topup_file_userpath.endswith("_fieldcoef.nii.gz"):
-                topup_input_fieldcoef = topup_file_userpath
-                topup_input_movpar = topup_file_userpath
-                if topup_input_movpar.endswith(".gz"):
-                    topup_input_movpar = topup_input_movpar[: -len(".gz")]
-                topup_input_movpar = (
-                    topup_input_movpar[: -len("_fieldcoef.nii")] + "_movpar.txt"
-                )
-                check_movpar()
-            else:
-                raise RuntimeError(
-                    'Unrecognised file "'
-                    + topup_file_userpath
-                    + '" specified as pre-calculated topup susceptibility field'
-                )
-        else:
-            topup_input_movpar = topup_file_userpath
-            if topup_input_movpar[-1] == "_":
-                topup_input_movpar = topup_input_movpar[:-1]
-            topup_input_movpar += "_movpar.txt"
-            check_movpar()
-            topup_input_fieldcoef = find_fieldcoef(
-                topup_input_movpar[: -len("_movpar.txt")]
-            )
+    #     if os.path.isfile(topup_file_userpath):
+    #         if topup_file_userpath.endswith("_movpar.txt"):
+    #             topup_input_movpar = topup_file_userpath
+    #             topup_input_fieldcoef = find_fieldcoef(
+    #                 topup_file_userpath[: -len("_movpar.txt")]
+    #             )
+    #         elif topup_file_userpath.endswith(
+    #             "_fieldcoef.nii"
+    #         ) or topup_file_userpath.endswith("_fieldcoef.nii.gz"):
+    #             topup_input_fieldcoef = topup_file_userpath
+    #             topup_input_movpar = topup_file_userpath
+    #             if topup_input_movpar.endswith(".gz"):
+    #                 topup_input_movpar = topup_input_movpar[: -len(".gz")]
+    #             topup_input_movpar = (
+    #                 topup_input_movpar[: -len("_fieldcoef.nii")] + "_movpar.txt"
+    #             )
+    #             check_movpar()
+    #         else:
+    #             raise RuntimeError(
+    #                 'Unrecognised file "'
+    #                 + topup_file_userpath
+    #                 + '" specified as pre-calculated topup susceptibility field'
+    #             )
+    #     else:
+    #         topup_input_movpar = topup_file_userpath
+    #         if topup_input_movpar[-1] == "_":
+    #             topup_input_movpar = topup_input_movpar[:-1]
+    #         topup_input_movpar += "_movpar.txt"
+    #         check_movpar()
+    #         topup_input_fieldcoef = find_fieldcoef(
+    #             topup_input_movpar[: -len("_movpar.txt")]
+    #         )
 
-    wf.add(
-        mrconvert(
-            input=wf.lzin.input,
-            grad=wf.lzin.grad,
-            json_import=wf.lzin.json_import,
-            json_export=wf.lzin.json_export,
-            name="import_dwi",
-        )
-    )  # output=path.to_scratch("dwi.mif")
-    if se_epi:
-        image.check_3d_nonunity(wf.lzin.se_epi, False)
-        wf.add(
-            mrconvert(input=wf.lzin.se_epi, name="import_seepi")
-        )  # output=path.to_scratch("se_epi.mif")
+    # TODO: header field manipulation Rob
 
-    # ROB: What is the topup_file_userpath
-    if topup_file_userpath:
-        run.function(
-            shutil.copyfile,
-            topup_input_movpar,
-            path.to_scratch("field_movpar.txt", False),
-        )
-        # Can't run field spline coefficients image through mrconvert:
-        #   topup encodes voxel sizes within the three NIfTI intent parameters, and
-        #   applytopup requires that these be set, but mrconvert will wipe them
-        run.function(
-            shutil.copyfile,
-            topup_input_fieldcoef,
-            path.to_scratch(
-                "field_fieldcoef.nii"
-                + (".gz" if topup_input_fieldcoef.endswith(".nii.gz") else ""),
-                False,
-            ),
-        )
+    # wf.add(
+    #     mrconvert(
+    #         input=wf.lzin.input,
+    #         grad=wf.lzin.grad,
+    #         json_import=wf.lzin.json_import,
+    #         json_export=wf.lzin.json_export,
+    #         name="import_dwi",
+    #     )
+    # )  # output=path.to_scratch("dwi.mif")
+    # if se_epi:
+    #     image.check_3d_nonunity(wf.lzin.se_epi, False)
+    #     wf.add(
+    #         mrconvert(input=wf.lzin.se_epi, name="import_seepi")
+    #     )  # output=path.to_scratch("se_epi.mif")
 
-    if eddy_mask:
-        wf.add(
-            mrconvert(input=wf.lzin.eddy_mask, datatype="bit", name="import_eddy_mask")
-        )  # output=path.to_scratch("eddy_mask.mif"),
+    # # ROB: What is the topup_file_userpath
+    # if topup_file_userpath:
+    #     run.function(
+    #         shutil.copyfile,
+    #         topup_input_movpar,
+    #         path.to_scratch("field_movpar.txt", False),
+    #     )
+    #     # Can't run field spline coefficients image through mrconvert:
+    #     #   topup encodes voxel sizes within the three NIfTI intent parameters, and
+    #     #   applytopup requires that these be set, but mrconvert will wipe them
+    #     run.function(
+    #         shutil.copyfile,
+    #         topup_input_fieldcoef,
+    #         path.to_scratch(
+    #             "field_fieldcoef.nii"
+    #             + (".gz" if topup_input_fieldcoef.endswith(".nii.gz") else ""),
+    #             False,
+    #         ),
+    #     )
 
-    app.goto_scratch_dir()
+    # if eddy_mask:
+    #     wf.add(
+    #         mrconvert(input=wf.lzin.eddy_mask, datatype="bit", name="import_eddy_mask")
+    #     )  # output=path.to_scratch("eddy_mask.mif"),
 
-    # Get information on the input images, and check their validity
-    @pydra.mark.task
-    @pydra.mark.annotate({"return": {"num_encodings": int}})
-    def validate_image_header(in_image: ImageIn, se_epi: ImageIn) -> int:
-        if not len(in_image.dims()) == 4:
-            raise RuntimeError("Input DWI must be a 4D image")
-        dwi_num_volumes = in_image.dims()[3]
-        logger.debug("Number of DWI volumes: " + str(dwi_num_volumes))
-        dwi_num_slices = in_image.dims()[2]
-        logger.debug("Number of DWI slices: " + str(dwi_num_slices))
-        if se_epi:
-            se_epi_header = image.Header("se_epi.mif")
-            # This doesn't necessarily apply any more: May be able to combine e.g. a P>>A from -se_epi with an A>>P b=0 image from the DWIs
-            #  if not len(se_epi_header.size()) == 4:
-            #    raise RuntimeError('File provided using -se_epi option must contain more than one image volume')
-            se_epi_pe_scheme = se_epi.encoding.array
-        if "dw_scheme" not in dwi_header.keyval():
-            raise RuntimeError("No diffusion gradient table found")
-        if not len(in_image.encoding.array) == dwi_num_volumes:
-            raise RuntimeError(
-                "Number of lines in gradient table ("
-                + str(len(grad))
-                + ") does not match input image ("
-                + str(dwi_num_volumes)
-                + " volumes); check your input data"
-            )
-        return dwi_num_volumes
-
-    wf.add(validate_image_header())
+    # app.goto_scratch_dir()
 
     # Deal with slice timing information for eddy slice-to-volume correction
-    slice_encoding_axis = 2
-    eddy_mporder = any(s.startswith("--mporder") for s in eddy_manual_options)
-    if eddy_mporder:
-        if "SliceEncodingDirection" in dwi_header.keyval():
-            slice_encoding_direction = dwi_header.keyval()["SliceEncodingDirection"]
-            app.debug("Slice encoding direction: " + slice_encoding_direction)
-            if not slice_encoding_direction.startswith("k"):
-                raise RuntimeError(
-                    "DWI header indicates that 3rd spatial axis is not the slice axis; this is not yet compatible with --mporder option in eddy, nor supported in dwifslpreproc"
-                )
-            slice_encoding_direction = image.axis2dir(slice_encoding_direction)
-        else:
-            app.console(
-                "No slice encoding direction information present; assuming third axis corresponds to slices"
-            )
-            slice_encoding_direction = [0, 0, 1]
-        slice_encoding_axis = [
-            index for index, value in enumerate(slice_encoding_direction) if value
-        ][0]
-        slice_groups = []
-        slice_timing = []
-        # Since there's a chance that we may need to pad this info, we can't just copy this file
-        #   to the scratch directory...
-        if eddy_slspec:
-            try:
-                slice_groups = matrix.load_numeric(
-                    wf.lzin.eddy_slspec, False, dtype=int
-                )
-                app.debug("Slice groups: " + str(slice_groups))
-            except ValueError:
-                try:
-                    slice_timing = matrix.load_numeric(
-                        wf.lzin.eddy_slspec, False, dtype=float
-                    )
-                    app.debug("Slice timing: " + str(slice_timing))
-                    app.warn(
-                        '"slspec" file provided to FSL eddy is supposed to contain slice indices for slice groups; '
-                        'contents of file "'
-                        + eddy_slspec
-                        + '" appears to instead be slice timings; '
-                        "these data have been imported and will be converted to the appropriate format"
-                    )
-                    if len(slice_timing) != dwi_num_slices:
-                        raise RuntimeError(
-                            'Cannot use slice timing information from file "'
-                            + eddy_slspec
-                            + '" for slice-to-volume correction: '  # pylint: disable=raise-missing-from
-                            "number of entries ("
-                            + str(len(slice_timing))
-                            + ") does not match number of slices ("
-                            + str(dwi_num_slices)
-                            + ")"
-                        )
-                except ValueError:
-                    raise RuntimeError(
-                        'Error parsing eddy "slspec" file "'
-                        + eddy_slspec
-                        + '" '  # pylint: disable=raise-missing-from
-                        "(please see FSL eddy help page, specifically the --slspec option)"
-                    )
-        else:
-            if "SliceTiming" not in dwi_header.keyval():
-                raise RuntimeError(
-                    "Cannot perform slice-to-volume correction in eddy: "
-                    "-eddy_slspec option not specified, and no slice timing information present in input DWI header"
-                )
-            slice_timing = dwi_header.keyval()["SliceTiming"]
-            app.debug("Initial slice timing contents from header: " + str(slice_timing))
-            if slice_timing in ["invalid", "variable"]:
-                raise RuntimeError(
-                    "Cannot use slice timing information in image header for slice-to-volume correction: "
-                    'data flagged as "' + slice_timing + '"'
-                )
-            # Fudges necessary to maniupulate nature of slice timing data in cases where
-            #   bad JSON formatting has led to the data not being simply a list of floats
-            #   (whether from MRtrix3 DICOM conversion or from anything else)
-            if isinstance(slice_timing, str):
-                slice_timing = slice_timing.split()
-            if not isinstance(slice_timing, list):
-                raise RuntimeError(
-                    "Cannot use slice timing information in image header for slice-to-volume correction: "
-                    "data is not a list"
-                )
-            if len(slice_timing) == 1:
-                slice_timing = slice_timing[0]
-                if not isinstance(slice_timing, list):
-                    raise RuntimeError(
-                        "Cannot use slice timing information in image header for slice-to-volume correction: "
-                        "unexpected data format"
-                    )
-            if isinstance(slice_timing[0], list):
-                if not all(len(entry) == 1 for entry in slice_timing):
-                    raise RuntimeError(
-                        "Cannot use slice timing information in image header for slice-to-volume correction: "
-                        "data do not appear to be 1D"
-                    )
-                slice_timing = [entry[0] for entry in slice_timing]
-            if not all(isinstance(entry, float) for entry in slice_timing):
-                try:
-                    slice_timing = [float(entry) for entry in slice_timing]
-                except ValueError as exception:
-                    raise RuntimeError(
-                        "Cannot use slice timing information in image header for slice-to-volume correction: "
-                        "data are not numeric"
-                    ) from exception
-            app.debug(
-                "Re-formatted slice timing contents from header: " + str(slice_timing)
-            )
-            if len(slice_timing) != dwi_num_slices:
-                raise RuntimeError(
-                    "Cannot use slice timing information in image header for slice-to-volume correction: "
-                    "number of entries ("
-                    + str(len(slice_timing))
-                    + ") does not match number of slices ("
-                    + str(dwi_header.size()[2])
-                    + ")"
-                )
-    elif eddy_slspec:
-        app.warn(
-            '-eddy_slspec option provided, but "--mporder=" not provided via -eddy_options; '
-            "slice specification file not imported as it would not be utilised by eddy"
+    wf.add(
+        strategy_identification_wf(
+            input=wf.lzin.input,
+            slice_to_volume=slice_to_volume,
+            name="stragy_identification"
         )
+    )
 
     # Use new features of dirstat to query the quality of the diffusion acquisition scheme
     # Need to know the mean b-value in each shell, and the asymmetry value of each shell
@@ -690,47 +521,17 @@ def dwipreproc(
     if not eddy_options or not any(
         s.startswith("--slm=") for s in eddy_options.split()
     ):
-        shell_bvalues = [
-            int(round(float(value)))
-            for value in image.mrinfo("dwi.mif", "shell_bvalues").split()
-        ]
-        shell_asymmetries = [
-            float(value)
-            for value in run.command("dirstat dwi.mif -output asym").stdout.splitlines()
-        ]
-        # dirstat will skip any b=0 shell by default; therefore for correspondence between
-        #   shell_bvalues and shell_symmetry, need to remove any b=0 from the former
-        if len(shell_bvalues) == len(shell_asymmetries) + 1:
-            shell_bvalues = shell_bvalues[1:]
-        elif len(shell_bvalues) != len(shell_asymmetries):
-            raise RuntimeError(
-                "Number of b-values reported by mrinfo ("
-                + str(len(shell_bvalues))
-                + ") does not match number of outputs provided by dirstat ("
-                + str(len(shell_asymmetries))
-                + ")"
-            )
-        for bvalue, asymmetry in zip(shell_bvalues, shell_asymmetries):
-            if asymmetry >= 0.1:
-                app.warn(
-                    "sampling of b="
-                    + str(bvalue)
-                    + " shell is "
-                    + ("strongly" if asymmetry >= 0.4 else "moderately")
-                    + " asymmetric; distortion correction may benefit from use of: "
-                    + '-eddy_options " ... --slm=linear ... "'
-                )
 
     # Since we want to access user-defined phase encoding information regardless of whether or not
     #   such information is present in the header, let's grab it here
     manual_pe_dir = None
     if pe_dir:
         manual_pe_dir = [float(i) for i in phaseencoding.direction(pe_dir)]
-    app.debug("Manual PE direction: " + str(manual_pe_dir))
+    logger.debug("Manual PE direction: " + str(manual_pe_dir))
     manual_trt = None
     if readout_time:
         manual_trt = float(readout_time)
-    app.debug("Manual readout time: " + str(manual_trt))
+    logger.debug("Manual readout time: " + str(manual_trt))
 
     # Utilise the b-value clustering algorithm in src/dwi/shells.*
     shell_indices = [
@@ -794,7 +595,7 @@ def dwipreproc(
             line = list(manual_pe_dir)
             line.append(trt)
             dwi_manual_pe_scheme = [line] * dwi_num_volumes
-            app.debug(
+            logger.debug(
                 "Manual DWI PE scheme for 'None' PE design: "
                 + str(dwi_manual_pe_scheme)
             )
@@ -804,7 +605,7 @@ def dwipreproc(
             line = list(manual_pe_dir)
             line.append(trt)
             dwi_manual_pe_scheme = [line] * dwi_num_volumes
-            app.debug(
+            logger.debug(
                 "Manual DWI PE scheme for 'Pair' PE design: "
                 + str(dwi_manual_pe_scheme)
             )
@@ -823,7 +624,7 @@ def dwipreproc(
             line = [(-i if i else 0.0) for i in manual_pe_dir]
             line.append(trt)
             se_epi_manual_pe_scheme.extend([line] * int(se_epi_num_volumes / 2))
-            app.debug(
+            logger.debug(
                 "Manual SEEPI PE scheme for 'Pair' PE design: "
                 + str(se_epi_manual_pe_scheme)
             )
@@ -844,7 +645,7 @@ def dwipreproc(
                 )
             grads_matched = [dwi_num_volumes] * dwi_num_volumes
             grad_pairs = []
-            app.debug(
+            logger.debug(
                 "Commencing gradient direction matching; "
                 + str(dwi_num_volumes)
                 + " volumes"
@@ -859,7 +660,7 @@ def dwipreproc(
                                 grads_matched[index1] = index2
                                 grads_matched[index2] = index1
                                 grad_pairs.append([index1, index2])
-                                app.debug(
+                                logger.debug(
                                     "Matched volume "
                                     + str(index1)
                                     + " with "
@@ -889,7 +690,7 @@ def dwipreproc(
                     line = [(-i if i else 0.0) for i in line]
                 line.append(trt)
                 dwi_manual_pe_scheme.append(line)
-            app.debug(
+            logger.debug(
                 "Manual DWI PE scheme for 'All' PE design: " + str(dwi_manual_pe_scheme)
             )
 
@@ -922,14 +723,14 @@ def dwipreproc(
             #   relying on earlier code having successfully generated the 'appropriate'
             #   PE scheme for the input volume based on the diffusion gradient table
             if not scheme_dirs_match(dwi_pe_scheme, dwi_manual_pe_scheme):
-                app.warn(
+                logger.warning(
                     "User-defined phase-encoding direction design does not match what is stored in DWI image header; proceeding with user specification"
                 )
                 overwrite_dwi_pe_scheme = True
         if manual_trt:
             # Compare manual specification to that read from the header
             if not scheme_times_match(dwi_pe_scheme, dwi_manual_pe_scheme):
-                app.warn(
+                logger.warning(
                     "User-defined total readout time does not match what is stored in DWI image header; proceeding with user specification"
                 )
                 overwrite_dwi_pe_scheme = True
@@ -950,7 +751,7 @@ def dwipreproc(
                 "No phase encoding information provided either in header or at command-line"
             )
         if dwi_auto_trt_warning:
-            app.console(
+            logger.info(
                 "Total readout time not provided at command-line; assuming sane default of "
                 + str(auto_trt)
             )
@@ -984,7 +785,7 @@ def dwipreproc(
         if line[3] <= bzero_threshold:
             break
         dwi_first_bzero_index += 1
-    app.debug("Index of first b=0 image in DWIs is " + str(dwi_first_bzero_index))
+    logger.debug("Index of first b=0 image in DWIs is " + str(dwi_first_bzero_index))
 
     # Deal with the phase-encoding of the images to be fed to topup (if applicable)
     execute_topup = (not pe_design == "None") and not topup_file_userpath
@@ -996,7 +797,7 @@ def dwipreproc(
     if se_epi:
         # Newest version of eddy requires that topup field be on the same grid as the eddy input DWI
         if not image.match(dwi_header, se_epi_header, up_to_dim=3):
-            app.console(
+            logger.info(
                 "DWIs and SE-EPI images used for inhomogeneity field estimation are defined on different image grids; "
                 "the latter will be automatically re-gridded to match the former"
             )
@@ -1110,7 +911,7 @@ def dwipreproc(
             if se_epi_pe_scheme:
                 if manual_pe_dir:
                     if not scheme_dirs_match(se_epi_pe_scheme, se_epi_manual_pe_scheme):
-                        app.warn(
+                        logger.warning(
                             "User-defined phase-encoding direction design does not match what is stored in SE EPI image header; proceeding with user specification"
                         )
                         overwrite_se_epi_pe_scheme = True
@@ -1118,7 +919,7 @@ def dwipreproc(
                     if not scheme_times_match(
                         se_epi_pe_scheme, se_epi_manual_pe_scheme
                     ):
-                        app.warn(
+                        logger.warning(
                             "User-defined total readout time does not match what is stored in SE EPI image header; proceeding with user specification"
                         )
                         overwrite_se_epi_pe_scheme = True
@@ -1160,7 +961,7 @@ def dwipreproc(
             se_epi_pe_scheme_has_contrast = "pe_scheme" in se_epi_header.keyval()
             if not se_epi_pe_scheme_has_contrast:
                 if align_seepi:
-                    app.console(
+                    logger.info(
                         "No phase-encoding contrast present in SE-EPI images; will examine again after combining with DWI b=0 images"
                     )
                     new_se_epi_path = (
@@ -1215,7 +1016,7 @@ def dwipreproc(
                 dwi_value = dwi_header.keyval().get(field_name)
                 se_epi_value = se_epi_header.keyval().get(field_name)
                 if dwi_value and se_epi_value and dwi_value != se_epi_value:
-                    app.warn(
+                    logger.warning(
                         "It appears that the spin-echo EPI images used for inhomogeneity field estimation have a different "
                         + description
                         + " to the DWIs being corrected. "
@@ -1234,7 +1035,7 @@ def dwipreproc(
             #   the SE-EPI images means the alignment issue should be dealt with.
 
             if dwi_first_bzero_index == len(grad) and not dwi_bzero_added_to_se_epi:
-                app.warn(
+                logger.warning(
                     "Unable to find b=0 volume in input DWIs to provide alignment between topup and eddy; script will proceed as though the -align_seepi option were not provided"
                 )
 
@@ -1270,7 +1071,7 @@ def dwipreproc(
                 if (se_epi_pe_sum == [0, 0, 0]) and (
                     se_epi_volume_to_remove < len(se_epi_pe_scheme)
                 ):
-                    app.console(
+                    logger.info(
                         "Balanced phase-encoding scheme detected in SE-EPI series; volume "
                         + str(se_epi_volume_to_remove)
                         + " will be removed and replaced with first b=0 from DWIs"
@@ -1315,11 +1116,11 @@ def dwipreproc(
                     if se_epi_pe_sum == [0, 0, 0] and se_epi_volume_to_remove == len(
                         se_epi_pe_scheme
                     ):
-                        app.console(
+                        logger.info(
                             "Phase-encoding scheme of -se_epi image is balanced, but could not find appropriate volume with which to substitute first b=0 volume from DWIs; first b=0 DWI volume will be inserted to start of series, resulting in an unbalanced scheme"
                         )
                     else:
-                        app.console(
+                        logger.info(
                             "Unbalanced phase-encoding scheme detected in series provided via -se_epi option; first DWI b=0 volume will be inserted to start of series"
                         )
                     wf.add(
@@ -1383,7 +1184,7 @@ def dwipreproc(
                 raise RuntimeError(
                     "DWI header indicates no phase encoding contrast between b=0 images; cannot proceed with volume recombination-based pre-processing"
                 )
-            app.warn(
+            logger.warning(
                 "DWI header indicates no phase encoding contrast between b=0 images; proceeding without inhomogeneity field estimation"
             )
             execute_topup = False
@@ -1398,12 +1199,12 @@ def dwipreproc(
     #   then this volume permutation will need to be taken into account
     if not topup_file_userpath:
         if dwi_first_bzero_index == len(grad):
-            app.warn(
+            logger.warning(
                 "No image volumes were classified as b=0 by MRtrix3; no permutation of order of DWI volumes can occur "
                 + "(do you need to adjust config file entry BZeroThreshold?)"
             )
         elif dwi_first_bzero_index:
-            app.console(
+            logger.info(
                 "First b=0 volume in input DWIs is volume index "
                 + str(dwi_first_bzero_index)
                 + "; "
@@ -1444,9 +1245,9 @@ def dwipreproc(
                     else ""
                 )
             )
-            # app.debug("mrconvert options for axis permutation:")
-            # app.debug("Pre: " + str(dwi_permvols_preeddy_option))
-            # app.debug("Post: " + str(dwi_permvols_posteddy_option))
+            # logger.debug("mrconvert options for axis permutation:")
+            # logger.debug("Pre: " + str(dwi_permvols_preeddy_option))
+            # logger.debug("Post: " + str(dwi_permvols_posteddy_option))
 
     # This may be required when setting up the topup call
     wf.add(
@@ -1493,7 +1294,7 @@ def dwipreproc(
         #     if int(axis_size % 2):
         #         odd_axis_count += 1
         # if odd_axis_count:
-        #     app.console(
+        #     logger.info(
         #         str(odd_axis_count)
         #         + " spatial "
         #         + ("axes of DWIs have" if odd_axis_count > 1 else "axis of DWIs has")
@@ -1577,7 +1378,7 @@ def dwipreproc(
         #         )
         #     )
         if app.VERBOSITY > 1:
-            app.console("Output of topup command:")
+            logger.info("Output of topup command:")
             sys.stderr.write(topup_output.stdout + "\n" + topup_output.stderr + "\n")
 
     if execute_applytopup:
@@ -1620,9 +1421,9 @@ def dwipreproc(
             [index for index, value in enumerate(applytopup_indices) if value == group]
             for group in range(1, len(applytopup_config) + 1)
         ]
-        app.debug("applytopup_config: " + str(applytopup_config))
-        app.debug("applytopup_indices: " + str(applytopup_indices))
-        app.debug("applytopup_volumegroups: " + str(applytopup_volumegroups))
+        logger.debug("applytopup_config: " + str(applytopup_config))
+        logger.debug("applytopup_indices: " + str(applytopup_indices))
+        logger.debug("applytopup_volumegroups: " + str(applytopup_volumegroups))
         for index, group in enumerate(applytopup_volumegroups):
             prefix = os.path.splitext(dwi_path)[0] + "_pe_" + str(index)
             nifti_path = prefix + ".nii"
@@ -1759,7 +1560,7 @@ def dwipreproc(
                 )
             )
         else:
-            app.warn(
+            logger.warning(
                 "User-provided processing mask for eddy does not match DWI voxel grid; resampling"
             )
             wf.add(
@@ -1807,8 +1608,8 @@ def dwipreproc(
                     key=lambda x: x[1],
                 )
             ]  # pylint: disable=unused-variable
-            app.debug("Slice timing: " + str(slice_timing))
-            app.debug("Resulting slice groups: " + str(slice_groups))
+            logger.debug("Slice timing: " + str(slice_timing))
+            logger.debug("Resulting slice groups: " + str(slice_groups))
         # Variable slice_groups may have already been defined in the correct format.
         #   In that instance, there's nothing to do other than write it to file;
         #   UNLESS the slice encoding direction is known to be reversed, in which case
@@ -1819,9 +1620,9 @@ def dwipreproc(
             new_slice_groups = []
             for group in new_slice_groups:
                 new_slice_groups.append([dwi_num_slices - index for index in group])
-            app.debug("Slice groups reversed due to negative slice encoding direction")
-            app.debug("Original: " + str(slice_groups))
-            app.debug("New: " + str(new_slice_groups))
+            logger.debug("Slice groups reversed due to negative slice encoding direction")
+            logger.debug("Original: " + str(slice_groups))
+            logger.debug("New: " + str(new_slice_groups))
             slice_groups = new_slice_groups
 
         matrix.save_numeric(
@@ -1870,7 +1671,7 @@ def dwipreproc(
     #             eddy_output_file.write(
     #                 str(exception_cuda).encode("utf-8", errors="replace")
     #             )
-    #         app.console(
+    #         logger.info(
     #             "CUDA version of 'eddy' was not successful; attempting OpenMP version"
     #         )
     #         try:
@@ -1926,7 +1727,7 @@ def dwipreproc(
     #         )
     #     )
     if app.VERBOSITY > 1:
-        app.console("Output of eddy command:")
+        logger.info("Output of eddy command:")
         sys.stderr.write(eddy_output.stdout + "\n" + eddy_output.stderr + "\n")
     app.cleanup("eddy_in.nii")
 
@@ -1936,7 +1737,7 @@ def dwipreproc(
     #   if it has, import this into the output image
     bvecs_path = "dwi_post_eddy.eddy_rotated_bvecs"
     if not os.path.isfile(bvecs_path):
-        app.warn(
+        logger.warning(
             "eddy has not provided rotated bvecs file; using original gradient table. Recommend updating FSL eddy to version 5.0.9 or later."
         )
         bvecs_path = "bvecs"
@@ -1954,10 +1755,10 @@ def dwipreproc(
             if dwi_post_eddy_crop:
                 progress = app.ProgressBar(
                     "Removing image padding prior to running EddyQC",
-                    len(eddyqc_files) + 3,
+                    len(eddy_suppl_files) + 3,
                 )
 
-                for eddy_filename in eddyqc_files:
+                for eddy_filename in eddy_suppl_files:
                     if os.path.isfile("dwi_post_eddy." + eddy_filename):
                         if slice_padded and eddy_filename in [
                             "eddy_outlier_map",
@@ -1997,8 +1798,8 @@ def dwipreproc(
                     progress.increment()
 
                 if eddy_mporder and slice_padded:
-                    app.debug("Current slice groups: " + str(slice_groups))
-                    app.debug(
+                    logger.debug("Current slice groups: " + str(slice_groups))
+                    logger.debug(
                         "Slice encoding direction: " + str(slice_encoding_direction)
                     )
                     # Remove padded slice from slice_groups, write new slspec
@@ -2013,7 +1814,7 @@ def dwipreproc(
                             for group in slice_groups
                         ]
                     eddyqc_slspec = "slspec_unpad.txt"
-                    app.debug("Slice groups after removal: " + str(slice_groups))
+                    logger.debug("Slice groups after removal: " + str(slice_groups))
                     try:
                         # After this removal, slspec should now be a square matrix
                         assert all(
@@ -2094,8 +1895,8 @@ def dwipreproc(
                     eddy_quad_output_file.write(
                         str(exception).encode("utf-8", errors="replace")
                     )
-                app.debug(str(exception))
-                app.warn(
+                logger.debug(str(exception))
+                logger.warning(
                     "Error running automated EddyQC tool 'eddy_quad'; QC data written to \""
                     + eddyqc_path
                     + '" will be files from "eddy" only'
@@ -2106,7 +1907,7 @@ def dwipreproc(
                 except OSError:
                     pass
         else:
-            app.console("Command 'eddy_quad' not found in PATH; skipping")
+            logger.info("Command 'eddy_quad' not found in PATH; skipping")
 
     # Have to retain these images until after eddyQC is run
     # If using -eddyqc_all, also write the mask provided to eddy to the output directory;
@@ -2125,7 +1926,7 @@ def dwipreproc(
     # The phase-encoding scheme needs to be checked also
     volume_matchings = [dwi_num_volumes] * dwi_num_volumes
     volume_pairs = []
-    app.debug(
+    logger.debug(
         "Commencing gradient direction matching; " + str(dwi_num_volumes) + " volumes"
     )
     for index1 in range(dwi_num_volumes):
@@ -2140,7 +1941,7 @@ def dwipreproc(
                         volume_matchings[index1] = index2
                         volume_matchings[index2] = index1
                         volume_pairs.append([index1, index2])
-                        app.debug(
+                        logger.debug(
                             "Matched volume "
                             + str(index1)
                             + " with "
@@ -2176,7 +1977,7 @@ def dwipreproc(
         app.cleanup(eddy_output_image_path)
 
     else:
-        app.console(
+        logger.info(
             "Detected matching DWI volumes with opposing phase encoding; performing explicit volume recombination"
         )
 
@@ -2240,7 +2041,7 @@ def dwipreproc(
         field_map_image = fsl.find_image("field_map")
         field_map_header = image.Header(field_map_image)
         if not image.match("topup_in.nii", field_map_header, up_to_dim=3):
-            app.warn(
+            logger.warning(
                 "topup output field image has erroneous header; recommend updating FSL to version 5.0.8 or later"
             )
             new_field_map_image = "field_map_fix.mif"
@@ -2258,7 +2059,7 @@ def dwipreproc(
         #   with all but the first volume containing intensity-scaled duplicates of the uncorrected input images
         # The first volume is however the expected field offset image
         elif len(field_map_header.size()) == 4:
-            app.console("Correcting erroneous FSL 6.0.0 field map image output")
+            logger.info("Correcting erroneous FSL 6.0.0 field map image output")
             new_field_map_image = "field_map_fix.mif"
             wf.add(
                 mrconvert(
@@ -2283,8 +2084,8 @@ def dwipreproc(
         #   eddy_config.txt and eddy_indices.txt
         eddy_config = matrix.load_matrix("eddy_config.txt")
         eddy_indices = matrix.load_vector("eddy_indices.txt", dtype=int)
-        app.debug("EDDY config: " + str(eddy_config))
-        app.debug("EDDY indices: " + str(eddy_indices))
+        logger.debug("EDDY config: " + str(eddy_config))
+        logger.debug("EDDY indices: " + str(eddy_indices))
 
         # This section derives, for each phase encoding configuration present, the 'weight' to be applied
         #   to the image during volume recombination, which is based on the Jacobian of the field in the
@@ -2466,7 +2267,7 @@ def dwipreproc(
             run.function(os.remove, eddyqc_path)
         if not os.path.exists(eddyqc_path):
             run.function(os.makedirs, eddyqc_path)
-        for filename in eddyqc_files:
+        for filename in eddy_suppl_files:
             if os.path.exists(eddyqc_prefix + "." + filename):
                 # If this is an image, and axis padding was applied, want to undo the padding
                 if filename.endswith(".nii.gz") and dwi_post_eddy_crop:
