@@ -3,6 +3,7 @@ import typing as ty
 import logging
 import itertools
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
+from fileformats.medimage import Bvec, Bval
 from pydra.tasks.mrtrix3.v3_0 import (
     mrinfo,
     dirstat,
@@ -268,13 +269,15 @@ def eddy_current_corr_wf(
     #   we need to perform the same padding here to both the input DWI
     #   and the eddy processing mask
     if have_topup:
-        dwi_padding = calculate_mrgrid_spatial_padding(input.lzin.input)
+        wf.add(
+            calculate_mrgrid_spatial_padding(input.lzin.input, name="dwi_padding")
+        )
 
         wf.add(
             mrgrid(
                 input=wf.lzin.input,
                 operation="pad",
-                axis=dwi_padding,
+                axis=wf.dwi_padding.lzout.out,
                 name="mrgrid_pad_dwis",
             )
         )
@@ -282,7 +285,7 @@ def eddy_current_corr_wf(
             mrgrid(
                 input=wf.dilate_brain_mask.lzout.output,
                 operation="pad",
-                axis=dwi_padding,
+                axis=wf.dwi_padding.lzout.out,
                 name="mrgrid_pad_brainmask",
             )
         )
@@ -320,7 +323,8 @@ def eddy_current_corr_wf(
 
         @pydra.mark.task
         def save_eddy_slspec(
-            slice_timings: ty.List[float], slice_encoding_direction: ty.List[int]
+            slice_timings: ty.List[float], slice_encoding_direction: ty.List[int],
+            dwi_padding: ty.List[ty.Tuple[int, str]]
         ) -> str:
             # Slice timing vector must be of same length as number of slices
             # For padded slices, pretend they were acquired at time 0
@@ -346,6 +350,7 @@ def eddy_current_corr_wf(
             save_eddy_slspec(
                 slice_timings=wf.lzin.slice_timings,
                 slice_encoding_direction=wf.lzin.slice_encoding_direction,
+                dwi_padding=wf.dwi_padding.lzout.out,
                 name="save_eddy_slspec",
             )
         )
@@ -446,13 +451,73 @@ def eddy_current_corr_wf(
             repol=True,
             method="jac",
             *eddy_variable_args,
+            name="eddy",
         )
     )
 
-    # TODO Convert the output of eddy back to MIF
-    # Include any requisite reversal of volume permutation
-    # Include import of rotated bvecs
+    @pydra.mark.task
+    @pydra.mark.annotate(
+        {
+            "return": {
+                "bvecs": Bvec,
+                "bvals": Bval,
+            }
+        }
+    )
+    def split_fsl_grads(
+        fslgrad: ty.Tuple[Bvec, Bval]
+    ) -> ty.Tuple[Bvec, Bval]:
+        return fslgrad
 
-    wf.set_output()
+    @pydra.mark.task
+    def combine_fsl_grads(bvecs: Bvec, bvals: Bval) -> ty.Tuple[Bvec, Bval]:
+        return (bvecs, bvals)
+
+    wf.add(
+        split_fsl_grads(
+            fslgrad=wf.convert_dwi_for_eddy.lzout.export_grad_fsl,
+            name="split_fsl_grads",
+        )
+    )
+
+    wf.add(
+        combine_fsl_grads(
+            bvecs=wf.eddy.lzout.out_rotated_bvecs,
+            bvals=wf.split_fsl_grads.lzout.bvals,
+            name="combine_fsl_grads",
+        )
+    )
+
+    wf.add(
+        mrconvert(
+            input=wf.eddy.lzout.out_corrected,
+            output="output.mif",
+            datatype="float32",
+            strides="-1,+2,+3,+4",
+            coord=wf.dwi_permvols_posteddy.lzout.out,
+            fslgrad=wf.combine_fsl_grads.lzout.out,
+            name="unpermute_vols_after_eddy",
+        )
+    )
+
+    out_node = wf.unpermute_vols_after_eddy.lzout.out
+
+    if have_topup:
+
+        wf.add(
+            mrgrid(
+                input=wf.unpermute_vols_after_eddy.lzout.out_corrected,
+                operation="crop",
+                axis=wf.dwi_padding.lzout.out,
+                name="mrgrid_crop_dwis",
+            )
+        )
+        out_node = wf.mrgrid_crop_dwis.lzout.output
+
+    # Include any requisite reversal of volume permutation
+
+    wf.set_output(
+        [("output", out_node)]
+    )
 
     return wf
