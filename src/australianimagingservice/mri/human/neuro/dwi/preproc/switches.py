@@ -150,3 +150,48 @@ elif pe_design == "Header":
             raise RuntimeError(
                 "No phase-encoding contrast present in SE-EPI images; cannot perform inhomogeneity field estimation"
             )
+
+@pydra.mark.task
+@pydra.mark.annotate()
+def recombination_pattern():
+    # Get the axis strides from the input series, so the output image can be modified to match
+    stride_option = ",".join([str(i) for i in dwi_header.strides()])
+
+    # Determine whether or not volume recombination should be performed
+    # This could be either due to use of -rpe_all option, or just due to the data provided with -rpe_header
+    # Rather than trying to re-use the code that was used in the case of -rpe_all, run fresh code
+    # The phase-encoding scheme needs to be checked also
+    volume_matchings = [dwi_num_volumes] * dwi_num_volumes
+    volume_pairs = []
+    logger.debug(
+        "Commencing gradient direction matching; " + str(dwi_num_volumes) + " volumes"
+    )
+    for index1 in range(dwi_num_volumes):
+        if volume_matchings[index1] == dwi_num_volumes:  # As yet unpaired
+            for index2 in range(index1 + 1, dwi_num_volumes):
+                if volume_matchings[index2] == dwi_num_volumes:  # Also as yet unpaired
+                    # Here, need to check both gradient matching and reversed phase-encode direction
+                    if not any(
+                        dwi_pe_scheme[index1][i] + dwi_pe_scheme[index2][i]
+                        for i in range(0, 3)
+                    ) and grads_match(index1, index2):
+                        volume_matchings[index1] = index2
+                        volume_matchings[index2] = index1
+                        volume_pairs.append([index1, index2])
+                        logger.debug(
+                            "Matched volume "
+                            + str(index1)
+                            + " with "
+                            + str(index2)
+                            + "\n"
+                            + "Phase encoding: "
+                            + str(dwi_pe_scheme[index1])
+                            + " "
+                            + str(dwi_pe_scheme[index2])
+                            + "\n"
+                            + "Gradients: "
+                            + str(grad[index1])
+                            + " "
+                            + str(grad[index2])
+                        )
+                        break
