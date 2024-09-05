@@ -60,11 +60,14 @@ def requires_regrid_switch(
     return not dims_match
 
 
+@pydra.mark.task
+def field_estimation_data_formation_strategy_switch(
+    in_image: Mif, se_epi: Mif
+) -> str:
+    pass
+
+
 def dwipreproc(
-    have_se_epi: bool,
-    # align_seepi: bool,  # TODO: work out what to do with this (Rob's struggle)
-    rpe_strategy: str,  # TODO: Enum: none, pair, all
-    eddyqc_all: bool = False,  # whether to include large eddy qc files in outputs
     # How am I estimating my susceptility field?
     # - I'm not ("rpe-none")
     # - I have a pair of b=0 images with reversed phase encoding,
@@ -112,12 +115,21 @@ def dwipreproc(
     #   subsequently processed by eddy with no further explicit manipulation
     #   ("-rpe_all" in the absence of "-se_epi")
     #
+    # At the point of workflow construction, 3.2 and 4 are in fact identical
+    #
+    # ['none', 
+    #  'se_epi_standalone',
+    #  'se_epi_concat_bzero_unbalanced',
+    #  'se_epi_concat_bzero_balanced',
+    #  'bzeros']
+    #
     # Does the SE EPI series need to be resampled onto the voxel grid of the DWIs,
     #   or is it already on the same grid, in which case the requisite concatenation
     #   operations can be performed directly?
     #   ("True" only makes sense for a subset of the options above)
     field_estimation_data_formation_strategy: str,
     requires_regrid: bool,
+    eddyqc_all: bool = False,  # whether to include large eddy qc files in outputs    
     slice_to_volume: bool = True,  # whether to include slice-to-volume registration
     bzero_threshold: float = 10.0,    
     #
@@ -568,10 +580,12 @@ def dwipreproc(
         )
     )
 
+    
     wf.add(
         susceptibility_estimation_wf(have_se_epi)(
             input=wf.lzin.input,
             se_epi=wf.import_seepi.lzout.output,
+        )
     )
 
     
@@ -596,105 +610,6 @@ def dwipreproc(
     dwi_permvols_preeddy = None
     dwi_permvols_posteddy_slice = None
     dwi_bzero_added_to_se_epi = False
-    if have_se_epi:
-        # Newest version of eddy requires that topup field be on the same grid as the eddy input DWI
-        if not image.match(dwi_header, se_epi_header, up_to_dim=3):
-            logger.info(
-                "DWIs and SE-EPI images used for inhomogeneity field estimation are defined on different image grids; "
-                "the latter will be automatically re-gridded to match the former"
-            )
-            new_se_epi_path = "se_epi_regrid.mif"
-            wf.add(
-                mrtransform(
-                    input=se_epi_path,
-                    tempate=wf.import_dwi.lzout.output,
-                    reorient_fod="no",
-                    interp="sinc",
-                    name="regrid_seepi_to_dwi_transform",
-                )
-            )
-
-            regrid_seepi_to_dwi_input_spec = SpecInfo(
-                name="Input",
-                fields=[
-                    (
-                        "input",
-                        ImageIn,
-                        {
-                            "help_string": "input image",
-                            "argstr": "",
-                            "position": 0,
-                            "mandatory": True,
-                        },
-                    ),
-                    (
-                        "operand",
-                        float,
-                        {
-                            "help_string": "operand",
-                            "argstr": "",
-                            "position": 1,
-                            "mandatory": True,
-                        },
-                    ),
-                    (
-                        "operator",
-                        str,
-                        {
-                            "help_string": "the operation to apply",
-                            "argstr": "-{operator}",
-                            "position": 2,
-                            "mandatory": True,
-                        },
-                    ),
-                    (
-                        "output",
-                        Path,
-                        {
-                            "help_string": "the operation to apply",
-                            "argstr": "",
-                            "position": -1,
-                            "output_file_template": "output.mif",
-                            "mandatory": True,
-                        },
-                    ),
-                ],
-                bases=(ShellSpec,),
-            )
-
-            regrid_seepi_to_dwi_output_spec = SpecInfo(
-                name="Output",
-                fields=[
-                    (
-                        "output",
-                        Mif,
-                        {
-                            "help_string": "the output file",
-                            "argstr": "--tval",
-                            "position": -1,
-                            "mandatory": True,
-                        },
-                    ),
-                ],
-                bases=(ShellOutSpec,),
-            )
-
-            ###########################
-            # mri_surf2surf task - lh #
-            ###########################
-
-            wf.add(
-                ShellCommandTask(
-                    name="regrid_seepi_to_dwi_nonnegative",
-                    executable="mrcalc",
-                    input_spec=regrid_seepi_to_dwi_input_spec,
-                    output_spec=regrid_seepi_to_dwi_output_spec,
-                    input=wf.regrid_seepi_to_dwi_transform.lzout.output,
-                    operand=0.0,
-                    operator="max",
-                )
-            )
-            app.cleanup(se_epi_path)
             se_epi_path = new_se_epi_path
             se_epi_header = image.Header(se_epi_path)
 
