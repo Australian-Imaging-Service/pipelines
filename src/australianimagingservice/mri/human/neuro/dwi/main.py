@@ -65,7 +65,7 @@ def dwipreproc(
     #   in any way to ensure that they align with the DWIs?
     # - Yes, because the "se-epi" image is on a completely different voxel grid
     #   and therefore needs to e first resampled
-    # - Yes, because a susceptibility fierld can't be estimated from the "SE-EPI"
+    # - Yes, because a susceptibility field can't be estimated from the "SE-EPI"
     #   image alone, because it doesn't have any phase encoding contrast
     # - Yes, because it's recommended that the first volume in the topup input
     #   be the same as the first volue in the eddy input
@@ -221,11 +221,7 @@ def dwipreproc(
         name="dwipreproc",
         input_spec={
             "input": Mif,
-            "se_epi": ImageIn,
-            "pe_dir": str,
-            "json_import": Json,
-            "readout_time": float,
-            "align_seepi": bool,
+            "se_epi": Mif,
         },
     )
 
