@@ -104,7 +104,8 @@ def dwipreproc(
     #      each phase encoding direction, then the addition of the first b=0 volume
     #      coincides with removal of one of the volumes in the spin-echo EPI series
     #      in order to keep the data "balanced"
-    #   -  If not, just do the concatenation without erasure
+    #   -  If the SE-EPI images do not contain any phase encoding contrast at all, and therefore no susceptibility field estimation can be performed, then concatenate _all_ DWI bzero volumes with the SE-EPI series
+    #   -  Otherwise, just do the concatenation without erasure
     #   
     # - I'm providing a separate image series, which has different phase encoding
     #   to the DWI b=0 volumes; the input to topup will be formed by concatenating
@@ -119,8 +120,15 @@ def dwipreproc(
     #
     # ['none', 
     #  'se_epi_standalone',
-    #  'se_epi_concat_bzero_unbalanced',
-    #  'se_epi_concat_bzero_balanced',
+    #  'se_epi_concat_first_bzero_unbalanced',
+    #  'se_epi_concat_first_bzero_balanced',
+    #  'se_epi_concat_all_bzeros',
+    #  'bzeros']
+    # -> Note that fir niw, we are not going to discriminate between unbalanced and balanced when concatenating the first DWI b=0 to the SE-EPI. This may be a future augmentation, Therefore the classification for now is going to be:
+    # ['none', 
+    #  'se_epi_standalone',
+    #  'se_epi_concat_first_bzero',
+    #  'se_epi_concat_all_bzeros',
     #  'bzeros']
     #
     # Does the SE EPI series need to be resampled onto the voxel grid of the DWIs,
@@ -966,14 +974,7 @@ def dwipreproc(
             # logger.debug("Pre: " + str(dwi_permvols_preeddy_option))
             # logger.debug("Post: " + str(dwi_permvols_posteddy_option))
 
-    # This may be required when setting up the topup call
-    wf.add(
-        save_encoding_scheme(
-            input=wf.se_epi_import.lzout.output,
-            filename="se_epi_manual_pe_scheme.txt",
-            name="se_epi_manual_table_export",
-        )
-    )
+
 
     # se_epi_manual_pe_table_option = {}
     # if se_epi_manual_pe_scheme:
