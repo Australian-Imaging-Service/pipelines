@@ -40,6 +40,7 @@ def eddy_current_corr_wf(slice_to_volume: bool):
 
 @pydra.mark.task
 def eddy_requires_slm(mrinfo_shell_bvalues_out: str, dirstat_asym_out: str) -> bool:
+    """Check whether eddy distortion correction requires use of --slm=linear"""
     shell_bvalues = [
         int(round(float(value)))
         for value in mrinfo_shell_bvalues_out.split()
@@ -69,7 +70,6 @@ def eddy_requires_slm(mrinfo_shell_bvalues_out: str, dirstat_asym_out: str) -> b
                 + str(bvalue)
                 + " shell is "
                 + ("strongly" if asymmetry >= 0.4 else "moderately")
-                + " asymmetric; distortion correction may benefit from use of: "
-                + '-eddy_options " ... --slm=linear ... "'
+                + " asymmetric; linear second level model in eddy will be activated"
             )
     return requires_slm
