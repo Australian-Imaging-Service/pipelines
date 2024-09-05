@@ -478,10 +478,10 @@ def dwipreproc(
     if json_import:
         json_import_option = " -json_import " + wf.lzin.json_import
     json_export_option = " -json_export " + path.to_scratch("dwi.json", True)
-    wf.add(mrconvert(input=wf.lzin.input, + " " + path.to_scratch("dwi.mif") + grad_import_option + json_import_option + json_export_option , name="NODE"))
+    wf.add(mrconvert(input=wf.lzin.input, + " " + path.to_scratch("dwi.mif") + grad_import_option + json_import_option + json_export_option , name="convert_dwi"))
     if se_epi:
         image.check_3d_nonunity(wf.lzin.se_epi, False)
-        wf.add(mrconvert(input=wf.lzin.se_epi, + " " + path.to_scratch("se_epi.mif") , name="NODE"))
+        wf.add(mrconvert(input=wf.lzin.se_epi, + " " + path.to_scratch("se_epi.mif") , name="convert_se"))
     if topup_file_userpath:
         run.function( shutil.copyfile, topup_input_movpar, path.to_scratch("field_movpar.txt", False), )
         # Can't run field spline coefficients image through mrconvert:
@@ -489,7 +489,7 @@ def dwipreproc(
         #   applytopup requires that these be set, but mrconvert will wipe them
         run.function( shutil.copyfile, topup_input_fieldcoef, path.to_scratch( "field_fieldcoef.nii" + (".gz" if topup_input_fieldcoef.endswith(".nii.gz") else ""), False, ), )
     if eddy_mask:
-        wf.add(mrconvert(input=wf.lzin.eddy_mask, + " " + path.to_scratch("eddy_mask.mif") + " -datatype bit" , name="NODE"))
+        wf.add(mrconvert(input=wf.lzin.eddy_mask, + " " + path.to_scratch("eddy_mask.mif") + " -datatype bit" , name="convert_eddy_mask"))
 
     app.goto_scratch_dir()
 
@@ -948,7 +948,8 @@ def dwipreproc(
                 "the latter will be automatically re-gridded to match the former"
             )
             new_se_epi_path = "se_epi_regrid.mif"
-            wf.add(mrtransform(" " + se_epi_path + " - -reorient_fod no -interp sinc -template dwi.mif | mrcalc - 0.0 -max " + new_se_epi_path , name="NODE"))
+            wf.add(mrtransform(input=se_epi_path, + "-reorient_fod no -interp sinc -template dwi.mif", name="regrid_transform"))
+            wf.add(mrcalc(input=wf.regrid_transform.output, "- 0.0 -max " + new_se_epi_path, name="regrid_max"))
             app.cleanup(se_epi_path)
             se_epi_path = new_se_epi_path
             se_epi_header = image.Header(se_epi_path)
@@ -1025,7 +1026,8 @@ def dwipreproc(
                         os.path.splitext(se_epi_path)[0] + "_dwibzeros.mif"
                     )
                     # Don't worry about trying to produce a balanced scheme here
-                    run.command("dwiextract dwi.mif - -bzero | mrcat - " + se_epi_path + " " + new_se_epi_path + " -axis 3" )
+                    wf.add(dwiextract(input="dwi.mif", "-bzero ", name="align_seepi_dwiextract"))
+                    wf.add(mrcat(wf.align_seepi_dwiextract.output, + se_epi_path + " " + new_se_epi_path + " -axis 3" , name="align_seepi_cat"))
                     se_epi_header = image.Header(new_se_epi_path)
                     se_epi_pe_scheme_has_contrast = (
                         "pe_scheme" in se_epi_header.keyval()
@@ -1082,7 +1084,7 @@ def dwipreproc(
             # If b=0 volumes from the DWIs have already been added to the SE-EPI image due to an
             #   absence of phase-encoding contrast in the latter, we don't need to perform the following
             elif not dwi_bzero_added_to_se_epi:
-                run.command("mrconvert dwi.mif dwi_first_bzero.mif -coord 3 " + str(dwi_first_bzero_index) + " -axes 0,1,2" )
+                wf.add(mrconvert("dwi.mif dwi_first_bzero.mif -coord 3 " + str(dwi_first_bzero_index) + " -axes 0,1,2" , name="NODE"))
                 dwi_first_bzero_pe = (
                     dwi_manual_pe_scheme[dwi_first_bzero_index]
                     if overwrite_dwi_pe_scheme
@@ -1109,7 +1111,7 @@ def dwipreproc(
                         + str(se_epi_volume_to_remove)
                         + " will be removed and replaced with first b=0 from DWIs"
                     )
-                    wf.add(mrconvert(" " + se_epi_path + " - -coord 3 " + ",".join( [ str(index) for index in range(len(se_epi_pe_scheme)) if not index == se_epi_volume_to_remove ] ) + " | mrcat dwi_first_bzero.mif - " + new_se_epi_path + " -axis 3" , name="NODE"))
+                    wf.add(mrconvert(input=se_epi_path, + " - -coord 3 " + ",".join( [ str(index) for index in range(len(se_epi_pe_scheme)) if not index == se_epi_volume_to_remove ] ) + " | mrcat dwi_first_bzero.mif - " + new_se_epi_path + " -axis 3" , name="NODE"))
                     # Also need to update the phase-encoding scheme appropriately if it's being set manually
                     #   (if embedded within the image headers, should be updated through the command calls)
                     if se_epi_manual_pe_scheme:
@@ -1132,7 +1134,7 @@ def dwipreproc(
                         app.console(
                             "Unbalanced phase-encoding scheme detected in series provided via -se_epi option; first DWI b=0 volume will be inserted to start of series"
                         )
-                    run.command("mrcat dwi_first_bzero.mif " + se_epi_path + " " + new_se_epi_path + " -axis 3" )
+                    wf.add(mrcat("dwi_first_bzero.mif " + se_epi_path + " " + new_se_epi_path + " -axis 3" , name="NODE"))
                     # Also need to update the phase-encoding scheme appropriately
                     if se_epi_manual_pe_scheme:
                         first_line = list(manual_pe_dir)
@@ -1158,7 +1160,7 @@ def dwipreproc(
         # Preferably also make sure that there's some phase-encoding contrast in there...
         # With -rpe_all, need to write inferred phase-encoding to file and import before using dwiextract so that the phase-encoding
         #   of the extracted b=0's is propagated to the generated b=0 series
-        run.command("mrconvert dwi.mif" + import_dwi_pe_table_option )
+        wf.add(mrconvert("dwi.mif" + import_dwi_pe_table_option ), name="NODE")
         wf.add(dwiextract("- " + se_epi_path + " -bzero" , name="NODE"))
         se_epi_header = image.Header(se_epi_path)
 
@@ -1246,7 +1248,7 @@ def dwipreproc(
         se_epi_manual_pe_table_option = " -import_pe_table se_epi_manual_pe_scheme.txt"
 
     # Need gradient table if running dwi2mask after applytopup to derive a brain mask for eddy
-    run.command("mrinfo dwi.mif -export_grad_mrtrix grad.b")
+    wf.add(mrinfo("dwi.mif -export_grad_mrtrix grad.b", name="NODE"))
     dwi2mask_algo = CONFIG["Dwi2maskAlgorithm"]
 
     eddy_in_topup_option = ""
@@ -1282,14 +1284,14 @@ def dwipreproc(
                     new_se_epi_path = (
                         os.path.splitext(se_epi_path)[0] + "_pad" + str(axis) + ".mif"
                     )
-                    wf.add(mrconvert(" " + se_epi_path + " -coord " + str(axis) + " " + str(axis_size - 1) )
+                    wf.add(mrconvert(input=se_epi_path, + " -coord " + str(axis) + " " + str(axis_size - 1) )
                     wf.add(mrcat( + se_epi_path + " - " + new_se_epi_path + " -axis " + str(axis) , name="NODE"), name="NODE"))
                     app.cleanup(se_epi_path)
                     se_epi_path = new_se_epi_path
                     new_dwi_path = (
                         os.path.splitext(dwi_path)[0] + "_pad" + str(axis) + ".mif"
                     )
-                    wf.add(mrconvert(" " + dwi_path + " -coord " + str(axis) + " " + str(axis_size - 1) + " -clear dw_scheme - | mrcat " + dwi_path + " - " + new_dwi_path + " -axis " + str(axis) , name="NODE"))
+                    wf.add(mrconvert(input=dwi_path, + " -coord " + str(axis) + " " + str(axis_size - 1) + " -clear dw_scheme - | mrcat " + dwi_path + " - " + new_dwi_path + " -axis " + str(axis) , name="NODE"))
                     app.cleanup(dwi_path)
                     dwi_path = new_dwi_path
                     dwi_post_eddy_crop_option += (
@@ -1317,20 +1319,20 @@ def dwipreproc(
                                 slice_groups = new_slice_groups
 
         # Do the conversion in preparation for topup
-        wf.add(mrconvert(" " + se_epi_path + " topup_in.nii" + se_epi_manual_pe_table_option + " -strides -1,+2,+3,+4 -export_pe_table topup_datain.txt" , name="NODE"))
+        wf.add(mrconvert(input=se_epi_path, + " topup_in.nii" + se_epi_manual_pe_table_option + " -strides -1,+2,+3,+4 -export_pe_table topup_datain.txt" , name="NODE"))
         app.cleanup(se_epi_path)
 
         # Run topup
         topup_manual_options = ""
         if topup_options:
             topup_manual_options = " " + topup_options.strip()
-        topup_output = run.command( topup_cmd + " --imain=topup_in.nii --datain=topup_datain.txt --out=field --fout=field_map" + fsl_suffix + " --config=" + topup_config_path + " --verbose" + topup_manual_options )
-        with open("topup_output.txt", "wb") as topup_output_file:
-            topup_output_file.write(
-                (topup_output.stdout + "\n" + topup_output.stderr + "\n").encode(
-                    "utf-8", errors="replace"
-                )
-            )
+        wf.add(TopUp(" --imain=topup_in.nii --datain=topup_datain.txt --out=field --fout=field_map" + fsl_suffix + " --config=" + topup_config_path + " --verbose" + topup_manual_options, name="topup"))
+        # with open("topup_output.txt", "wb") as topup_output_file:
+        #     topup_output_file.write(
+        #         (topup_output.stdout + "\n" + topup_output.stderr + "\n").encode(
+        #             "utf-8", errors="replace"
+        #         )
+        #     )
         if app.VERBOSITY > 1:
             app.console("Output of topup command:")
             sys.stderr.write(topup_output.stdout + "\n" + topup_output.stderr + "\n")
@@ -1340,10 +1342,10 @@ def dwipreproc(
         # applytopup can't receive the complete DWI input and correct it as a whole, because the phase-encoding
         #   details may vary between volumes
         if dwi_manual_pe_scheme:
-            wf.add(mrconvert(" " + dwi_path + import_dwi_pe_table_option , name="NODE"))
+            wf.add(mrconvert(input=dwi_path, + import_dwi_pe_table_option , name="NODE"))
 wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" , name="NODE"))
         else:
-            wf.add(mrinfo(" " + dwi_path + " -export_pe_eddy applytopup_config.txt applytopup_indices.txt" , name="NODE"))
+            wf.add(mrinfo(input=dwi_path, + " -export_pe_eddy applytopup_config.txt applytopup_indices.txt" , name="NODE"))
 
         # Call applytopup separately for each unique phase-encoding
         # This should be the most compatible option with more complex phase-encoding acquisition designs,
@@ -1366,11 +1368,11 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
             json_path = prefix + ".json"
             temp_path = prefix + "_applytopup.nii"
             output_path = prefix + "_applytopup.mif"
-            wf.add(mrconvert(" " + dwi_path + " " + input_path + " -coord 3 " + ",".join(str(value) for value in group) + " -strides -1,+2,+3,+4 -json_export " + json_path , name="NODE"))
-            run.command( applytopup_cmd + " --imain=" + input_path + " --datain=applytopup_config.txt --inindex=" + str(index + 1) + " --topup=field --out=" + temp_path + " --method=jac" )
+            wf.add(mrconvert(input=dwi_path, + " " + input_path + " -coord 3 " + ",".join(str(value) for value in group) + " -strides -1,+2,+3,+4 -json_export " + json_path , name="NODE"))
+            wf.add(ApplyTopup(" --imain=" + input_path + " --datain=applytopup_config.txt --inindex=" + str(index + 1) + " --topup=field --out=" + temp_path + " --method=jac", name="NODE"))
             app.cleanup(input_path)
             temp_path = fsl.find_image(temp_path)
-            wf.add(mrconvert(" " + temp_path + " " + output_path + " -json_import " + json_path , name="NODE"))
+            wf.add(mrconvert(input=temp_path, + " " + output_path + " -json_import " + json_path , name="NODE"))
             app.cleanup(json_path)
             app.cleanup(temp_path)
             applytopup_image_list.append(output_path)
@@ -1384,8 +1386,8 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
             else:
                 dwi2mask_in_path = "dwi2mask_in.mif"
                 wf.add(mrcat(" " + " ".join(applytopup_image_list) + " " + dwi2mask_in_path + " -axis 3" , name="NODE"))
-            wf.add(dwi2mask(" " + dwi2mask_algo + " " + dwi2mask_in_path + " " + dwi2mask_out_path , name="NODE"))
-            wf.add(maskfilter(" " + dwi2mask_out_path + " dilate - | mrconvert - eddy_mask.nii -datatype float32 -strides -1,+2,+3" , name="NODE"))
+            wf.add(dwi2mask(input=dwi2mask_algo, + " " + dwi2mask_in_path + " " + dwi2mask_out_path , name="NODE"))
+            wf.add(maskfilter(input=dwi2mask_out_path, + " dilate - | mrconvert - eddy_mask.nii -datatype float32 -strides -1,+2,+3" , name="NODE"))
             if len(applytopup_image_list) > 1:
                 app.cleanup(dwi2mask_in_path)
             app.cleanup(dwi2mask_out_path)
@@ -1398,19 +1400,19 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
         # Generate a processing mask for eddy based on the uncorrected input DWIs
         if not eddy_mask:
             dwi2mask_out_path = "dwi2mask_out.mif"
-            wf.add(dwi2mask(" " + dwi2mask_algo + " " + dwi_path + " " + dwi2mask_out_path , name="NODE"))
-            wf.add(maskfilter(" " + dwi2mask_out_path + " dilate - | mrconvert - eddy_mask.nii -datatype float32 -strides -1,+2,+3" , name="NODE"))
+            wf.add(dwi2mask(input=dwi2mask_algo, + " " + dwi_path + " " + dwi2mask_out_path , name="NODE"))
+            wf.add(maskfilter(input=dwi2mask_out_path, + " dilate - | mrconvert - eddy_mask.nii -datatype float32 -strides -1,+2,+3" , name="NODE"))
             app.cleanup(dwi2mask_out_path)
 
     # Use user supplied mask for eddy instead of one derived from the images using dwi2mask
     if eddy_mask:
         if image.match("eddy_mask.mif", dwi_path, up_to_dim=3):
-            run.command("mrconvert eddy_mask.mif eddy_mask.nii -datatype float32 -stride -1,+2,+3" )
+            wf.add(mrconvert("eddy_mask.mif eddy_mask.nii -datatype float32 -stride -1,+2,+3" , name="NODE"))
         else:
             app.warn(
                 "User-provided processing mask for eddy does not match DWI voxel grid; resampling"
             )
-            run.command("mrtransform eddy_mask.mif - -template " + dwi_path + " -interp linear | " + "mrthreshold - -abs 0.5 - | " + "mrconvert - eddy_mask.nii -datatype float32 -stride -1,+2,+3" )
+            wf.add(mrtransform("eddy_mask.mif - -template " + dwi_path + " -interp linear | " + "mrthreshold - -abs 0.5 - | " + "mrconvert - eddy_mask.nii -datatype float32 -stride -1,+2,+3" , name="NODE"))
         app.cleanup("eddy_mask.mif")
 
     # Generate the text file containing slice timing / grouping information if necessary
@@ -1458,7 +1460,7 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
     )
 
     # Prepare input data for eddy
-    wf.add(mrconvert(" " + dwi_path + import_dwi_pe_table_option + dwi_permvols_preeddy_option + " eddy_in.nii -strides -1,+2,+3,+4 -export_grad_fsl bvecs bvals -export_pe_eddy eddy_config.txt eddy_indices.txt" , name="NODE"))
+    wf.add(mrconvert(input=dwi_path, + import_dwi_pe_table_option + dwi_permvols_preeddy_option + " eddy_in.nii -strides -1,+2,+3,+4 -export_grad_fsl bvecs bvals -export_pe_eddy eddy_config.txt eddy_indices.txt" , name="NODE"))
     app.cleanup(dwi_path)
 
     # Run eddy
@@ -1471,72 +1473,73 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
     )
     eddy_cuda_cmd = fsl.eddy_binary(True)
     eddy_openmp_cmd = fsl.eddy_binary(False)
-    if eddy_cuda_cmd:
-        # If running CUDA version, but OpenMP version is also available, don't stop the script if the CUDA version fails
-        try:
-            eddy_output = run.command(eddy_cuda_cmd + " " + eddy_all_options)
-        except run.MRtrixCmdError as exception_cuda:
-            if not eddy_openmp_cmd:
-                raise
-            with open("eddy_cuda_failure_output.txt", "wb") as eddy_output_file:
-                eddy_output_file.write(
-                    str(exception_cuda).encode("utf-8", errors="replace")
-                )
-            app.console(
-                "CUDA version of 'eddy' was not successful; attempting OpenMP version"
-            )
-            try:
-                eddy_output = run.command(eddy_openmp_cmd + " " + eddy_all_options)
-            except run.MRtrixCmdError as exception_openmp:
-                with open("eddy_openmp_failure_output.txt", "wb") as eddy_output_file:
-                    eddy_output_file.write(
-                        str(exception_openmp).encode("utf-8", errors="replace")
-                    )
-                # Both have failed; want to combine error messages
-                eddy_cuda_header = (
-                    ("=" * len(eddy_cuda_cmd))
-                    + "\n"
-                    + eddy_cuda_cmd
-                    + "\n"
-                    + ("=" * len(eddy_cuda_cmd))
-                    + "\n"
-                )
-                eddy_openmp_header = (
-                    ("=" * len(eddy_openmp_cmd))
-                    + "\n"
-                    + eddy_openmp_cmd
-                    + "\n"
-                    + ("=" * len(eddy_openmp_cmd))
-                    + "\n"
-                )
-                exception_stdout = (
-                    eddy_cuda_header
-                    + exception_cuda.stdout
-                    + "\n\n"
-                    + eddy_openmp_header
-                    + exception_openmp.stdout
-                    + "\n\n"
-                )
-                exception_stderr = (
-                    eddy_cuda_header
-                    + exception_cuda.stderr
-                    + "\n\n"
-                    + eddy_openmp_header
-                    + exception_openmp.stderr
-                    + "\n\n"
-                )
-                raise run.MRtrixCmdError(
-                    "eddy* " + eddy_all_options, 1, exception_stdout, exception_stderr
-                )
+    wf.add(Eddy(eddy_all_options, name="NODE"))
+    # if eddy_cuda_cmd:
+    #     # If running CUDA version, but OpenMP version is also available, don't stop the script if the CUDA version fails
+    #     try:
+    #         eddy_output = run.command(eddy_cuda_cmd + " " + eddy_all_options)
+    #     except run.MRtrixCmdError as exception_cuda:
+    #         if not eddy_openmp_cmd:
+    #             raise
+    #         with open("eddy_cuda_failure_output.txt", "wb") as eddy_output_file:
+    #             eddy_output_file.write(
+    #                 str(exception_cuda).encode("utf-8", errors="replace")
+    #             )
+    #         app.console(
+    #             "CUDA version of 'eddy' was not successful; attempting OpenMP version"
+    #         )
+    #         try:
+    #             eddy_output = run.command(eddy_openmp_cmd + " " + eddy_all_options)
+    #         except run.MRtrixCmdError as exception_openmp:
+    #             with open("eddy_openmp_failure_output.txt", "wb") as eddy_output_file:
+    #                 eddy_output_file.write(
+    #                     str(exception_openmp).encode("utf-8", errors="replace")
+    #                 )
+    #             # Both have failed; want to combine error messages
+    #             eddy_cuda_header = (
+    #                 ("=" * len(eddy_cuda_cmd))
+    #                 + "\n"
+    #                 + eddy_cuda_cmd
+    #                 + "\n"
+    #                 + ("=" * len(eddy_cuda_cmd))
+    #                 + "\n"
+    #             )
+    #             eddy_openmp_header = (
+    #                 ("=" * len(eddy_openmp_cmd))
+    #                 + "\n"
+    #                 + eddy_openmp_cmd
+    #                 + "\n"
+    #                 + ("=" * len(eddy_openmp_cmd))
+    #                 + "\n"
+    #             )
+    #             exception_stdout = (
+    #                 eddy_cuda_header
+    #                 + exception_cuda.stdout
+    #                 + "\n\n"
+    #                 + eddy_openmp_header
+    #                 + exception_openmp.stdout
+    #                 + "\n\n"
+    #             )
+    #             exception_stderr = (
+    #                 eddy_cuda_header
+    #                 + exception_cuda.stderr
+    #                 + "\n\n"
+    #                 + eddy_openmp_header
+    #                 + exception_openmp.stderr
+    #                 + "\n\n"
+    #             )
+    #             raise run.MRtrixCmdError(
+    #                 "eddy* " + eddy_all_options, 1, exception_stdout, exception_stderr
+    #             )
 
-    else:
-        eddy_output = run.command(eddy_openmp_cmd + " " + eddy_all_options)
-    with open("eddy_output.txt", "wb") as eddy_output_file:
-        eddy_output_file.write(
-            (eddy_output.stdout + "\n" + eddy_output.stderr + "\n").encode(
-                "utf-8", errors="replace"
-            )
-        )
+    # else:
+    #     eddy_output = run.command(eddy_openmp_cmd + " " + eddy_all_options)
+    # with open("eddy_output.txt", "wb") as eddy_output_file:
+    #     eddy_output_file.write(
+    #         (eddy_output.stdout + "\n" + eddy_output.stderr + "\n").encode(
+    #             "utf-8", errors="replace"
+    #         )
+    #     )
     if app.VERBOSITY > 1:
         app.console("Output of eddy command:")
         sys.stderr.write(eddy_output.stdout + "\n" + eddy_output.stderr + "\n")
@@ -1592,7 +1595,7 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
                                 f_eddyfile.write(eddy_data_header + "\n")
                                 f_eddyfile.write("\n".join(eddy_data) + "\n")
                         elif eddy_filename.endswith(".nii.gz"):
-                            run.command("mrconvert dwi_post_eddy." + eddy_filename + " dwi_post_eddy_unpad." + eddy_filename + dwi_post_eddy_crop_option )
+                            wf.add(mrconvert("dwi_post_eddy." + eddy_filename + " dwi_post_eddy_unpad." + eddy_filename + dwi_post_eddy_crop_option , name="NODE"))
                         else:
                             run.function(
                                 os.symlink,
@@ -1641,13 +1644,13 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
                         )
                         raise
 
-                run.command("mrconvert eddy_mask.nii eddy_mask_unpad.nii" + dwi_post_eddy_crop_option )
+                wf.add(mrconvert("eddy_mask.nii eddy_mask_unpad.nii" + dwi_post_eddy_crop_option , name="NODE"))
                 eddyqc_mask = "eddy_mask_unpad.nii"
                 progress.increment()
-                wf.add(mrconvert(" " + fsl.find_image("field_map") + " field_map_unpad.nii" + dwi_post_eddy_crop_option , name="NODE"))
+                wf.add(mrconvert(input=fsl,.find_image("field_map") + " field_map_unpad.nii" + dwi_post_eddy_crop_option , name="NODE"))
                 eddyqc_fieldmap = "field_map_unpad.nii"
                 progress.increment()
-                wf.add(mrconvert(" " + eddy_output_image_path + " dwi_post_eddy_unpad.nii.gz" + dwi_post_eddy_crop_option , name="NODE"))
+                wf.add(mrconvert(input=eddy_output_image_path, + " dwi_post_eddy_unpad.nii.gz" + dwi_post_eddy_crop_option , name="NODE"))
                 eddyqc_prefix = "dwi_post_eddy_unpad"
                 progress.done()
 
@@ -1663,7 +1666,7 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
             if app.VERBOSITY > 2:
                 eddyqc_options += " -v"
             try:
-                wf.add(eddy_quad(" " + eddyqc_prefix + eddyqc_options, name="NODE"))
+                wf.add(eddy_quad(input=eddyqc_prefix, + eddyqc_options, name="NODE"))
             except run.MRtrixCmdError as exception:
                 with open(
                     "eddy_quad_failure_output.txt", "wb"
@@ -1741,7 +1744,7 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
             app.cleanup(fsl.find_image("field_map"))
 
         # Convert the resulting volume to the output image, and re-insert the diffusion encoding
-        wf.add(mrconvert(" " + eddy_output_image_path + " result.mif" + dwi_permvols_posteddy_option + dwi_post_eddy_crop_option + stride_option + " -fslgrad " + bvecs_path + " bvals" , name="NODE"))
+        wf.add(mrconvert(input=eddy_output_image_path, + " result.mif" + dwi_permvols_posteddy_option + dwi_post_eddy_crop_option + stride_option + " -fslgrad " + bvecs_path + " bvals" , name="NODE"))
         app.cleanup(eddy_output_image_path)
 
     else:
@@ -1813,7 +1816,7 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
                 "topup output field image has erroneous header; recommend updating FSL to version 5.0.8 or later"
             )
             new_field_map_image = "field_map_fix.mif"
-            wf.add(mrtransform(" " + field_map_image + " -replace topup_in.nii " + new_field_map_image , name="NODE"))
+            wf.add(mrtransform(input=field_map_image, + " -replace topup_in.nii " + new_field_map_image , name="NODE"))
             app.cleanup(field_map_image)
             field_map_image = new_field_map_image
         # In FSL 6.0.0, field map image is erroneously constructed with the same number of volumes as the input image,
@@ -1822,7 +1825,7 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
         elif len(field_map_header.size()) == 4:
             app.console("Correcting erroneous FSL 6.0.0 field map image output")
             new_field_map_image = "field_map_fix.mif"
-            wf.add(mrconvert(" " + field_map_image + " -coord 3 0 -axes 0,1,2 " + new_field_map_image , name="NODE"))
+            wf.add(mrconvert(input=field_map_image, + " -coord 3 0 -axes 0,1,2 " + new_field_map_image , name="NODE"))
             app.cleanup(field_map_image)
             field_map_image = new_field_map_image
         app.cleanup("topup_in.nii")
@@ -1847,12 +1850,12 @@ wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" ,
             pe_axis = [i for i, e in enumerate(config[0:3]) if e != 0][0]
             sign_multiplier = " -1.0 -mult" if config[pe_axis] < 0 else ""
             field_derivative_path = "field_deriv_pe_" + str(index + 1) + ".mif"
-            wf.add(mrcalc(" " + field_map_image + " " + str(config[3]) + " -mult" + sign_multiplier , name="NODE"))
+            wf.add(mrcalc(input=field_map_image, + " " + str(config[3]) + " -mult" + sign_multiplier , name="NODE"))
 wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord 3 " + str(pe_axis) + " -axes 0,1,2" , name="NODE"))
             jacobian_path = "jacobian_" + str(index + 1) + ".mif"
-            run.command("mrcalc 1.0 " + field_derivative_path + " -add 0.0 -max " + jacobian_path )
+            wf.add(mrcalc("1.0 " + field_derivative_path + " -add 0.0 -max " + jacobian_path , name="NODE"))
             app.cleanup(field_derivative_path)
-            wf.add(mrcalc(" " + jacobian_path + " " + jacobian_path + " -mult weight" + str(index + 1) + ".mif" , name="NODE"))
+            wf.add(mrcalc(input=jacobian_path, + " " + jacobian_path + " -mult weight" + str(index + 1) + ".mif" , name="NODE"))
             app.cleanup(jacobian_path)
         app.cleanup(field_map_image)
 
@@ -1861,7 +1864,7 @@ wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord
         #   convert it to an uncompressed format before we do anything with it.
         if eddy_output_image_path.endswith(".gz"):
             new_eddy_output_image_path = "dwi_post_eddy_uncompressed.mif"
-            wf.add(mrconvert(" " + eddy_output_image_path + " " + new_eddy_output_image_path , name="NODE"))
+            wf.add(mrconvert(input=eddy_output_image_path, + " " + new_eddy_output_image_path , name="NODE"))
             app.cleanup(eddy_output_image_path)
             eddy_output_image_path = new_eddy_output_image_path
 
@@ -1872,7 +1875,7 @@ wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord
             new_eddy_output_image_path = (
                 os.path.splitext(eddy_output_image_path)[0] + "_volpermuteundo.mif"
             )
-            wf.add(mrconvert(" " + eddy_output_image_path + dwi_permvols_posteddy_option + " " + new_eddy_output_image_path , name="NODE"))
+            wf.add(mrconvert(input=eddy_output_image_path, + dwi_permvols_posteddy_option + " " + new_eddy_output_image_path , name="NODE"))
             app.cleanup(eddy_output_image_path)
             eddy_output_image_path = new_eddy_output_image_path
 
@@ -1884,11 +1887,11 @@ wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord
         )
         for index, volumes in enumerate(volume_pairs):
             pe_indices = [eddy_indices[i] for i in volumes]
-            wf.add(mrconvert(" " + eddy_output_image_path + " volume0.mif -coord 3 " + str(volumes[0]) , name="NODE"))
-            wf.add(mrconvert(" " + eddy_output_image_path + " volume1.mif -coord 3 " + str(volumes[1]) , name="NODE"))
+            wf.add(mrconvert(input=eddy_output_image_path, + " volume0.mif -coord 3 " + str(volumes[0]) , name="NODE"))
+            wf.add(mrconvert(input=eddy_output_image_path, + " volume1.mif -coord 3 " + str(volumes[1]) , name="NODE"))
             # Volume recombination equation described in Skare and Bammer 2010
             combined_image_path = "combined" + str(index) + ".mif"
-            run.command("mrcalc volume0.mif weight" + str(pe_indices[0]) + ".mif -mult volume1.mif weight" + str(pe_indices[1]) + ".mif -mult -add weight" + str(pe_indices[0]) + ".mif weight" + str(pe_indices[1]) + ".mif -add -divide 0.0 -max " + combined_image_path )
+            wf.add(mrcalc("volume0.mif weight" + str(pe_indices[0]) + ".mif -mult volume1.mif weight" + str(pe_indices[1]) + ".mif -mult -add weight" + str(pe_indices[0]) + ".mif weight" + str(pe_indices[1]) + ".mif -add -divide 0.0 -max " + combined_image_path , name="NODE"))
             combined_image_list.append(combined_image_path)
             run.function(os.remove, "volume0.mif")
             run.function(os.remove, "volume1.mif")
@@ -1901,7 +1904,6 @@ wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord
 
         # Finally the recombined volumes must be concatenated to produce the resulting image series
         combine_command = [
-            "mrcat",
             combined_image_list,
             "-",
             "-axis",
@@ -1917,7 +1919,7 @@ wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord
         if dwi_post_eddy_crop_option:
             combine_command.extend(dwi_post_eddy_crop_option.strip().split(" "))
         combine_command.extend(stride_option.strip().split(" "))
-        run.command(combine_command)
+        wf.add(MRCat(combine_command, name="NODE"))
         app.cleanup(combined_image_list)
 
     # Grab any relevant files that eddy has created, and copy them to the requested directory
@@ -1934,7 +1936,7 @@ wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord
             if os.path.exists(eddyqc_prefix + "." + filename):
                 # If this is an image, and axis padding was applied, want to undo the padding
                 if filename.endswith(".nii.gz") and dwi_post_eddy_crop_option:
-                    wf.add(mrconvert(" " + eddyqc_prefix + "." + filename + " " + shlex.quote(os.path.join(eddyqc_path, filename)) + dwi_post_eddy_crop_option, force=app.FORCE_OVERWRITE, , name="NODE"))
+                    wf.add(mrconvert(input=eddyqc_prefix, + "." + filename + " " + shlex.quote(os.path.join(eddyqc_path, filename)) + dwi_post_eddy_crop_option, force=app.FORCE_OVERWRITE, , name="NODE"))
                 else:
                     run.function(
                         shutil.copy,
@@ -1955,7 +1957,7 @@ wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord
         # Also grab the brain mask that was provided to eddy if -eddyqc_all was specified
         if eddyqc_all:
             if dwi_post_eddy_crop_option:
-                run.command("mrconvert eddy_mask.nii " + shlex.quote(os.path.join(eddyqc_path, "eddy_mask.nii")) + dwi_post_eddy_crop_option, force=app.FORCE_OVERWRITE, )
+                wf.add(mrconvert("eddy_mask.nii " + shlex.quote(os.path.join(eddyqc_path, "eddy_mask.nii")) + dwi_post_eddy_crop_option, force=app.FORCE_OVERWRITE, , name="NODE"))
             else:
                 run.function(
                     shutil.copy,
@@ -1994,7 +1996,7 @@ wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord
         json.dump(keyval, output_json_file)
 
     # Finish!
-    run.command("mrconvert result.mif " + wf.lzin.output + grad_export_option, mrconvert_keyval="output.json", force=app.FORCE_OVERWRITE, )
+    wf.add(mrconvert("result.mif " + wf.lzin.output + grad_export_option, mrconvert_keyval="output.json", force=app.FORCE_OVERWRITE, , name="NODE"))
 
 
 # Execute the script
