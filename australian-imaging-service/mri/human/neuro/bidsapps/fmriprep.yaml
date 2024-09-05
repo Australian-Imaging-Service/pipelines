@@ -1,5 +1,5 @@
-title: 'Functional MRI data preprocessing pipeline'
-arcana_spec_version: 1.0
+title: "Functional MRI data preprocessing pipeline"
+schema_version: 1.0
 version:
   package: &package_version "23.1.4"
 base_image:
@@ -110,7 +110,7 @@ command:
       configuration:
         path: fmap/magnitude
       column_defaults:
-        datatype: medimage/dicom-series 
+        datatype: medimage/dicom-series
     fmap_phasediff:
       datatype: medimage/nifti-gz-x
       help: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
@@ -171,5 +171,5 @@ command:
     app_output_dir: /work/bids-app-output
     app_work_dir: /work/nipype-work
     json_edits:
-      path: 'fmap/.*'
+      path: "fmap/.*"
       jq_expr: '.IntendedFor = "{bold}"'

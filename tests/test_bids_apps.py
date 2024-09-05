@@ -1,5 +1,5 @@
 import json
-from arcana.core.cli.deploy import make_app
+from arcana.core.cli.deploy import make
 from arcana.core.utils.misc import show_cli_trace
 from arcana.xnat.deploy import XnatApp
 from arcana.xnat.utils.testing import install_and_launch_xnat_cs_command
@@ -24,14 +24,14 @@ def test_bids_app(
         build_arg = "--build"
 
     result = cli_runner(
-        make_app,
+        make,
         [
             str(bp.spec_path),
             "pipelines-core-test",
             "--build-dir",
             str(build_dir),
             build_arg,
-            "--use-test-config",
+            "--for-localhost",
             "--use-local-packages",
             "--raise-errors",
             "--license-src",
@@ -46,17 +46,12 @@ def test_bids_app(
     with xnat_connect() as xlogin:
 
         with open(
-            build_dir
-            / image_spec.name
-            / "xnat_commands"
-            / (image_spec.name + ".json")
+            build_dir / image_spec.name / "xnat_commands" / (image_spec.name + ".json")
         ) as f:
             xnat_command = json.load(f)
         xnat_command.name = xnat_command.label = image_spec.name + run_prefix
 
-        test_xsession = next(
-            iter(xlogin.projects[bp.project_id].experiments.values())
-        )
+        test_xsession = next(iter(xlogin.projects[bp.project_id].experiments.values()))
 
         inputs_json = {}
 
@@ -78,7 +73,7 @@ def test_bids_app(
         for pname, pval in bp.parameters.items():
             inputs_json[pname] = pval
 
-        inputs_json['Arcana_flags'] = (
+        inputs_json["Arcana_flags"] = (
             "--plugin serial "
             "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
             "--dataset-name default "

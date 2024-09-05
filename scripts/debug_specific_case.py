@@ -53,7 +53,7 @@
 #         image_tag=image_tag,
 #         build_dir=build_dir,
 #         use_local_packages=True,
-#         use_test_config=True,
+#         for_localhost=True,
 #         license_src=license_src,
 #         arcana_install_extras=["test"],
 #         generate_only=True,
