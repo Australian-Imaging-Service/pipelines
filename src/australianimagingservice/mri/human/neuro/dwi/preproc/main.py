@@ -16,6 +16,7 @@
 # For more details, see http://www.mrtrix.org/.
 
 from logging import getLogger
+import typing as ty
 import attrs
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
 import pydra.mark
@@ -106,6 +107,7 @@ def dwipreproc(
     eddy_qc_all: bool = False,  # whether to include large eddy qc files in outputs    
     slice_to_volume: bool = True,  # whether to include slice-to-volume registration
     bzero_threshold: float = 10.0,
+    volume_pairs: ty.List[ty.Tuple[int, int]] = None,
     #
     # Am I going to perform explicit volume recombination?
     # - Yes, because my data support it ("rpe-all") 
@@ -253,6 +255,9 @@ def dwipreproc(
     Andersson, J. L. R.; Graham, M. S.; Drobnjak, I.; Zhang, H.; Filippini, N. & Bastiani, M. Towards a comprehensive framework for movement and distortion correction of diffusion MR images: Within volume movement. NeuroImage, 2017, 152, 450-466, if including "--mporder" in -eddy_options input
     Bastiani, M.; Cottaar, M.; Fitzgibbon, S.P.; Suri, S.; Alfaro-Almagro, F.; Sotiropoulos, S.N.; Jbabdi, S.; Andersson, J.L.R. Automated quality control for within and between studies diffusion MRI data using a non-parametric framework for movement and distortion correction. NeuroImage, 2019, 184, 801-812', if using -eddyqc_text or -eddyqc_all option and eddy_quad is installed
     """
+    if volume_pairs is None:
+        volume_pairs = []
+
     wf = Workflow(
         name="dwipreproc",
         input_spec={
@@ -307,8 +312,7 @@ def dwipreproc(
 
     wf.add(
         volume_recombination_wf(
-            field_estimation_data_formation_strategy=field_estimation_data_formation_strategy,
-            requires_regrid=requires_regrid,
+            volume_pairs=volume_pairs,
         )(
             input=wf.eddy_current_corr_wf.lzout.output,
             name="volume_recombination_wf",

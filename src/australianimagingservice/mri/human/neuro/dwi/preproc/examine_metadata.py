@@ -60,13 +60,28 @@ def examine_metadata_wf(slice_to_volume: bool, bzero_threshold: float = 10.0):
             name="match_rpe_pairs",
         )
     )
+    wf.add(
+        mrinfo(image_=wf.lzin.input, export_pe_table=True, name="get_pe_scheme")
+    )
+    wf.add(
+        determine_volume_pairs(
+            in_image=wf.lzin.input,
+            pe_scheme=wf.get_pe_scheme.lzout.export_pe_table,
+            bzero_threshold=bzero_threshold,
+            name="determine_volume_pairs",
+        )
+    )
 
     wf.set_output(
         [
             ("num_encodings", wf.examine_image_dims.lzout.num_encodings),
             ("slice_timings", wf.examine_slice_encoding.lzout.slice_timings),
             ("se_dims_match", wf.num_encodings.lzout.se_dims_match),
-            ("index_of_first_bzero", wf.examine_diffusion_scheme.lzout.index_of_first_bzero),
+            (
+                "index_of_first_bzero",
+                wf.examine_diffusion_scheme.lzout.index_of_first_bzero,
+            ),
+            ("volume_pairs", wf.determine_volume_pairs.lzout.out),
         ],
     )
 
@@ -223,6 +238,7 @@ def find_first_bzero(
 def determine_volume_pairs(
     in_image: Mif,
     bzero_threshold: float,
+    pe_scheme: ty.List[ty.List[float]],  # FIXME: Rob, transition to use Eddy PE table
     shell_bvalues: ty.List[float],
     shell_indices: ty.List[ty.List[int]],
 ) -> ty.List[ty.Tuple[int, int]]:
@@ -264,35 +280,51 @@ def determine_volume_pairs(
         return True
 
     if dwi_num_volumes % 2:
-        raise RuntimeError(
-            "Input DWI contains odd number of volumes; "
-            "cannot possibly pair up volumes for reversed phase-encode direction combination"
+        logger.info(
+            "Odd number of DWI volumes for reversed phase-encode combination, not able to pair"
         )
-    grads_matched = [dwi_num_volumes] * dwi_num_volumes
-    grad_pairs = []
-    logger.debug(
-        "Commencing gradient direction matching; %s volumes", dwi_num_volumes
-    )
-    for index1 in range(int(dwi_num_volumes / 2)):
-        if grads_matched[index1] == dwi_num_volumes:  # As yet unpaired
-            for index2 in range(int(dwi_num_volumes / 2), dwi_num_volumes):
-                if grads_matched[index2] == dwi_num_volumes:  # Also as yet unpaired
-                    if grads_match(index1, index2):
-                        grads_matched[index1] = index2
-                        grads_matched[index2] = index1
-                        grad_pairs.append((index1, index2))
-                        logger.debug(
-                            f"Matched volume {index1} with {index2} : {grad[index1]} {grad[index2]}"
-                        )
-                        break
-            else:
-                raise RuntimeError(
-                    "Unable to determine matching reversed phase-encode direction volume for DWI volume "
-                    + str(index1)
-                )
-    if not len(grad_pairs) == dwi_num_volumes / 2:
-        raise RuntimeError(
-            "Unable to determine complete matching DWI volume pairs for reversed phase-encode combination"
+        return []
+    else:
+        # Determine whether or not volume recombination should be performed
+        # This could be either due to use of -rpe_all option, or just due to the data provided with -rpe_header
+        # Rather than trying to re-use the code that was used in the case of -rpe_all, run fresh code
+        # The phase-encoding scheme needs to be checked also
+        volume_matchings = [dwi_num_volumes] * dwi_num_volumes
+        volume_pairs = []
+        logger.debug(
+            "Commencing gradient direction matching; "
+            + str(dwi_num_volumes)
+            + " volumes"
         )
+        for index1 in range(dwi_num_volumes):
+            if volume_matchings[index1] == dwi_num_volumes:  # As yet unpaired
+                for index2 in range(index1 + 1, dwi_num_volumes):
+                    if (
+                        volume_matchings[index2] == dwi_num_volumes
+                    ):  # Also as yet unpaired
+                        # Here, need to check both gradient matching and reversed phase-encode direction
+                        if not any(
+                            grad[index1][i] + pe_scheme[index2][i]
+                            for i in range(0, 3)
+                        ) and grads_match(index1, index2):
+                            volume_matchings[index1] = index2
+                            volume_matchings[index2] = index1
+                            volume_pairs.append([index1, index2])
+                            logger.debug(
+                                "Matched volume %s with %s\nPhase encoding: %s %s\nGradients: %s %s",
+                                index1,
+                                index2,
+                                pe_scheme[index1],
+                                pe_scheme[index2],
+                                grad[index1],
+                                grad[index2],
+                            )
+                            break
 
-    return grad_pairs
+        if not len(volume_pairs) == dwi_num_volumes / 2:
+            logger.info(
+                "Unable to determine complete matching DWI volume pairs for reversed phase-encode combination, not able to pair"
+            )
+            return []
+
+    return volume_pairs
