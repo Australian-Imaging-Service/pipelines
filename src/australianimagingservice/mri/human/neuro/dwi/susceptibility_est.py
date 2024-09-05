@@ -1,5 +1,4 @@
 import logging
-import typing as ty
 from pathlib import Path
 import pydra.mark
 from pydra.engine.task import ShellCommandTask
@@ -7,6 +6,7 @@ from pydra.engine.specs import SpecInfo, ShellSpec, ShellOutSpec
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
 from pydra.tasks.mrtrix3 import mrtransform, mrcat, mrconvert, dwiextract, mrgrid
 from pydra.tasks.fsl import TOPUP
+from .utils import calculate_mrgrid_spatial_padding
 
 
 logger = logging.getLogger(__name__)
@@ -227,18 +227,6 @@ def susceptibility_estimation_wf(
     # For axes 0 and 1, could hytpthetically try to pad from both ends,
     #   but for simplicity let's just pad everything at the upper end
 
-    @pydra.mark.task
-    def calculate_mrgrid_spatial_padding(in_image: Mif) -> ty.List[ty.Tuple[int, str]]:
-        padding = [(4 - (dim % 4)) % 4 for dim in in_image.dims()[0:3]]
-        axis_args = [
-            (axis_index, "0:%d" % pad_size)
-            for axis_index, pad_size in enumerate(padding)
-            if pad_size
-        ]
-        # TODO Does mrgrid need up to omit from command-line inputs any axes to which padding is not being applied?
-        # Believe not
-        return axis_args
-
     wf.add(
         calculate_mrgrid_spatial_padding(
             in_image=field_estimation_input, name="calculate_mrgrid_spatial_padding"
@@ -246,6 +234,10 @@ def susceptibility_estimation_wf(
     )
 
     # TODO Will this crash if the set of axis paddings to be applied is empty?
+    # Believe not
+    # TODO Slice timings will no longer be valid after padding
+    # (If capability to pad via duplication is added, then this should involve
+    # header concatenation, which should concatenate the timing data also)
     wf.add(
         mrgrid(
             input=field_estimation_input,
