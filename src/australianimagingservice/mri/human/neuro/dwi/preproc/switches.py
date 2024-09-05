@@ -36,6 +36,7 @@ se_epi_path = wf.import_seepi.lzout.output
 dwi_permvols_preeddy = None
 dwi_permvols_posteddy = None  # inverse of previous
 dwi_permvols_posteddy_slice = None
+volume_pairs = None  # See examine_metadata:determine_volume_pairs
 dwi_bzero_added_to_se_epi = False
 se_epi_path = new_se_epi_path
 se_epi_header = image.Header(se_epi_path)
@@ -151,6 +152,7 @@ elif pe_design == "Header":
                 "No phase-encoding contrast present in SE-EPI images; cannot perform inhomogeneity field estimation"
             )
 
+
 @pydra.mark.task
 @pydra.mark.annotate()
 def recombination_pattern():
@@ -195,3 +197,143 @@ def recombination_pattern():
                             + str(grad[index2])
                         )
                         break
+
+
+
+
+
+    # # If there was any relevant padding applied, then we want to provide
+    # #   the comprehensive set of files to EddyQC with that padding removed
+    # if dwi_post_eddy_crop:
+    #     progress = app.ProgressBar(
+    #         "Removing image padding prior to running EddyQC",
+    #         len(eddy_suppl_files) + 3,
+    #     )
+
+    #     for eddy_filename in eddy_suppl_files:
+    #         if os.path.isfile("dwi_post_eddy." + eddy_filename):
+    #             if slice_padded and eddy_filename in [
+    #                 "eddy_outlier_map",
+    #                 "eddy_outlier_n_sqr_stdev_map",
+    #                 "eddy_outlier_n_stdev_map",
+    #             ]:
+    #                 with open(
+    #                     "dwi_post_eddy." + eddy_filename, "r", encoding="utf-8"
+    #                 ) as f_eddyfile:
+    #                     eddy_data = f_eddyfile.readlines()
+    #                 eddy_data_header = eddy_data[0]
+    #                 eddy_data = eddy_data[1:]
+    #                 for line in eddy_data:
+    #                     line = " ".join(line.strip().split(" ")[:-1])
+    #                 with open(
+    #                     "dwi_post_eddy_unpad." + eddy_filename,
+    #                     "w",
+    #                     encoding="utf-8",
+    #                 ) as f_eddyfile:
+    #                     f_eddyfile.write(eddy_data_header + "\n")
+    #                     f_eddyfile.write("\n".join(eddy_data) + "\n")
+    #             elif eddy_filename.endswith(".nii.gz"):
+    #                 wf.add(
+    #                     mrconvert(
+    #                         input="dwi_post_eddy." + eddy_filename,
+    #                         coord=dwi_post_eddy_crop,
+    #                         name="remove_dwi_padding_for_eddyquad",
+    #                     )
+    #                 )
+    #             else:
+    #                 run.function(
+    #                     os.symlink,
+    #                     "dwi_post_eddy." + eddy_filename,
+    #                     "dwi_post_eddy_unpad." + eddy_filename,
+    #                 )
+    #             app.cleanup("dwi_post_eddy." + eddy_filename)
+    #         progress.increment()
+
+    #     if eddy_mporder and slice_padded:
+    #         logger.debug("Current slice groups: " + str(slice_groups))
+    #         logger.debug(
+    #             "Slice encoding direction: " + str(slice_encoding_direction)
+    #         )
+    #         # Remove padded slice from slice_groups, write new slspec
+    #         if sum(slice_encoding_direction) < 0:
+    #             slice_groups = [
+    #                 [index - 1 for index in group if index]
+    #                 for group in slice_groups
+    #             ]
+    #         else:
+    #             slice_groups = [
+    #                 [index for index in group if index != dwi_num_slices - 1]
+    #                 for group in slice_groups
+    #             ]
+    #         eddyqc_slspec = "slspec_unpad.txt"
+    #         logger.debug("Slice groups after removal: " + str(slice_groups))
+    #         try:
+    #             # After this removal, slspec should now be a square matrix
+    #             assert all(
+    #                 len(group) == len(slice_groups[0])
+    #                 for group in slice_groups[1:]
+    #             )
+    #             matrix.save_matrix(
+    #                 eddyqc_slspec,
+    #                 slice_groups,
+    #                 add_to_command_history=False,
+    #                 fmt="%d",
+    #             )
+    #         except AssertionError:
+    #             matrix.save_numeric(
+    #                 eddyqc_slspec,
+    #                 slice_groups,
+    #                 add_to_command_history=False,
+    #                 fmt="%d",
+    #             )
+    #             raise
+
+    #     wf.add(
+    #         mrconvert(
+    #             input="eddy_mask.nii",
+    #             output="eddy_mask_unpad.nii",
+    #             coord=dwi_post_eddy_crop,
+    #             name="brainmask_remove_padding_for_eddyquad",
+    #         )
+    #     )
+    #     eddyqc_mask = "eddy_mask_unpad.nii"
+    #     progress.increment()
+    #     wf.add(
+    #         mrconvert(
+    #             input=fsl.find_image("field_map"),
+    #             output="field_map_unpad.nii",
+    #             coord=dwi_post_eddy_crop,
+    #             name="fieldmap_remove_padding_for_eddyquad",
+    #         )
+    #     )
+    #     eddyqc_fieldmap = "field_map_unpad.nii"
+    #     progress.increment()
+    #     wf.add(
+    #         mrconvert(
+    #             input=eddy_output_image_path,
+    #             output="dwi_post_eddy_unpad.nii.gz",
+    #             coord=dwi_post_eddy_crop,
+    #             name="dwi_remove_padding_for_eddyquad",
+    #         )
+    #     )
+    #     eddyqc_prefix = "dwi_post_eddy_unpad"
+    #     progress.done()
+
+    # if len(volume_pairs) != int(dwi_num_volumes / 2):
+    #     if execute_topup:
+    #         app.cleanup("topup_in.nii")
+    #         app.cleanup(fsl.find_image("field_map"))
+
+    #     # Convert the resulting volume to the output image, and re-insert the diffusion encoding
+    #     wf.add(
+    #         mrconvert(
+    #             input=eddy_output_image_path,
+    #             output="result.mif",
+    #             coord=(3, 1, dwi_permvols_posteddy_slice),
+    #             fslgrad=(bvecs_path, "bvals"),
+    #             name="post_eddy_conversion",
+    #         )
+    #     )  # coord=dwi_post_eddy_crop
+    #     app.cleanup(eddy_output_image_path)
+
+    # else:                    
