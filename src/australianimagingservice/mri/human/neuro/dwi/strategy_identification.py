@@ -33,7 +33,9 @@ def strategy_identification_wf(slice_to_volume: bool, bzero_threshold: float = 1
     )
 
     if slice_to_volume:
-        wf.add(examine_slice_timing(in_image=wf.lzin.input, name="examine_slice_timing"))
+        wf.add(
+            examine_slice_encoding(in_image=wf.lzin.input, name="examine_slice_timing")
+        )
 
     wf.add(
         mrinfo(image_=wf.lzin.input, shell_bvalues=True, name="mrinfo_shell_bvalues")
@@ -60,8 +62,11 @@ def strategy_identification_wf(slice_to_volume: bool, bzero_threshold: float = 1
     )
 
     wf.set_output(
-        [("num_encodings", wf.examine_image_dims.lzout.num_encodings),
-         ("se_dims_match", wf.num_encodings.lzout.se_dims_match)],
+        [
+            ("num_encodings", wf.examine_image_dims.lzout.num_encodings),
+            ("slice_timings", wf.examine_slice_encoding.lzout.slice_timings),
+            ("se_dims_match", wf.num_encodings.lzout.se_dims_match),
+        ],
     )
 
     return wf
@@ -133,29 +138,29 @@ def examine_image_dims(
 
 
 @pydra.mark.task
-@pydra.mark.annotate({"return": {"slice_encoding_axis": int}})
-def examine_slice_timing(in_image: Mif) -> int:
-    slice_encoding_axis = 2  # default if can't be found in header
+@pydra.mark.annotate(
+    {"return": {"axis": int, "direction": ty.List[int], "timings": ty.List[float]}}
+)
+def examine_slice_encoding(in_image: Mif) -> ty.Tuple[int, ty.List[float]]:
+    axis = 2  # default if can't be found in header
     if "SliceEncodingDirection" in in_image.metadata:
-        slice_encoding_direction = in_image.metadata["SliceEncodingDirection"]
-        logger.debug("Slice encoding direction: " + slice_encoding_direction)
-        if not slice_encoding_direction.startswith("k"):
+        direction = in_image.metadata["SliceEncodingDirection"]
+        logger.debug("Slice encoding direction: " + direction)
+        if not direction.startswith("k"):
             raise ValueError(
                 "DWI header indicates that 3rd spatial axis is not the slice axis; this is not yet compatible with --mporder option in eddy, nor supported in dwifslpreproc"
             )
-        slice_encoding_direction = axis2dir(slice_encoding_direction)
+        direction = axis2dir(direction)
     else:
         logger.info(
             "No slice encoding direction information present; assuming third axis corresponds to slices"
         )
-        slice_encoding_direction = [0, 0, 1]
+        direction = [0, 0, 1]
     # slice_encoding_axis = slice_encoding_direction.index(1)
     # TODO: This will always be 2, since we're erroring out if it's not, could be changed
     # in future to allow for other directions by permuting the axes pre and post Eddy
-    slice_encoding_axis = [
-        index for index, value in enumerate(slice_encoding_direction) if value
-    ][0]
-    slice_timing = []
+    axis = [index for index, value in enumerate(direction) if value][0]
+    timings = []
     # Since there's a chance that we may need to pad this info, we can't just copy this file
     #   to the scratch directory...
     if "SliceTiming" not in in_image.metadata:
@@ -163,27 +168,27 @@ def examine_slice_timing(in_image: Mif) -> int:
             "Cannot perform slice-to-volume correction in eddy: "
             "-eddy_slspec option not specified, and no slice timing information present in input DWI header"
         )
-    slice_timing = in_image.metadata["SliceTiming"]
-    logger.debug("Initial slice timing contents from header: " + str(slice_timing))
-    if slice_timing in ["invalid", "variable"]:
+    timings = in_image.metadata["SliceTiming"]
+    logger.debug("Initial slice timing contents from header: " + str(timings))
+    if timings in ["invalid", "variable"]:
         raise RuntimeError(
             "Cannot use slice timing information in image header for slice-to-volume correction: "
-            'data flagged as "' + slice_timing + '"'
+            'data flagged as "' + timings + '"'
         )
     try:
-        slice_timing = [float(entry) for entry in slice_timing.split()]
+        timings = [float(entry) for entry in timings.split()]
     except ValueError as exception:
         raise RuntimeError(
             "Cannot use slice timing information in image header for slice-to-volume correction: "
             "data are not numeric"
         ) from exception
-    if len(slice_timing) != in_image.dims()[slice_encoding_axis]:
+    if len(timings) != in_image.dims()[axis]:
         raise RuntimeError(
             "Cannot use slice timing information in image header for slice-to-volume correction: "
-            f"number of entries ({len(slice_timing)}) does not match number of slices"
+            f"number of entries ({len(timings)}) does not match number of slices"
             f"({in_image.dims()[2]})"
         )
-    return slice_encoding_axis
+    return axis, direction, timings
 
 
 @pydra.mark.task

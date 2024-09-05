@@ -1,9 +1,23 @@
 from logging import getLogger
 import typing as ty
-from fileformats.medimage_mrtrix3 import ImageIn
+import pydra.mark
+from fileformats.medimage_mrtrix3 import ImageIn, ImageFormat as Mif
 
 
 logger = getLogger(__name__)
+
+
+@pydra.mark.task
+def calculate_mrgrid_spatial_padding(in_image: Mif) -> ty.List[ty.Tuple[int, str]]:
+    padding = [(4 - (dim % 4)) % 4 for dim in in_image.dims()[0:3]]
+    axis_args = [
+        (axis_index, "0:%d" % pad_size)
+        for axis_index, pad_size in enumerate(padding)
+        if pad_size
+    ]
+    # TODO Does mrgrid need up to omit from command-line inputs any axes to which padding is not being applied?
+    # Believe not
+    return axis_args
 
 
 def extract_pe_scheme(in_image: ImageIn) -> ty.List[ty.List[float]]:
