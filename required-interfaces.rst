@@ -37,19 +37,18 @@ QSIPrep
 
 AFNI
 ----
-afni.preprocess.Warp
-afni.utils.Autobox
-afni.utils.Resample
-
+Warp
+Autobox
+Resample
 
 ANTs
 ----
-ants.registration.Registration
-ants.resampling.ApplyTransforms
-ants.segmentation.N4BiasFieldCorrection
-ants.utils.AverageAffineTransform
-ants.utils.AverageImages
-ants.utils.MultiplyImages
+Registration
+ApplyTransforms
+N4BiasFieldCorrection
+AverageAffineTransform
+AverageImages
+MultiplyImages
 
 
 Function utils
@@ -60,12 +59,10 @@ FramewiseDisplacement
 QSIPrep - modified
 ==================
 
-
 ANTs
 ----
 ANTSRegistration (niworkflows.ANTSRegistrationRPT)
 GetImageType
-
 
 Dipy (function)
 ---------------
@@ -124,8 +121,8 @@ shoreline.SHORELineReport
 shoreline.SignalPrediction
 
 
-Niworkflows
-============
+QSIPrep - Niworkflows
+=====================
 
 Function utils
 --------------
