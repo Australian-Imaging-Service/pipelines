@@ -25,6 +25,7 @@ import sys
 import shlex
 from logging import getLogger
 from fileformats.medimage import MedicalImage
+from pydra import Workflow
 
 logger = getLogger(__name__)
 
@@ -193,6 +194,29 @@ def dwipreproc(
     Andersson, J. L. R.; Graham, M. S.; Drobnjak, I.; Zhang, H.; Filippini, N. & Bastiani, M. Towards a comprehensive framework for movement and distortion correction of diffusion MR images: Within volume movement. NeuroImage, 2017, 152, 450-466, if including "--mporder" in -eddy_options input
     Bastiani, M.; Cottaar, M.; Fitzgibbon, S.P.; Suri, S.; Alfaro-Almagro, F.; Sotiropoulos, S.N.; Jbabdi, S.; Andersson, J.L.R. Automated quality control for within and between studies diffusion MRI data using a non-parametric framework for movement and distortion correction. NeuroImage, 2019, 184, 801-812', if using -eddyqc_text or -eddyqc_all option and eddy_quad is installed
     """
+    wf = Workflow(name="dwipreproc", input_spec=[
+        "input",
+        "output",
+        "json_import",
+        "pe_dir",
+        "readout_time",
+        "se_epi",
+        "align_seepi",
+        "topup_options",
+        "topup_files",
+        "eddy_mask",
+        "eddy_slspec",
+        "eddy_options",
+        "eddyqc_text",
+        "eddyqc_all",
+        "grad_import",
+        "grad_export",
+        "rpe_none",
+        "rpe_pair",
+        "rpe_all",
+        "rpe_header",
+    ])
+                  
     from mrtrix3 import (
         CONFIG,
         RuntimeError,
@@ -283,9 +307,9 @@ def dwipreproc(
         "eddy_movement_over_time",
     ]
     if eddyqc_text:
-        eddyqc_path = path.from_user(eddyqc_text, False)
+        eddyqc_path = wf.lzin.eddyqc_text, False
     elif eddyqc_all:
-        eddyqc_path = path.from_user(eddyqc_all, False)
+        eddyqc_path = wf.lzin.eddyqc_all, False
         eddyqc_files.extend(
             [
                 "eddy_outlier_free_data.nii.gz",
@@ -360,7 +384,7 @@ def dwipreproc(
             ]
 
     # Don't import slspec file directly; just make sure it exists
-    if eddy_slspec and not os.path.isfile(path.from_user(eddy_slspec, False)):
+    if eddy_slspec and not os.path.isfile(wf.lzin.eddy_slspec, False):
         raise RuntimeError(
             f'Unable to find file "{eddy_slspec}" provided via -eddy_slspec option'
         )
@@ -373,78 +397,78 @@ def dwipreproc(
     #         raise RuntimeError(
     #             'Cannot use -topup_files option and also specify "... --topup=<prefix> ..." within content of -eddy_options'
     #         )
-    #     topup_file_userpath = path.from_user(topup_files, False)
+    #     topup_file_userpath = wf.lzin.topup_files, False
 
     # execute_applytopup = pe_design != "None" or topup_files
     # if execute_applytopup:
     applytopup_cmd = fsl.exe_name("applytopup")
 
-    # if topup_file_userpath:
-    #     # Find files based on what the user may or may not have specified:
-    #     # - Path to the movement parameters text file
-    #     # - Path to the field coefficients image
-    #     # - Path prefix including the underscore
-    #     # - Path prefix omitting the underscore
+    if topup_file_userpath:
+        # Find files based on what the user may or may not have specified:
+        # - Path to the movement parameters text file
+        # - Path to the field coefficients image
+        # - Path prefix including the underscore
+        # - Path prefix omitting the underscore
 
-    #     def check_movpar():
-    #         if not os.path.isfile(topup_input_movpar):
-    #             raise RuntimeError(
-    #                 'No topup movement parameter file found based on path "'
-    #                 + topup_file_userpath
-    #                 + '" (expected location: '
-    #                 + topup_input_movpar
-    #                 + ")"
-    #             )
+        def check_movpar():
+            if not os.path.isfile(topup_input_movpar):
+                raise RuntimeError(
+                    'No topup movement parameter file found based on path "'
+                    + topup_file_userpath
+                    + '" (expected location: '
+                    + topup_input_movpar
+                    + ")"
+                )
 
-    #     def find_fieldcoef(fieldcoef_prefix):
-    #         fieldcoef_candidates = glob.glob(fieldcoef_prefix + "_fieldcoef.nii*")
-    #         if not fieldcoef_candidates:
-    #             raise RuntimeError(
-    #                 'No topup field coefficient image found based on path "'
-    #                 + topup_file_userpath
-    #                 + '"'
-    #             )
-    #         if len(fieldcoef_candidates) > 1:
-    #             raise RuntimeError(
-    #                 'Multiple topup field coefficient images found based on path "'
-    #                 + topup_file_userpath
-    #                 + '": '
-    #                 + str(fieldcoef_candidates)
-    #             )
-    #         return fieldcoef_candidates[0]
+        def find_fieldcoef(fieldcoef_prefix):
+            fieldcoef_candidates = glob.glob(fieldcoef_prefix + "_fieldcoef.nii*")
+            if not fieldcoef_candidates:
+                raise RuntimeError(
+                    'No topup field coefficient image found based on path "'
+                    + topup_file_userpath
+                    + '"'
+                )
+            if len(fieldcoef_candidates) > 1:
+                raise RuntimeError(
+                    'Multiple topup field coefficient images found based on path "'
+                    + topup_file_userpath
+                    + '": '
+                    + str(fieldcoef_candidates)
+                )
+            return fieldcoef_candidates[0]
 
-    #     if os.path.isfile(topup_file_userpath):
-    #         if topup_file_userpath.endswith("_movpar.txt"):
-    #             topup_input_movpar = topup_file_userpath
-    #             topup_input_fieldcoef = find_fieldcoef(
-    #                 topup_file_userpath[: -len("_movpar.txt")]
-    #             )
-    #         elif topup_file_userpath.endswith(
-    #             "_fieldcoef.nii"
-    #         ) or topup_file_userpath.endswith("_fieldcoef.nii.gz"):
-    #             topup_input_fieldcoef = topup_file_userpath
-    #             topup_input_movpar = topup_file_userpath
-    #             if topup_input_movpar.endswith(".gz"):
-    #                 topup_input_movpar = topup_input_movpar[: -len(".gz")]
-    #             topup_input_movpar = (
-    #                 topup_input_movpar[: -len("_fieldcoef.nii")] + "_movpar.txt"
-    #             )
-    #             check_movpar()
-    #         else:
-    #             raise RuntimeError(
-    #                 'Unrecognised file "'
-    #                 + topup_file_userpath
-    #                 + '" specified as pre-calculated topup susceptibility field'
-    #             )
-    #     else:
-    #         topup_input_movpar = topup_file_userpath
-    #         if topup_input_movpar[-1] == "_":
-    #             topup_input_movpar = topup_input_movpar[:-1]
-    #         topup_input_movpar += "_movpar.txt"
-    #         check_movpar()
-    #         topup_input_fieldcoef = find_fieldcoef(
-    #             topup_input_movpar[: -len("_movpar.txt")]
-    #         )
+        if os.path.isfile(topup_file_userpath):
+            if topup_file_userpath.endswith("_movpar.txt"):
+                topup_input_movpar = topup_file_userpath
+                topup_input_fieldcoef = find_fieldcoef(
+                    topup_file_userpath[: -len("_movpar.txt")]
+                )
+            elif topup_file_userpath.endswith(
+                "_fieldcoef.nii"
+            ) or topup_file_userpath.endswith("_fieldcoef.nii.gz"):
+                topup_input_fieldcoef = topup_file_userpath
+                topup_input_movpar = topup_file_userpath
+                if topup_input_movpar.endswith(".gz"):
+                    topup_input_movpar = topup_input_movpar[: -len(".gz")]
+                topup_input_movpar = (
+                    topup_input_movpar[: -len("_fieldcoef.nii")] + "_movpar.txt"
+                )
+                check_movpar()
+            else:
+                raise RuntimeError(
+                    'Unrecognised file "'
+                    + topup_file_userpath
+                    + '" specified as pre-calculated topup susceptibility field'
+                )
+        else:
+            topup_input_movpar = topup_file_userpath
+            if topup_input_movpar[-1] == "_":
+                topup_input_movpar = topup_input_movpar[:-1]
+            topup_input_movpar += "_movpar.txt"
+            check_movpar()
+            topup_input_fieldcoef = find_fieldcoef(
+                topup_input_movpar[: -len("_movpar.txt")]
+            )
 
     # Convert all input images into MRtrix format and store in scratch directory first
     app.make_scratch_dir()
@@ -452,12 +476,12 @@ def dwipreproc(
     grad_import_option = app.read_dwgrad_import_options()
     json_import_option = ""
     if json_import:
-        json_import_option = " -json_import " + path.from_user(json_import)
+        json_import_option = " -json_import " + wf.lzin.json_import
     json_export_option = " -json_export " + path.to_scratch("dwi.json", True)
-    run.command( "mrconvert " + path.from_user(input) + " " + path.to_scratch("dwi.mif") + grad_import_option + json_import_option + json_export_option )
+    wf.add(mrconvert(" " +  + wf.lzin.input + " " + path.to_scratch("dwi.mif") + grad_import_option + json_import_option + json_export_option , name="NODE"))
     if se_epi:
-        image.check_3d_nonunity(path.from_user(se_epi, False))
-        run.command( "mrconvert " + path.from_user(se_epi) + " " + path.to_scratch("se_epi.mif") )
+        image.check_3d_nonunity(wf.lzin.se_epi, False)
+        wf.add(mrconvert(" "  + wf.lzin.se_epi + " " + path.to_scratch("se_epi.mif") , name="NODE"))
     if topup_file_userpath:
         run.function( shutil.copyfile, topup_input_movpar, path.to_scratch("field_movpar.txt", False), )
         # Can't run field spline coefficients image through mrconvert:
@@ -465,7 +489,7 @@ def dwipreproc(
         #   applytopup requires that these be set, but mrconvert will wipe them
         run.function( shutil.copyfile, topup_input_fieldcoef, path.to_scratch( "field_fieldcoef.nii" + (".gz" if topup_input_fieldcoef.endswith(".nii.gz") else ""), False, ), )
     if eddy_mask:
-        run.command( "mrconvert " + path.from_user(eddy_mask) + " " + path.to_scratch("tttttttt6666666666666666666666666") + " -datatype bit" )
+        wf.add(mrconvert(" " + wf.lzin.eddy_mask + " " + path.to_scratch("eddy_mask.mif") + " -datatype bit" , name="NODE"))
 
     app.goto_scratch_dir()
 
@@ -523,13 +547,13 @@ def dwipreproc(
         if eddy_slspec:
             try:
                 slice_groups = matrix.load_numeric(
-                    path.from_user(eddy_slspec, False), dtype=int
+                    wf.lzin.eddy_slspec, False, dtype=int
                 )
                 app.debug("Slice groups: " + str(slice_groups))
             except ValueError:
                 try:
                     slice_timing = matrix.load_numeric(
-                        path.from_user(eddy_slspec, False), dtype=float
+                        wf.lzin.eddy_slspec, False, dtype=float
                     )
                     app.debug("Slice timing: " + str(slice_timing))
                     app.warn(
@@ -924,7 +948,7 @@ def dwipreproc(
                 "the latter will be automatically re-gridded to match the former"
             )
             new_se_epi_path = "se_epi_regrid.mif"
-            run.command( "mrtransform " + se_epi_path + " - -reorient_fod no -interp sinc -template dwi.mif | mrcalc - 0.0 -max " + new_se_epi_path )
+            wf.add(mrtransform(" " + se_epi_path + " - -reorient_fod no -interp sinc -template dwi.mif | mrcalc - 0.0 -max " + new_se_epi_path , name="NODE"))
             app.cleanup(se_epi_path)
             se_epi_path = new_se_epi_path
             se_epi_header = image.Header(se_epi_path)
@@ -1001,13 +1025,7 @@ def dwipreproc(
                         os.path.splitext(se_epi_path)[0] + "_dwibzeros.mif"
                     )
                     # Don't worry about trying to produce a balanced scheme here
-                    run.command(
-                        "dwiextract dwi.mif - -bzero | mrcat - "
-                        + se_epi_path
-                        + " "
-                        + new_se_epi_path
-                        + " -axis 3"
-                    )
+                    run.command("dwiextract dwi.mif - -bzero | mrcat - " + se_epi_path + " " + new_se_epi_path + " -axis 3" )
                     se_epi_header = image.Header(new_se_epi_path)
                     se_epi_pe_scheme_has_contrast = (
                         "pe_scheme" in se_epi_header.keyval()
@@ -1064,11 +1082,7 @@ def dwipreproc(
             # If b=0 volumes from the DWIs have already been added to the SE-EPI image due to an
             #   absence of phase-encoding contrast in the latter, we don't need to perform the following
             elif not dwi_bzero_added_to_se_epi:
-                run.command(
-                    "mrconvert dwi.mif dwi_first_bzero.mif -coord 3 "
-                    + str(dwi_first_bzero_index)
-                    + " -axes 0,1,2"
-                )
+                run.command("mrconvert dwi.mif dwi_first_bzero.mif -coord 3 " + str(dwi_first_bzero_index) + " -axes 0,1,2" )
                 dwi_first_bzero_pe = (
                     dwi_manual_pe_scheme[dwi_first_bzero_index]
                     if overwrite_dwi_pe_scheme
@@ -1095,21 +1109,7 @@ def dwipreproc(
                         + str(se_epi_volume_to_remove)
                         + " will be removed and replaced with first b=0 from DWIs"
                     )
-                    run.command(
-                        "mrconvert "
-                        + se_epi_path
-                        + " - -coord 3 "
-                        + ",".join(
-                            [
-                                str(index)
-                                for index in range(len(se_epi_pe_scheme))
-                                if not index == se_epi_volume_to_remove
-                            ]
-                        )
-                        + " | mrcat dwi_first_bzero.mif - "
-                        + new_se_epi_path
-                        + " -axis 3"
-                    )
+                    wf.add(mrconvert(" " + se_epi_path + " - -coord 3 " + ",".join( [ str(index) for index in range(len(se_epi_pe_scheme)) if not index == se_epi_volume_to_remove ] ) + " | mrcat dwi_first_bzero.mif - " + new_se_epi_path + " -axis 3" , name="NODE"))
                     # Also need to update the phase-encoding scheme appropriately if it's being set manually
                     #   (if embedded within the image headers, should be updated through the command calls)
                     if se_epi_manual_pe_scheme:
@@ -1132,13 +1132,7 @@ def dwipreproc(
                         app.console(
                             "Unbalanced phase-encoding scheme detected in series provided via -se_epi option; first DWI b=0 volume will be inserted to start of series"
                         )
-                    run.command(
-                        "mrcat dwi_first_bzero.mif "
-                        + se_epi_path
-                        + " "
-                        + new_se_epi_path
-                        + " -axis 3"
-                    )
+                    run.command("mrcat dwi_first_bzero.mif " + se_epi_path + " " + new_se_epi_path + " -axis 3" )
                     # Also need to update the phase-encoding scheme appropriately
                     if se_epi_manual_pe_scheme:
                         first_line = list(manual_pe_dir)
@@ -1164,13 +1158,8 @@ def dwipreproc(
         # Preferably also make sure that there's some phase-encoding contrast in there...
         # With -rpe_all, need to write inferred phase-encoding to file and import before using dwiextract so that the phase-encoding
         #   of the extracted b=0's is propagated to the generated b=0 series
-        run.command(
-            "mrconvert dwi.mif"
-            + import_dwi_pe_table_option
-            + " - | dwiextract - "
-            + se_epi_path
-            + " -bzero"
-        )
+        run.command("mrconvert dwi.mif" + import_dwi_pe_table_option )
+        wf.add(dwiextract("- " + se_epi_path + " -bzero" , name="NODE"))
         se_epi_header = image.Header(se_epi_path)
 
         # If there's no contrast remaining in the phase-encoding scheme, it'll be written to
@@ -1293,39 +1282,14 @@ def dwipreproc(
                     new_se_epi_path = (
                         os.path.splitext(se_epi_path)[0] + "_pad" + str(axis) + ".mif"
                     )
-                    run.command(
-                        "mrconvert "
-                        + se_epi_path
-                        + " -coord "
-                        + str(axis)
-                        + " "
-                        + str(axis_size - 1)
-                        + " - | mrcat "
-                        + se_epi_path
-                        + " - "
-                        + new_se_epi_path
-                        + " -axis "
-                        + str(axis)
-                    )
+                    wf.add(mrconvert(" " + se_epi_path + " -coord " + str(axis) + " " + str(axis_size - 1) )
+                    wf.add(mrcat( + se_epi_path + " - " + new_se_epi_path + " -axis " + str(axis) , name="NODE"), name="NODE"))
                     app.cleanup(se_epi_path)
                     se_epi_path = new_se_epi_path
                     new_dwi_path = (
                         os.path.splitext(dwi_path)[0] + "_pad" + str(axis) + ".mif"
                     )
-                    run.command(
-                        "mrconvert "
-                        + dwi_path
-                        + " -coord "
-                        + str(axis)
-                        + " "
-                        + str(axis_size - 1)
-                        + " -clear dw_scheme - | mrcat "
-                        + dwi_path
-                        + " - "
-                        + new_dwi_path
-                        + " -axis "
-                        + str(axis)
-                    )
+                    wf.add(mrconvert(" " + dwi_path + " -coord " + str(axis) + " " + str(axis_size - 1) + " -clear dw_scheme - | mrcat " + dwi_path + " - " + new_dwi_path + " -axis " + str(axis) , name="NODE"))
                     app.cleanup(dwi_path)
                     dwi_path = new_dwi_path
                     dwi_post_eddy_crop_option += (
@@ -1353,28 +1317,14 @@ def dwipreproc(
                                 slice_groups = new_slice_groups
 
         # Do the conversion in preparation for topup
-        run.command(
-            "mrconvert "
-            + se_epi_path
-            + " topup_in.nii"
-            + se_epi_manual_pe_table_option
-            + " -strides -1,+2,+3,+4 -export_pe_table topup_datain.txt"
-        )
+        wf.add(mrconvert(" " + se_epi_path + " topup_in.nii" + se_epi_manual_pe_table_option + " -strides -1,+2,+3,+4 -export_pe_table topup_datain.txt" , name="NODE"))
         app.cleanup(se_epi_path)
 
         # Run topup
         topup_manual_options = ""
         if topup_options:
             topup_manual_options = " " + topup_options.strip()
-        topup_output = run.command(
-            topup_cmd
-            + " --imain=topup_in.nii --datain=topup_datain.txt --out=field --fout=field_map"
-            + fsl_suffix
-            + " --config="
-            + topup_config_path
-            + " --verbose"
-            + topup_manual_options
-        )
+        topup_output = run.command( topup_cmd + " --imain=topup_in.nii --datain=topup_datain.txt --out=field --fout=field_map" + fsl_suffix + " --config=" + topup_config_path + " --verbose" + topup_manual_options )
         with open("topup_output.txt", "wb") as topup_output_file:
             topup_output_file.write(
                 (topup_output.stdout + "\n" + topup_output.stderr + "\n").encode(
@@ -1390,18 +1340,10 @@ def dwipreproc(
         # applytopup can't receive the complete DWI input and correct it as a whole, because the phase-encoding
         #   details may vary between volumes
         if dwi_manual_pe_scheme:
-            run.command(
-                "mrconvert "
-                + dwi_path
-                + import_dwi_pe_table_option
-                + " - | mrinfo - -export_pe_eddy applytopup_config.txt applytopup_indices.txt"
-            )
+            wf.add(mrconvert(" " + dwi_path + import_dwi_pe_table_option , name="NODE"))
+wf.add(mrinfo("- -export_pe_eddy applytopup_config.txt applytopup_indices.txt" , name="NODE"))
         else:
-            run.command(
-                "mrinfo "
-                + dwi_path
-                + " -export_pe_eddy applytopup_config.txt applytopup_indices.txt"
-            )
+            wf.add(mrinfo(" " + dwi_path + " -export_pe_eddy applytopup_config.txt applytopup_indices.txt" , name="NODE"))
 
         # Call applytopup separately for each unique phase-encoding
         # This should be the most compatible option with more complex phase-encoding acquisition designs,
@@ -1424,36 +1366,11 @@ def dwipreproc(
             json_path = prefix + ".json"
             temp_path = prefix + "_applytopup.nii"
             output_path = prefix + "_applytopup.mif"
-            run.command(
-                "mrconvert "
-                + dwi_path
-                + " "
-                + input_path
-                + " -coord 3 "
-                + ",".join(str(value) for value in group)
-                + " -strides -1,+2,+3,+4 -json_export "
-                + json_path
-            )
-            run.command(
-                applytopup_cmd
-                + " --imain="
-                + input_path
-                + " --datain=applytopup_config.txt --inindex="
-                + str(index + 1)
-                + " --topup=field --out="
-                + temp_path
-                + " --method=jac"
-            )
+            wf.add(mrconvert(" " + dwi_path + " " + input_path + " -coord 3 " + ",".join(str(value) for value in group) + " -strides -1,+2,+3,+4 -json_export " + json_path , name="NODE"))
+            run.command( applytopup_cmd + " --imain=" + input_path + " --datain=applytopup_config.txt --inindex=" + str(index + 1) + " --topup=field --out=" + temp_path + " --method=jac" )
             app.cleanup(input_path)
             temp_path = fsl.find_image(temp_path)
-            run.command(
-                "mrconvert "
-                + temp_path
-                + " "
-                + output_path
-                + " -json_import "
-                + json_path
-            )
+            wf.add(mrconvert(" " + temp_path + " " + output_path + " -json_import " + json_path , name="NODE"))
             app.cleanup(json_path)
             app.cleanup(temp_path)
             applytopup_image_list.append(output_path)
@@ -1466,26 +1383,9 @@ def dwipreproc(
                 dwi2mask_in_path = applytopup_image_list[0]
             else:
                 dwi2mask_in_path = "dwi2mask_in.mif"
-                run.command(
-                    "mrcat "
-                    + " ".join(applytopup_image_list)
-                    + " "
-                    + dwi2mask_in_path
-                    + " -axis 3"
-                )
-            run.command(
-                "dwi2mask "
-                + dwi2mask_algo
-                + " "
-                + dwi2mask_in_path
-                + " "
-                + dwi2mask_out_path
-            )
-            run.command(
-                "maskfilter "
-                + dwi2mask_out_path
-                + " dilate - | mrconvert - eddy_mask.nii -datatype float32 -strides -1,+2,+3"
-            )
+                wf.add(mrcat(" " + " ".join(applytopup_image_list) + " " + dwi2mask_in_path + " -axis 3" , name="NODE"))
+            wf.add(dwi2mask(" " + dwi2mask_algo + " " + dwi2mask_in_path + " " + dwi2mask_out_path , name="NODE"))
+            wf.add(maskfilter(" " + dwi2mask_out_path + " dilate - | mrconvert - eddy_mask.nii -datatype float32 -strides -1,+2,+3" , name="NODE"))
             if len(applytopup_image_list) > 1:
                 app.cleanup(dwi2mask_in_path)
             app.cleanup(dwi2mask_out_path)
@@ -1498,33 +1398,19 @@ def dwipreproc(
         # Generate a processing mask for eddy based on the uncorrected input DWIs
         if not eddy_mask:
             dwi2mask_out_path = "dwi2mask_out.mif"
-            run.command(
-                "dwi2mask " + dwi2mask_algo + " " + dwi_path + " " + dwi2mask_out_path
-            )
-            run.command(
-                "maskfilter "
-                + dwi2mask_out_path
-                + " dilate - | mrconvert - eddy_mask.nii -datatype float32 -strides -1,+2,+3"
-            )
+            wf.add(dwi2mask(" " + dwi2mask_algo + " " + dwi_path + " " + dwi2mask_out_path , name="NODE"))
+            wf.add(maskfilter(" " + dwi2mask_out_path + " dilate - | mrconvert - eddy_mask.nii -datatype float32 -strides -1,+2,+3" , name="NODE"))
             app.cleanup(dwi2mask_out_path)
 
     # Use user supplied mask for eddy instead of one derived from the images using dwi2mask
     if eddy_mask:
         if image.match("eddy_mask.mif", dwi_path, up_to_dim=3):
-            run.command(
-                "mrconvert eddy_mask.mif eddy_mask.nii -datatype float32 -stride -1,+2,+3"
-            )
+            run.command("mrconvert eddy_mask.mif eddy_mask.nii -datatype float32 -stride -1,+2,+3" )
         else:
             app.warn(
                 "User-provided processing mask for eddy does not match DWI voxel grid; resampling"
             )
-            run.command(
-                "mrtransform eddy_mask.mif - -template "
-                + dwi_path
-                + " -interp linear | "
-                + "mrthreshold - -abs 0.5 - | "
-                + "mrconvert - eddy_mask.nii -datatype float32 -stride -1,+2,+3"
-            )
+            run.command("mrtransform eddy_mask.mif - -template " + dwi_path + " -interp linear | " + "mrthreshold - -abs 0.5 - | " + "mrconvert - eddy_mask.nii -datatype float32 -stride -1,+2,+3" )
         app.cleanup("eddy_mask.mif")
 
     # Generate the text file containing slice timing / grouping information if necessary
@@ -1572,13 +1458,7 @@ def dwipreproc(
     )
 
     # Prepare input data for eddy
-    run.command(
-        "mrconvert "
-        + dwi_path
-        + import_dwi_pe_table_option
-        + dwi_permvols_preeddy_option
-        + " eddy_in.nii -strides -1,+2,+3,+4 -export_grad_fsl bvecs bvals -export_pe_eddy eddy_config.txt eddy_indices.txt"
-    )
+    wf.add(mrconvert(" " + dwi_path + import_dwi_pe_table_option + dwi_permvols_preeddy_option + " eddy_in.nii -strides -1,+2,+3,+4 -export_grad_fsl bvecs bvals -export_pe_eddy eddy_config.txt eddy_indices.txt" , name="NODE"))
     app.cleanup(dwi_path)
 
     # Run eddy
@@ -1712,13 +1592,7 @@ def dwipreproc(
                                 f_eddyfile.write(eddy_data_header + "\n")
                                 f_eddyfile.write("\n".join(eddy_data) + "\n")
                         elif eddy_filename.endswith(".nii.gz"):
-                            run.command(
-                                "mrconvert dwi_post_eddy."
-                                + eddy_filename
-                                + " dwi_post_eddy_unpad."
-                                + eddy_filename
-                                + dwi_post_eddy_crop_option
-                            )
+                            run.command("mrconvert dwi_post_eddy." + eddy_filename + " dwi_post_eddy_unpad." + eddy_filename + dwi_post_eddy_crop_option )
                         else:
                             run.function(
                                 os.symlink,
@@ -1767,26 +1641,13 @@ def dwipreproc(
                         )
                         raise
 
-                run.command(
-                    "mrconvert eddy_mask.nii eddy_mask_unpad.nii"
-                    + dwi_post_eddy_crop_option
-                )
+                run.command("mrconvert eddy_mask.nii eddy_mask_unpad.nii" + dwi_post_eddy_crop_option )
                 eddyqc_mask = "eddy_mask_unpad.nii"
                 progress.increment()
-                run.command(
-                    "mrconvert "
-                    + fsl.find_image("field_map")
-                    + " field_map_unpad.nii"
-                    + dwi_post_eddy_crop_option
-                )
+                wf.add(mrconvert(" " + fsl.find_image("field_map") + " field_map_unpad.nii" + dwi_post_eddy_crop_option , name="NODE"))
                 eddyqc_fieldmap = "field_map_unpad.nii"
                 progress.increment()
-                run.command(
-                    "mrconvert "
-                    + eddy_output_image_path
-                    + " dwi_post_eddy_unpad.nii.gz"
-                    + dwi_post_eddy_crop_option
-                )
+                wf.add(mrconvert(" " + eddy_output_image_path + " dwi_post_eddy_unpad.nii.gz" + dwi_post_eddy_crop_option , name="NODE"))
                 eddyqc_prefix = "dwi_post_eddy_unpad"
                 progress.done()
 
@@ -1802,7 +1663,7 @@ def dwipreproc(
             if app.VERBOSITY > 2:
                 eddyqc_options += " -v"
             try:
-                run.command("eddy_quad " + eddyqc_prefix + eddyqc_options)
+                wf.add(eddy_quad(" " + eddyqc_prefix + eddyqc_options, name="NODE"))
             except run.MRtrixCmdError as exception:
                 with open(
                     "eddy_quad_failure_output.txt", "wb"
@@ -1880,17 +1741,7 @@ def dwipreproc(
             app.cleanup(fsl.find_image("field_map"))
 
         # Convert the resulting volume to the output image, and re-insert the diffusion encoding
-        run.command(
-            "mrconvert "
-            + eddy_output_image_path
-            + " result.mif"
-            + dwi_permvols_posteddy_option
-            + dwi_post_eddy_crop_option
-            + stride_option
-            + " -fslgrad "
-            + bvecs_path
-            + " bvals"
-        )
+        wf.add(mrconvert(" " + eddy_output_image_path + " result.mif" + dwi_permvols_posteddy_option + dwi_post_eddy_crop_option + stride_option + " -fslgrad " + bvecs_path + " bvals" , name="NODE"))
         app.cleanup(eddy_output_image_path)
 
     else:
@@ -1962,12 +1813,7 @@ def dwipreproc(
                 "topup output field image has erroneous header; recommend updating FSL to version 5.0.8 or later"
             )
             new_field_map_image = "field_map_fix.mif"
-            run.command(
-                "mrtransform "
-                + field_map_image
-                + " -replace topup_in.nii "
-                + new_field_map_image
-            )
+            wf.add(mrtransform(" " + field_map_image + " -replace topup_in.nii " + new_field_map_image , name="NODE"))
             app.cleanup(field_map_image)
             field_map_image = new_field_map_image
         # In FSL 6.0.0, field map image is erroneously constructed with the same number of volumes as the input image,
@@ -1976,12 +1822,7 @@ def dwipreproc(
         elif len(field_map_header.size()) == 4:
             app.console("Correcting erroneous FSL 6.0.0 field map image output")
             new_field_map_image = "field_map_fix.mif"
-            run.command(
-                "mrconvert "
-                + field_map_image
-                + " -coord 3 0 -axes 0,1,2 "
-                + new_field_map_image
-            )
+            wf.add(mrconvert(" " + field_map_image + " -coord 3 0 -axes 0,1,2 " + new_field_map_image , name="NODE"))
             app.cleanup(field_map_image)
             field_map_image = new_field_map_image
         app.cleanup("topup_in.nii")
@@ -2006,36 +1847,12 @@ def dwipreproc(
             pe_axis = [i for i, e in enumerate(config[0:3]) if e != 0][0]
             sign_multiplier = " -1.0 -mult" if config[pe_axis] < 0 else ""
             field_derivative_path = "field_deriv_pe_" + str(index + 1) + ".mif"
-            run.command(
-                "mrcalc "
-                + field_map_image
-                + " "
-                + str(config[3])
-                + " -mult"
-                + sign_multiplier
-                + " - | mrfilter - gradient - | mrconvert - "
-                + field_derivative_path
-                + " -coord 3 "
-                + str(pe_axis)
-                + " -axes 0,1,2"
-            )
+            wf.add(mrcalc(" " + field_map_image + " " + str(config[3]) + " -mult" + sign_multiplier , name="NODE"))
+wf.add(mrfilter("- gradient - | mrconvert - " + field_derivative_path + " -coord 3 " + str(pe_axis) + " -axes 0,1,2" , name="NODE"))
             jacobian_path = "jacobian_" + str(index + 1) + ".mif"
-            run.command(
-                "mrcalc 1.0 "
-                + field_derivative_path
-                + " -add 0.0 -max "
-                + jacobian_path
-            )
+            run.command("mrcalc 1.0 " + field_derivative_path + " -add 0.0 -max " + jacobian_path )
             app.cleanup(field_derivative_path)
-            run.command(
-                "mrcalc "
-                + jacobian_path
-                + " "
-                + jacobian_path
-                + " -mult weight"
-                + str(index + 1)
-                + ".mif"
-            )
+            wf.add(mrcalc(" " + jacobian_path + " " + jacobian_path + " -mult weight" + str(index + 1) + ".mif" , name="NODE"))
             app.cleanup(jacobian_path)
         app.cleanup(field_map_image)
 
@@ -2044,9 +1861,7 @@ def dwipreproc(
         #   convert it to an uncompressed format before we do anything with it.
         if eddy_output_image_path.endswith(".gz"):
             new_eddy_output_image_path = "dwi_post_eddy_uncompressed.mif"
-            run.command(
-                "mrconvert " + eddy_output_image_path + " " + new_eddy_output_image_path
-            )
+            wf.add(mrconvert(" " + eddy_output_image_path + " " + new_eddy_output_image_path , name="NODE"))
             app.cleanup(eddy_output_image_path)
             eddy_output_image_path = new_eddy_output_image_path
 
@@ -2057,13 +1872,7 @@ def dwipreproc(
             new_eddy_output_image_path = (
                 os.path.splitext(eddy_output_image_path)[0] + "_volpermuteundo.mif"
             )
-            run.command(
-                "mrconvert "
-                + eddy_output_image_path
-                + dwi_permvols_posteddy_option
-                + " "
-                + new_eddy_output_image_path
-            )
+            wf.add(mrconvert(" " + eddy_output_image_path + dwi_permvols_posteddy_option + " " + new_eddy_output_image_path , name="NODE"))
             app.cleanup(eddy_output_image_path)
             eddy_output_image_path = new_eddy_output_image_path
 
@@ -2075,32 +1884,11 @@ def dwipreproc(
         )
         for index, volumes in enumerate(volume_pairs):
             pe_indices = [eddy_indices[i] for i in volumes]
-            run.command(
-                "mrconvert "
-                + eddy_output_image_path
-                + " volume0.mif -coord 3 "
-                + str(volumes[0])
-            )
-            run.command(
-                "mrconvert "
-                + eddy_output_image_path
-                + " volume1.mif -coord 3 "
-                + str(volumes[1])
-            )
+            wf.add(mrconvert(" " + eddy_output_image_path + " volume0.mif -coord 3 " + str(volumes[0]) , name="NODE"))
+            wf.add(mrconvert(" " + eddy_output_image_path + " volume1.mif -coord 3 " + str(volumes[1]) , name="NODE"))
             # Volume recombination equation described in Skare and Bammer 2010
             combined_image_path = "combined" + str(index) + ".mif"
-            run.command(
-                "mrcalc volume0.mif weight"
-                + str(pe_indices[0])
-                + ".mif -mult volume1.mif weight"
-                + str(pe_indices[1])
-                + ".mif -mult -add weight"
-                + str(pe_indices[0])
-                + ".mif weight"
-                + str(pe_indices[1])
-                + ".mif -add -divide 0.0 -max "
-                + combined_image_path
-            )
+            run.command("mrcalc volume0.mif weight" + str(pe_indices[0]) + ".mif -mult volume1.mif weight" + str(pe_indices[1]) + ".mif -mult -add weight" + str(pe_indices[0]) + ".mif weight" + str(pe_indices[1]) + ".mif -add -divide 0.0 -max " + combined_image_path )
             combined_image_list.append(combined_image_path)
             run.function(os.remove, "volume0.mif")
             run.function(os.remove, "volume1.mif")
@@ -2146,16 +1934,7 @@ def dwipreproc(
             if os.path.exists(eddyqc_prefix + "." + filename):
                 # If this is an image, and axis padding was applied, want to undo the padding
                 if filename.endswith(".nii.gz") and dwi_post_eddy_crop_option:
-                    run.command(
-                        "mrconvert "
-                        + eddyqc_prefix
-                        + "."
-                        + filename
-                        + " "
-                        + shlex.quote(os.path.join(eddyqc_path, filename))
-                        + dwi_post_eddy_crop_option,
-                        force=app.FORCE_OVERWRITE,
-                    )
+                    wf.add(mrconvert(" " + eddyqc_prefix + "." + filename + " " + shlex.quote(os.path.join(eddyqc_path, filename)) + dwi_post_eddy_crop_option, force=app.FORCE_OVERWRITE, , name="NODE"))
                 else:
                     run.function(
                         shutil.copy,
@@ -2176,12 +1955,7 @@ def dwipreproc(
         # Also grab the brain mask that was provided to eddy if -eddyqc_all was specified
         if eddyqc_all:
             if dwi_post_eddy_crop_option:
-                run.command(
-                    "mrconvert eddy_mask.nii "
-                    + shlex.quote(os.path.join(eddyqc_path, "eddy_mask.nii"))
-                    + dwi_post_eddy_crop_option,
-                    force=app.FORCE_OVERWRITE,
-                )
+                run.command("mrconvert eddy_mask.nii " + shlex.quote(os.path.join(eddyqc_path, "eddy_mask.nii")) + dwi_post_eddy_crop_option, force=app.FORCE_OVERWRITE, )
             else:
                 run.function(
                     shutil.copy,
@@ -2220,11 +1994,7 @@ def dwipreproc(
         json.dump(keyval, output_json_file)
 
     # Finish!
-    run.command(
-        "mrconvert result.mif " + path.from_user(output) + grad_export_option,
-        mrconvert_keyval="output.json",
-        force=app.FORCE_OVERWRITE,
-    )
+    run.command("mrconvert result.mif " + wf.lzin.output + grad_export_option, mrconvert_keyval="output.json", force=app.FORCE_OVERWRITE, )
 
 
 # Execute the script
