@@ -19,7 +19,7 @@ packages:
     pydra-fastsurfer:
     fileformats-medimage-extras:
     fileformats-medimage-mrtrix3: 3.0.4a5
-    australianimagingservice-community-au-edu-sydney-sydneyimaging:
+    australianimagingservice:
     # For fastsurfer
     # absl-py: 2.0.0
     # cachetools: 5.3.2
@@ -111,8 +111,10 @@ docs:
   info_url: "https://placeholder.org" # Link to external documentation for underlying tool
   description: | # Description of tool for auto-docs
     Generate a 5TT image (HSVS) and parcellation image (Desikan, Destrieux, HCPMMP1, Yeo7 and Yeo17) from a single input anatomical image. Input image should satisfy the input requirements for FastSurfer
+resources:
+  neuro-parcellations: /parcellations
 command:
-  task: australianimagingservice.community.au.edu.sydney.sydneyimaging.t1_preproc:t1_processing_pipeline # Use the generic "shell-cmd" task
+  task: australianimagingservice.mri.human.neuro.t1w.preprocess:preprocess
   row_frequency: session # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
   inputs: # List the inputs that are presented to end-user in UI
     t1w:
@@ -183,7 +185,7 @@ command:
       help: parcellation type # description of field presented in UI
       default: desikan # Default value, filled in on the UI
   configuration: # Additional args passed to arcana.common:shell_cmd
-    mrtrix_lut_dir: /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
+    mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
     fs_license: /opt/freesurfer/license.txt
     freesurfer_home: /opt/freesurfer
     cache_dir: /work/pydra-cache

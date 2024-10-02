@@ -59,6 +59,6 @@ jobs:
       env:
         PUSH: "${{ steps.deployable.outputs.PUSH }}"
       run: >
-        pydra2app make xnat ./australian-imaging-service
+        pipeline2app make xnat ./src
         --registry ghcr.io --check-registry --clean-up --tag-latest --loglevel info 
-        --release pipelines-metapackage $RELEASE $PUSH
+        --release pipelines-metapackage $RELEASE $PUSH --resources-dir ./resources
