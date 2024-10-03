@@ -20,77 +20,6 @@ packages:
     fileformats-medimage-extras:
     fileformats-medimage-mrtrix3: 3.0.4a5
     australianimagingservice:
-    # For fastsurfer
-    # absl-py: 2.0.0
-    # cachetools: 5.3.2
-    # certifi: 2023.7.22
-    # charset-normalizer: 3.3.2
-    # click: # 8.1.7
-    # cmake: 3.27.7
-    # contourpy: 1.2.0
-    # cycler: 0.12.1
-    # deprecated: 1.2.14
-    # filelock: # 3.13.1
-    # fonttools: 4.44.3
-    # google-auth: 2.23.4
-    # google-auth-oauthlib: 1.0.0
-    # grpcio: 1.59.2
-    # h5py: 3.7.0
-    # humanize: 4.8.0
-    # idna: 3.4
-    # imageio: 2.32.0
-    # jinja2: 3.1.2
-    # joblib: 1.3.2
-    # kiwisolver: 1.4.5
-    # lapy: 1.0.1
-    # lit: 17.0.5
-    # markdown: 3.5.1
-    # markupsafe: 2.1.3
-    # matplotlib: 3.7.1
-    # mpmath: 1.3.0
-    # networkx: 3.2.1
-    # nibabel: 5.1.0
-    # numpy: 1.25.0
-    # oauthlib: 3.2.2
-    # packaging: 23.2
-    # pandas: 1.5.3
-    # pillow: 10.0.1
-    # plotly: 5.18.0
-    # protobuf: 4.25.1
-    # psutil: 5.9.6
-    # pyasn1: 0.5.0
-    # pyasn1-modules: 0.3.0
-    # pyparsing: 3.1.1
-    # python-dateutil: 2.8.2
-    # pytz: 2023.3.post1
-    # pywavelets: 1.4.1
-    # pyyaml: # 6.0
-    # requests: # 2.31.0
-    # requests-oauthlib: # 1.3.1
-    # rsa: 4.9
-    # scikit-image: 0.19.3
-    # scikit-learn: 1.2.2
-    # scipy: # 1.10.1
-    # simpleitk: 2.2.1
-    # six: 1.16.0
-    # sympy: 1.12
-    # tenacity: 8.2.3
-    # tensorboard: 2.12.1
-    # tensorboard-data-server: 0.7.2
-    # tensorboard-plugin-wit: 1.8.1
-    # threadpoolctl: 3.2.0
-    # tifffile: 2023.9.26
-    # torch: 2.0.1+cu117
-    # torchio: 0.18.83
-    # torchvision: 0.15.2+cu117
-    # tqdm: 4.65.0
-    # triton: 2.0.0
-    # typing-extensions: # 4.8.0
-    # urllib3: 2.1.0
-    # werkzeug: 3.0.1
-    # wheel: 0.41.3
-    # wrapt: 1.16.0
-    # yacs: 0.1.8
   neurodocker:
     mrtrix3: 3.0.2
     fsl: 6.0.5.1
@@ -106,11 +35,14 @@ licenses:
     destination: /opt/freesurfer/license.txt
     info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
     description: >
-      FastSurfer, which is used to perform segmentation and surface recon, requires a FreeSurfer license to run.
+      FastSurfer, which is used to perform segmentation and surface recon, requires a
+      FreeSurfer license to run.
 docs:
   info_url: "https://placeholder.org" # Link to external documentation for underlying tool
   description: | # Description of tool for auto-docs
-    Generate a 5TT image (HSVS) and parcellation image (Desikan, Destrieux, HCPMMP1, Yeo7 and Yeo17) from a single input anatomical image. Input image should satisfy the input requirements for FastSurfer
+    Generate a 5TT image (HSVS) and parcellation image (Desikan, Destrieux, HCPMMP1,
+    Yeo7 and Yeo17) from a single input anatomical image. Input image should satisfy
+    the input requirements for FastSurfer
 resources:
   neuro-parcellations: /parcellations
 command:
