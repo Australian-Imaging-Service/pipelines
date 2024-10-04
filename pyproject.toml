@@ -50,7 +50,7 @@ source = "vcs"
 version-file = "src/australianimagingservice/_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["australianimagingservice"]
+packages = ["src/australianimagingservice"]
 
 [tool.black]
 target-version = ['py38']

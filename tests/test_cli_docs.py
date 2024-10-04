@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from click.testing import CliRunner
-from arcana.core.cli.deploy import make_docs
+from pipeline2app.core.cli import make_docs
 
 PKG_PATH = Path(__file__).parent.parent.absolute()
 
@@ -16,7 +16,7 @@ results = runner.invoke(
         "docs/pipelines",
         "--flatten",
         "--default-data-space",
-        "arcana.common:Clinical"
+        "arcana.common:Clinical",
     ],
     catch_exceptions=False,
 )
