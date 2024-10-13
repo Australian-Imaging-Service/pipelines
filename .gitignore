@@ -12,3 +12,4 @@ __pycache__
 test-data
 *.build*
 *.venv
+_version.py
