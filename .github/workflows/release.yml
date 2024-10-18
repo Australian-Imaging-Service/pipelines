@@ -60,6 +60,6 @@ jobs:
         PUSH: "${{ steps.deployable.outputs.PUSH }}"
       run: >
         pipeline2app make xnat ./specs/australian-imaging-service/mri/human/neuro/t1w/preprocess.yaml
-        --registry ghcr.io --check-registry --clean-up --tag-latest --loglevel info 
+        --registry ghcr.io --check-registry --clean-up --loglevel info 
         --resources-dir ./resources --spec-root ./specs --source-package . $PUSH
-      # --release pipelines-metapackage $RELEASE  
+      # --release pipelines-metapackage $RELEASE --tag-latest 
