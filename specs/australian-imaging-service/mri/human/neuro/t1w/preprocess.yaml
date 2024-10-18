@@ -45,7 +45,7 @@ docs:
     the input requirements for FastSurfer
 resources:
   neuro-parcellations: /parcellations
-command:
+commands:
   t1w_preproc:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:preprocess
     row_frequency: session # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"

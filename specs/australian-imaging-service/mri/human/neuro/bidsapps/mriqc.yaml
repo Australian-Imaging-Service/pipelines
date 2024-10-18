@@ -24,39 +24,40 @@ packages:
   neurodocker:
     dcm2niix: v1.0.20201102
     mrtrix3: "3.0.2"
-command:
-  task: arcana.bids:bids_app
-  row_frequency: session
-  inputs:
-    T1w:
-      datatype: medimage/nifti-gz-x
-      help: "T1-weighted anatomical scan"
-      configuration:
-        path: anat/T1w
-      column_defaults:
-        datatype: medimage/dicom-series
-    T2w:
-      datatype: medimage/nifti-gz-x
-      help: "T2-weighted anatomical scan"
-      configuration:
-        path: anat/T2w
-      column_defaults:
-        datatype: medimage/dicom-series
-    fMRI:
-      datatype: medimage/nifti-gz-x
-      help: "functional MRI"
-      configuration:
-        path: func/task-rest_bold
-      column_defaults:
-        datatype: medimage/dicom-series
-  outputs:
-    mriqc:
-      datatype: generic/directory
-      help: Generated QC outputs
-      configuration:
-        path: mriqc
-  configuration:
-    name: mriqc
-    executable: /usr/local/miniconda/bin/mriqc
-    dataset: /work/bids-dataset
-    app_output_dir: /work/bids-app-output
+commands:
+  mriqc:
+    task: arcana.bids:bids_app
+    row_frequency: session
+    inputs:
+      T1w:
+        datatype: medimage/nifti-gz-x
+        help: "T1-weighted anatomical scan"
+        configuration:
+          path: anat/T1w
+        column_defaults:
+          datatype: medimage/dicom-series
+      T2w:
+        datatype: medimage/nifti-gz-x
+        help: "T2-weighted anatomical scan"
+        configuration:
+          path: anat/T2w
+        column_defaults:
+          datatype: medimage/dicom-series
+      fMRI:
+        datatype: medimage/nifti-gz-x
+        help: "functional MRI"
+        configuration:
+          path: func/task-rest_bold
+        column_defaults:
+          datatype: medimage/dicom-series
+    outputs:
+      mriqc:
+        datatype: generic/directory
+        help: Generated QC outputs
+        configuration:
+          path: mriqc
+    configuration:
+      name: mriqc
+      executable: /usr/local/miniconda/bin/mriqc
+      dataset: /work/bids-dataset
+      app_output_dir: /work/bids-app-output
