@@ -11,16 +11,11 @@ from pydra.tasks.mrtrix3.v3_0 import (
     FivettGen_Fsl,
 )
 from fileformats.generic import Directory
-from fileformats.medimage_mrtrix3 import ImageFormat, ImageFormatGz
-from fileformats.medimage import NiftiGz, Nifti
+from fileformats.medimage import NiftiGz
 from pydra.tasks.fastsurfer.latest import Fastsurfer
 from pathlib import Path
 import os
 
-# Define some filepaths
-# freesurfer_home = "/Applications/freesurfer/"
-# mrtrix_lut_dir = Path("/opt/mrtrix3/latest/share/mrtrix3/labelconvert/")
-# output_path = "/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01-T1w_pos_FULLPIPE/"
 os.environ["SUBJECTS_DIR"] = ""
 
 
@@ -38,30 +33,13 @@ def preprocess(
     # Define the input values using input_spec
     input_spec = {
         "t1w": File,
-        # "aparcaseg_img": File,
-        # "fs_license": File,
-        # "parcellation": str,
-        # "FS_dir": str,
     }
-    # output_path = Path(cache_dir) / "tmp-outputs"
-    # output_path.mkdir(parents=True, exist_ok=True)
-    # Define the output_spec for the workflow
-    # output_spec = {
-    #     "parc_image": ImageFormatGz,
-    #     "vis_image_fsl": ImageFormatGz,
-    #     "ftt_image_fsl": ImageFormatGz,
-    #     "vis_image_freesurfer": ImageFormatGz,
-    #     "ftt_image_freesurfer": ImageFormatGz,
-    #     "vis_image_hsvs": ImageFormatGz,
-    #     "ftt_image_hsvs": ImageFormatGz,
-    # }
 
     wf = Workflow(
         name=name,
         input_spec=input_spec,
         cache_dir=cache_dir,
         t1w=t1w,
-        # output_spec=output_spec,
     )
 
     # ###################
@@ -96,7 +74,7 @@ def preprocess(
         # Five tissue-type task HSVS
         wf.add(
             FivettGen_Hsvs(
-                in_file=wf.FastSurfer_task.lzout.subjects_dir_output,  # wf.lzin.FS_dir,
+                in_file=wf.FastSurfer_task.lzout.subjects_dir_output,
                 out_file="5TT_hsvs.mif.gz",
                 name="fTTgen_task_hsvs",
                 nocrop=True,
@@ -119,7 +97,7 @@ def preprocess(
 
         wf.add(
             FivettGen_Freesurfer(
-                in_file=wf.FastSurfer_task.lzout.aparcaseg_img,  # wf.lzin.aparcaseg_img,
+                in_file=wf.FastSurfer_task.lzout.aparcaseg_img,
                 out_file="5TT_freesurfer.mif.gz",
                 name="fTTgen_task_freesurfer",
                 nocrop=True,
@@ -141,7 +119,7 @@ def preprocess(
 
         wf.add(
             FivettGen_Fsl(
-                in_file=wf.FastSurfer_task.lzout.norm_img,  # wf.lzin.t1w,
+                in_file=wf.FastSurfer_task.lzout.norm_img,
                 out_file="5TT_fsl.mif.gz",
                 name="fTTgen_task_fsl",
                 nocrop=True,
@@ -164,7 +142,7 @@ def preprocess(
     # PARCELLATION IMAGE GENERATION #
     #################################
 
-    @mark.task
+    @mark.task  # type: ignore[misc]
     @mark.annotate(
         {
             "parcellation": str,
@@ -187,14 +165,13 @@ def preprocess(
                 "l2v_regheader": str,
             },
         }
-    )
+    )  # type: ignore[misc]
     def join_task_catalogue(
         parcellation: str,
         FS_dir: str,
         freesurfer_home: str,
         mrtrix_lut_dir: Path,
-        # output_path: Path,
-    ):
+    ) -> ty.Tuple[str, str, str, str, str, str, str, str, str, str, str, str, str, str]:
         node_image = parcellation + "_nodes.mif"
         final_parc_image = os.path.join(f"Atlas_{parcellation}.mif.gz")
         normimg_path = os.path.join(FS_dir, "mri", "norm.mgz")
@@ -437,6 +414,11 @@ def preprocess(
                 l2v_temp,
                 l2v_regheader,
             )
+        else:
+            raise ValueError(
+                f"Parcellation {parcellation} not recognised. Please choose from: "
+                "'aparc', 'schaefer', 'vosdewael', 'economo', 'glasser360'"
+            )
 
     wf.add(
         join_task_catalogue(
@@ -543,7 +525,6 @@ def preprocess(
                 {
                     "help_string": "use mri/hemi.ribbon.mgz as a mask for the cortex",
                     "argstr": "--old-ribbon",
-                    # "mandatory": True,
                 },
             ),
             (
@@ -552,7 +533,6 @@ def preprocess(
                 {
                     "help_string": "Mask cortical voxels with mri/ribbon.mgz. Same as --volmask",
                     "argstr": "--new-ribbon",
-                    # "mandatory": True,
                 },
             ),
             (
@@ -561,7 +541,6 @@ def preprocess(
                 {
                     "help_string": "Use annotname surface annotation. By default, uses ?h.aparc.annot. With this option, it will load ?h.annotname.annot. The output file will be set to annotname+aseg.mgz, but this can be changed with --o. Note: running --annot aparc.a2009s is NOT the same as running --a2009s. The index numbers will be different.",
                     "argstr": "--annot",
-                    # "mandatory": True
                 },
             ),
             (
@@ -571,7 +550,6 @@ def preprocess(
                     "help_string": "Full path of file to save the output segmentation in. Default is mri/aparc+aseg.mgz",
                     "argstr": "--o",
                     "output_file_template": "volfile.nii.gz",
-                    # "mandatory": True
                 },
             ),
         ],
@@ -587,7 +565,6 @@ def preprocess(
                 {
                     "help_string": "Full path of file to save the output segmentation in. Default is mri/aparc+aseg.mgz",
                     "argstr": "--o",
-                    # "mandatory": True
                 },
             ),
         ],
@@ -635,7 +612,6 @@ def preprocess(
                     "help_string": "volid : output volume",
                     "argstr": "--o",
                     "output_file_template": "label2vol1_out.nii.gz",
-                    #  "mandatory": True,
                 },
             ),
         ],
@@ -652,7 +628,6 @@ def preprocess(
                     "help_string": "volid : output volume",
                     "argstr": "--o",
                     "output_file_template": "label2vol_out1.nii.gz",
-                    # "mandatory": True,
                 },
             ),
         ],
@@ -684,7 +659,6 @@ def preprocess(
                     "argstr": "{output_image}",
                     "output_file_template": "out_file_reoriented1.nii.gz",
                     "position": 1,
-                    # "mandatory": True,
                 },
             ),
         ],
@@ -702,7 +676,6 @@ def preprocess(
                     "argstr": "{output_image}",
                     "output_file_template": "out_file_reoriented1.nii.gz",
                     "position": 1,
-                    # "mandatory": True,
                 },
             ),
         ],
@@ -733,7 +706,6 @@ def preprocess(
                     "help_string": "path to output image",
                     "mandatory": True,
                     "argstr": " ",
-                    # "output_file_template": "out_file_threshold.nii.gz",
                     "position": 3,
                 },
             ),
@@ -742,7 +714,6 @@ def preprocess(
                 int,
                 {
                     "help_string": "threshold value",
-                    # "mandatory": True,
                     "position": 1,
                     "argstr": "-thr",
                 },
@@ -794,7 +765,7 @@ def preprocess(
                     output_spec=mri_s2s_output_spec,
                     cache_dir=cache_dir,
                     source_subject_id=wf.join_task.lzout.fsavg_dir,
-                    target_subject_id=wf.FastSurfer_task.lzout.subjects_dir_output,  # wf.lzin.FS_dir,
+                    target_subject_id=wf.FastSurfer_task.lzout.subjects_dir_output,
                     source_annotation_file=getattr(
                         wf.join_task.lzout, f"source_annotation_file_{hemi}"
                     ),
@@ -815,7 +786,7 @@ def preprocess(
                     output_spec=mri_s2s_output_spec,
                     cache_dir=cache_dir,
                     source_subject_id=wf.join_task.lzout.fsavg_dir,
-                    target_subject_id=wf.FastSurfer_task.lzout.subjects_dir_output,  # wf.lzin.FS_dir,
+                    target_subject_id=wf.FastSurfer_task.lzout.subjects_dir_output,
                     source_annotation_file=getattr(
                         wf.join_task.lzout, f"source_annotation_file_{hemi}"
                     ),
@@ -837,9 +808,9 @@ def preprocess(
                 input_spec=mri_a2a_input_spec,
                 output_spec=mri_a2a_output_spec,
                 cache_dir=cache_dir,
-                subject=wf.FastSurfer_task.lzout.subjects_dir_output,  # wf.lzin.FS_dir,
-                new_ribbon=True,  # this is different to v1!
-                annotname=wf.join_task.lzout.annot_short,  # this is different to v1!
+                subject=wf.FastSurfer_task.lzout.subjects_dir_output,
+                new_ribbon=True,
+                annotname=wf.join_task.lzout.annot_short,
             )
         )
 
@@ -995,8 +966,6 @@ def preprocess(
         )
 
         return_image = wf.SGMfix_task.lzout.out_file
-    # else:
-    #     return_image = wf.LabelConvert_task.lzout.image_out
 
     wf.set_output(
         [
@@ -1028,10 +997,6 @@ def preprocess(
                 "ftt_image_hsvs",
                 wf.fTTgen_task_hsvs.lzout.out_file,
             ),
-            # (
-            #     "FS_outputs",
-            #     wf.FastSurfer_task.lzout.subjects_dir_output,
-            # ),
         ]
     )
 
@@ -1068,7 +1033,7 @@ parcellation_list = [
 ]  # List of different parcellations
 
 
-def preprocess_all(
+def preprocess_all_parcs(
     freesurfer_home: Path,
     mrtrix_lut_dir: Path,
     cache_dir: Path,
@@ -1076,40 +1041,21 @@ def preprocess_all(
     fastsurfer_executable: ty.Union[str, ty.List[str], None] = None,
     fastsurfer_python: str = "python3",
     name: str = "t1_preprocessing_pipeline_all",
-):
+) -> Workflow:
 
     # Define the input values using input_spec
     input_spec = {
         "t1w": File,
-        # "aparcaseg_img": File,
-        # "fs_license": File,
-        # "parcellation": str,
         "FS_dir": str,
     }
-
-    # Define the output_spec for the workflow
-    # output_spec = {p.replace("-", "_"): ImageFormatGz for p in parcellation_list}
-    # output_spec.update(
-    #     {
-    #         "vis_image_fsl": ImageFormatGz,
-    #         "ftt_image_fsl": ImageFormatGz,
-    #         "vis_image_freesurfer": ImageFormatGz,
-    #         "ftt_image_freesurfer": ImageFormatGz,
-    #         "vis_image_hsvs": ImageFormatGz,
-    #         "ftt_image_hsvs": ImageFormatGz,
-    #     }
-    # )
 
     wf = Workflow(
         name="t1_processing_pipeline",
         input_spec=input_spec,
         cache_dir=cache_dir,
-        # output_spec=output_spec,
     )
 
     for parcellation in parcellation_list:
-
-        # parcellation = parcellation.replace("-", "_")
 
         wf.add(
             preprocess(
@@ -1133,21 +1079,8 @@ def preprocess_all(
     wf.set_output(("ftt_image_freesurfer", wf.desikan.lzout.ftt_image_freesurfer))
     wf.set_output(("vis_image_hsvs", wf.desikan.lzout.vis_image_hsvs))
     wf.set_output(("ftt_image_hsvs", wf.desikan.lzout.ftt_image_hsvs))
-    # wf.set_output(("FS_outputs", wf.desikan.lzout.subjects_dir_output))
 
     return wf
-
-
-# for parcellation in parcellation_list:
-#     wf = t1_processing_pipeline(parcellation=parcellation)
-
-#     result = wf(
-#         t1w="/Users/arkievdsouza/Desktop/FastSurferTesting/data/sub-01_T1w_pos.nii.gz",
-#         # FS_dir="/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01_T1w_pos",
-#         # aparcaseg_img="/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01_T1w_pos/mri/aparc+aseg.mgz",
-#         fs_license="/Users/arkievdsouza/Desktop/FastSurferTesting/ReferenceFiles/FS_license.txt",
-#         plugin="serial",
-#     )
 
 
 if __name__ == "__main__":
@@ -1155,5 +1088,5 @@ if __name__ == "__main__":
 
     args = sys.argv[2:]
 
-    wf = t1_preprocessing_pipeline_all(*args)
+    wf = preprocess_all_parcs(*args)  # type: ignore[arg-type]
     wf(t1w=sys.argv[1])
