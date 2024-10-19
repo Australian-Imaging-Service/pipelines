@@ -46,7 +46,7 @@ docs:
 resources:
   neuro-parcellations: /parcellations
 commands:
-  t1w_preproc:
+  single_parc:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:preprocess
     row_frequency: session # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
     inputs: # List the inputs that are presented to end-user in UI
@@ -98,7 +98,7 @@ commands:
         - /fastsurfer/Docker/entrypoint.sh
         - /fastsurfer/run_fastsurfer.sh
         - --allow_root
-  t1w_preproc_all_parcs:
+  all_parcs:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:preprocess_all_parcs
     row_frequency: session # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
     inputs: # List the inputs that are presented to end-user in UI
