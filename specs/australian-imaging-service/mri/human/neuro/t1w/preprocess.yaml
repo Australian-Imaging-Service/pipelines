@@ -4,7 +4,7 @@ version:
   # Define a version for the pipeline in combination of the underlying package version (e.g. FSL)
   # and the "build" of the pipeline
   package: "1.0"
-  build: "1"
+  build: "5"
 base_image:
   # Chose a NeuroDesk FSL container as the base
   name: deepmi/fastsurfer
@@ -13,12 +13,13 @@ base_image:
 packages:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
-    pydra-mrtrix3: 3.0.4a5
+    pydra-mrtrix3: 3.0.4a9
     pydra-fsl:
     fileformats:
     pydra-fastsurfer:
     fileformats-medimage-extras:
-    fileformats-medimage-mrtrix3: 3.0.4a5
+    fileformats-medimage-mrtrix3: 3.0.4a12
+    fileformats-medimage-mrtrix3-extras: 3.0.4a12
     australianimagingservice:
   neurodocker:
     mrtrix3: 3.0.2
