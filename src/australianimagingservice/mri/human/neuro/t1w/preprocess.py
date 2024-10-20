@@ -1118,5 +1118,5 @@ if __name__ == "__main__":
 
     args = sys.argv[2:]
 
-    wf = preprocess_all_parcs(*args)  # type: ignore[arg-type]
+    wf = all_parcs(*args)  # type: ignore[arg-type]
     wf(t1w=sys.argv[1])
