@@ -1083,7 +1083,7 @@ def all_parcs(
     for parcellation in parcellation_list:
 
         wf.add(
-            preprocess(
+            single_parc(
                 t1w=wf.lzin.t1w,
                 parcellation=parcellation,
                 freesurfer_home=freesurfer_home,
