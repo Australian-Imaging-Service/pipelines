@@ -10,16 +10,19 @@ from pydra.tasks.mrtrix3.v3_0 import (
     FivettGen_Freesurfer,
     FivettGen_Fsl,
 )
-from fileformats.generic import Directory
+from fileformats.generic import Directory, DirectoryOf
 from fileformats.medimage import NiftiGz
+from fileformats.medimage_mrtrix3 import ImageFormat as Mif
 from pydra.tasks.fastsurfer.latest import Fastsurfer
+from pydra.engine.task import FunctionTask
+from pydra.engine.specs import BaseSpec
 from pathlib import Path
 import os
 
 os.environ["SUBJECTS_DIR"] = ""
 
 
-def preprocess(
+def single_parc(
     parcellation: str,
     freesurfer_home: Path,
     mrtrix_lut_dir: Path,
@@ -1033,7 +1036,7 @@ parcellation_list = [
 ]  # List of different parcellations
 
 
-def preprocess_all_parcs(
+def all_parcs(
     freesurfer_home: Path,
     mrtrix_lut_dir: Path,
     cache_dir: Path,
@@ -1055,6 +1058,28 @@ def preprocess_all_parcs(
         cache_dir=cache_dir,
     )
 
+    def collate_parcs(out_dir: Path, **parcs: Mif) -> DirectoryOf[Mif]:  # type: ignore[type-arg]
+        for name, parc in parcs.values():
+            parc.copy(out_dir, new_stem=name)
+        return DirectoryOf[Mif](out_dir)  # type: ignore[no-any-return,type-arg,misc]
+
+    wf.add(
+        FunctionTask(
+            collate_parcs,
+            name="collate_parcs",
+            input_spec=SpecInfo(
+                name="CollateParcsInputs",
+                bases=(BaseSpec,),
+                fields=[(p, Mif) for p in parcellation_list],
+            ),
+            output_spec=SpecInfo(
+                name="CollateParcsOutputs",
+                bases=(BaseSpec,),
+                fields=[("out_dir", DirectoryOf[Mif])],  # type: ignore[misc]
+            ),
+        )
+    )
+
     for parcellation in parcellation_list:
 
         wf.add(
@@ -1071,8 +1096,13 @@ def preprocess_all_parcs(
             )
         )
 
-        wf.set_output([(parcellation, getattr(wf, parcellation).lzout.parc_image)])
+        setattr(
+            wf.collate_parcs.inputs,
+            parcellation,
+            getattr(wf, parcellation).lzout.parc_image,
+        )
 
+    wf.set_output(("parcellations", wf.collate_parcs.lzout.out_dir))
     wf.set_output(("vis_image_fsl", wf.desikan.lzout.vis_image_fsl))
     wf.set_output(("ftt_image_fsl", wf.desikan.lzout.ftt_image_fsl))
     wf.set_output(("vis_image_freesurfer", wf.desikan.lzout.vis_image_freesurfer))
