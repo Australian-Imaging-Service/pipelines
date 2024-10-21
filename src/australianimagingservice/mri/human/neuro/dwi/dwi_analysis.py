@@ -5,6 +5,8 @@ import pydra
 from pydra import Workflow, mark, ShellCommandTask
 from pydra.engine.specs import File
 from pydra.tasks.mrtrix3.v3_0 import (
+    DwiGradcheck,
+    Dwi2Mask_Synthstrip,
     DwiDenoise,
     MrDegibbs,
     DwiFslpreproc,
@@ -73,11 +75,31 @@ wf = Workflow(
     cache_dir=output_path,
 )  # output_spec=output_spec)
 
+# DWIgradcheck
+wf.add(
+    DwiGradcheck(
+        name="DWIgradcheck_task",
+        in_file=wf.lzin.dwi_preproc_mif,
+        export_grad_mrtrix="DWIgradcheck_grad.txt",
+        # fslgrad=wf.lzin.<bvec bval>,
+    )
+)
+
+# create mif with corrected grad
+wf.add(
+    MrConvert(
+        name="DWItoMif_task",
+        in_file=wf.lzin.dwi_preproc_mif,
+        grad=wf.DWIgradcheck_task.lzout.export_grad_mrtrix,
+    )
+)
+
+
 # denoise
 wf.add(
     DwiDenoise(
         name="dwi_denoise_task",
-        dwi=wf.lzin.dwi_preproc_mif,
+        dwi=wf.DWItoMif_task.lzout.out_file,
     )
 )
 
@@ -112,8 +134,28 @@ wf.add(
     )
 )
 
+# consider moving to the top
+# wf.add( # mri_synthstrip -i bzero.nii -m synthstrip_mask.nii works but not when used in dwi2mask synthstrip
+#     Dwi2Mask_Synthstrip(
+#         name="dwimask_task",
+#         in_file=wf.dwi_degibbs_task.lzout.out,  # update to be output of DWIfslpreproc
+#         out_file="dwi_mask.mif.gz",
+#         gpu=False,
+#         nocleanup=True,
+#     )
+# )
+
+# wf.add(
+#     DwiBiascorrect_Fsl(  # replace this with ANTs
+#         name="dwibiasfieldcorr_task",
+#         in_file=wf.dwi_degibbs_task.lzout.out,
+#         mask=wf.dwimask_task.lzout.out_file,
+#         bias="biasfield.mif.gz",
+#     )
+# )
+
 wf.add(
-    DwiBiascorrect_Fsl(  # replace this with ANTs
+    DwiBiascorrect_Ants(  # replace this with ANTs
         name="dwibiasfieldcorr_task",
         in_file=wf.dwi_degibbs_task.lzout.out,
         mask=wf.dwimask_task.lzout.out_file,
@@ -156,7 +198,7 @@ wf.add(
 # # # REGISTRATION CONTENT #
 # # ########################
 
-# Step 8: Generate target images for T1->DWI registration
+# Step 8: Generate target images for registration and transformation
 
 
 @mark.task
@@ -366,51 +408,28 @@ wf.add(
     )
 )
 
-# Step 10: Apply transform (to get T1 images in DWI space)
+# #apply transform to DWI image
 wf.add(
     MrTransform(
-        name="transformT1_task",
-        in_file=wf.nifti_t1brain.lzout.out_file,
-        inverse=True,
-        out_file="t1brain_registered.mif.gz",
+        name="transformDWI_task",
+        in_file=wf.crop_task_dwi.lzout.out_file,
+        inverse=False,
+        out_file="DWI_T1space.mif.gz",
         linear=wf.transformconvert_task.lzout.out_file,
-        strides=wf.meanb0_task.lzout.out_file,
+        strides=wf.lzin.fTTvis_image_T1space,
     )
 )
 
-# #apply transform to 5TT image
+# #apply transform to DWI mask image
 wf.add(
     MrTransform(
-        name="transform5TT_task",
-        in_file=wf.lzin.fTT_image_T1space,
-        inverse=True,
-        out_file="5TT_registered.mif.gz",
+        name="transformDWImask_task",
+        in_file=wf.crop_task_mask.lzout.out_file,
+        inverse=False,
+        out_file="DWImask_T1space.mif.gz",
+        interp="nearest",
         linear=wf.transformconvert_task.lzout.out_file,
-        strides=wf.meanb0_task.lzout.out_file,
-    )
-)
-
-# #apply transform to 5TTvis image
-wf.add(
-    MrTransform(
-        name="transform5TTvis_task",
-        in_file=wf.lzin.fTTvis_image_T1space,
-        inverse=True,
-        out_file="5TTvis_registered.mif.gz",
-        linear=wf.transformconvert_task.lzout.out_file,
-        strides=wf.meanb0_task.lzout.out_file,
-    )
-)
-
-# #apply transform to parcellation image
-wf.add(
-    MrTransform(
-        name="transformParcellation_task",
-        in_file=wf.lzin.parcellation_image_T1space,
-        inverse=True,
-        out_file="parcellation_registered.mif.gz",
-        linear=wf.transformconvert_task.lzout.out_file,
-        strides=wf.meanb0_task.lzout.out_file,
+        strides=wf.lzin.fTTvis_image_T1space,
     )
 )
 
@@ -422,19 +441,23 @@ wf.add(
 wf.add(
     Dwi2Response_Dhollander(
         name="EstimateResponseFcn_task",
-        in_file=wf.crop_task_dwi.lzout.out_file,
-        mask=wf.crop_task_mask.lzout.out_file,
+        in_file=wf.transformDWI_task.lzout.out_file,
+        mask=wf.transformDWImask_task.lzout.out_file,
         voxels="voxels.mif.gz",
     )
 )
+
+##################
+## SCRIPT BREAK ##
+##################
 
 # Generate FOD (Consider switching from subject-response to group-average-response)
 wf.add(
     Dwi2Fod(
         name="GenFod_task",
         algorithm="msmt_csd",
-        dwi=wf.crop_task_dwi.lzout.out_file,
-        mask=wf.crop_task_mask.lzout.out_file,
+        dwi=wf.transformDWI_task.lzout.out_file,
+        mask=wf.transformDWImask_task.lzout.out_file,
         response_odf_wm=wf.EstimateResponseFcn_task.lzout.out_sfwm,
         response_odf_gm=wf.EstimateResponseFcn_task.lzout.out_gm,
         response_odf_csf=wf.EstimateResponseFcn_task.lzout.out_csf,
@@ -445,7 +468,7 @@ wf.add(
 wf.add(
     MtNormalise(
         name="NormFod_task",
-        mask=wf.crop_task_mask.lzout.out_file,
+        mask=wf.transformDWImask_task.lzout.out_file,
         fod_wm=wf.GenFod_task.lzout.fod_wm,
         fod_gm=wf.GenFod_task.lzout.fod_gm,
         fod_csf=wf.GenFod_task.lzout.fod_csf,
@@ -464,7 +487,7 @@ wf.add(
         minlength=5.0,
         maxlength=350.0,
         seed_dynamic=wf.NormFod_task.lzout.fod_wm_norm,
-        act=wf.transform5TT_task.lzout.out_file,
+        act=wf.lzin.fTT_image_T1space,
         backtrack=True,
         crop_at_gmwmi=True,
         cutoff=0.06,
@@ -478,7 +501,7 @@ wf.add(
         name="SIF2_task",
         in_tracks=wf.tckgen_task.lzout.tracks,
         in_fod=wf.NormFod_task.lzout.fod_wm_norm,
-        act=wf.transform5TT_task.lzout.out_file,
+        act=wf.lzin.fTT_image_T1space,
         out_mu="mu.txt",
     )
 )
@@ -491,7 +514,7 @@ wf.add(
         name="connectomics_task",
         in_tracks=wf.tckgen_task.lzout.tracks,
         tck_weights_in=wf.SIF2_task.lzout.out_weights,
-        nodes_in=wf.transformParcellation_task.lzout.out_file,
+        nodes_in=wf.lzin.parcellation_image_T1space,
         symmetric=True,
         zero_diagonal=True,
     )
@@ -507,7 +530,7 @@ wf.add(
         in_tracks=wf.tckgen_task.lzout.tracks,
         tck_weights_in=wf.SIF2_task.lzout.out_weights,
         vox=0.2,
-        template=wf.transform5TT_task.lzout.out_file,
+        template=wf.lzin.fTT_image_T1space,
         out_file="TDI.mif.gz",
     )
 )
@@ -518,7 +541,7 @@ wf.add(
         in_tracks=wf.tckgen_task.lzout.tracks,
         tck_weights_in=wf.SIF2_task.lzout.out_weights,
         vox=0.2,
-        template=wf.transform5TT_task.lzout.out_file,
+        template=wf.lzin.fTT_image_T1space,
         dec=True,
         out_file="DECTDI.mif.gz",
     )
@@ -526,12 +549,9 @@ wf.add(
 
 
 # # SET WF OUTPUT
-wf.set_output(("T1_registered", wf.transformT1_task.lzout.out_file))
-wf.set_output(("fTT_registered", wf.transform5TT_task.lzout.out_file))
-wf.set_output(("fTTvis_registered", wf.transform5TTvis_task.lzout.out_file))
-# wf.set_output(("Parcellation_registered", wf.transformParcellation_task.lzout.out_file))
-# wf.set_output(("DWI_processed", wf.crop_task_dwi.lzout.out_file))
-# wf.set_output(("DWImask_processed", wf.crop_task_mask.lzout.out_file))
+
+wf.set_output(("DWI_processed", wf.crop_task_dwi.lzout.out_file))
+wf.set_output(("DWImask_processed", wf.crop_task_mask.lzout.out_file))
 # wf.set_output(("sift_mu", wf.SIF2_task.lzout.out_mu))
 # wf.set_output(("sift_weights", wf.SIF2_task.lzout.out_weights))
 wf.set_output(("wm_fod_norm", wf.NormFod_task.lzout.fod_wm_norm))
@@ -550,7 +570,7 @@ wf.set_output(("DECTDI_file", wf.DECTDImap_task.lzout.out_file))
 # ########################
 
 result = wf(
-    dwi_preproc_mif="/Users/arkievdsouza/Desktop/ConnectomeBids/data/sub-01/dwi/sub-01_DWI.mif.gz",
+    dwi_preproc_mif="/Users/arkievdsouza/Downloads/p06316.mif.gz",
     FS_dir="/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01-T1w_pos_FULLPIPE/Fastsurfer_b5d77a6efac5b7efedbd561a717bdbc6/subjects_dir/FS_outputs/",
     fTTvis_image_T1space="/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01-T1w_pos_FULLPIPE/5TTvis_hsvs.mif.gz",
     fTT_image_T1space="/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01-T1w_pos_FULLPIPE/5TT_hsvs.mif.gz",
