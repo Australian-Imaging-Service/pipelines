@@ -188,7 +188,7 @@ def single_parc(
         ):
             fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage5")
             parc_lut_file = os.path.join(
-                freesurfer_home,
+                mrtrix_lut_dir,
                 "MICA_MNI_parcellations",
                 "lut",
                 f"lut_{parcellation}_mics.csv",
@@ -207,12 +207,12 @@ def single_parc(
                 FS_dir, "label", f"rh.{parcellation}_mics.annot"
             )
             source_annotation_file_lh = os.path.join(
-                freesurfer_home,
+                mrtrix_lut_dir,
                 "MICA_MNI_parcellations",
                 f"lh.{parcellation}_mics.annot",
             )
             source_annotation_file_rh = os.path.join(
-                freesurfer_home,
+                mrtrix_lut_dir,
                 "MICA_MNI_parcellations",
                 f"rh.{parcellation}_mics.annot",
             )
@@ -342,7 +342,7 @@ def single_parc(
             # yeo7 definitions
             fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage5")
             parc_lut_file = os.path.join(
-                freesurfer_home, "Yeo2011", "Yeo2011_7networks_Split_Components_LUT.txt"
+                mrtrix_lut_dir, "Yeo2011", "Yeo2011_7networks_Split_Components_LUT.txt"
             )
             mrtrix_lut_file = os.path.join(mrtrix_lut_dir, "Yeo2011_7N_split.txt")
             output_parcellation_filename = os.path.join(
@@ -381,7 +381,7 @@ def single_parc(
             # yeo17 definitions
             fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage5")
             parc_lut_file = os.path.join(
-                freesurfer_home,
+                mrtrix_lut_dir,
                 "Yeo2011",
                 "Yeo2011_17networks_Split_Components_LUT.txt",
             )

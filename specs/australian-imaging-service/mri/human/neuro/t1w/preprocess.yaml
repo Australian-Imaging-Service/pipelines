@@ -112,7 +112,7 @@ commands:
         help: parcellation type # description of field presented in UI
         default: desikan # Default value, filled in on the UI
     configuration: # Additional args passed to arcana.common:shell_cmd
-      mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
+      mrtrix_lut_dir: /home/ubuntu/git/pipelines/resources/neuro-parcellations # /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
       freesurfer_home:
         !join &freesurfer_home ["/opt/freesurfer-", *freesurfer_version]
       fs_license: *freesurfer_license
