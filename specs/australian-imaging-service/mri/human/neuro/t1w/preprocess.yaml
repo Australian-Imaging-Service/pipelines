@@ -33,7 +33,12 @@ authors:
     email: thomas.close@sydney.edu.au
 licenses:
   freesurfer:
-    destination: &freesurfer_license !join [ "/opt/freesurfer-", *freesurfer_version, "/license.txt" ]
+    destination:
+      !join &freesurfer_license [
+        "/opt/freesurfer-",
+        *freesurfer_version,
+        "/license.txt",
+      ]
     info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
     description: >
       FastSurfer, which is used to perform segmentation and surface recon, requires a
@@ -49,7 +54,7 @@ resources:
 commands:
   single_parc:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:single_parc
-    row_frequency: session # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
+    row_frequency: common:Clinical[session] # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
     inputs: # List the inputs that are presented to end-user in UI
       t1w:
         datatype: medimage/nifti-gz # MIME-type or "MIME-like" format
@@ -92,7 +97,8 @@ commands:
         default: desikan # Default value, filled in on the UI
     configuration: # Additional args passed to arcana.common:shell_cmd
       mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
-      freesurfer_home: &freesurfer_home !join [ "/opt/freesurfer-", *freesurfer_version ]
+      freesurfer_home:
+        !join &freesurfer_home ["/opt/freesurfer-", *freesurfer_version]
       fs_license: *freesurfer_license
       cache_dir: /work/pydra-cache
       fastsurfer_executable:
@@ -101,7 +107,7 @@ commands:
         - --allow_root
   all_parcs:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:all_parcs
-    row_frequency: session # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
+    row_frequency: common:Clinical[session] # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
     inputs: # List the inputs that are presented to end-user in UI
       t1w:
         datatype: medimage/nifti-gz # MIME-type or "MIME-like" format
