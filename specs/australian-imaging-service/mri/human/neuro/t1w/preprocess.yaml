@@ -24,7 +24,7 @@ packages:
     mrtrix3: 3.0.2
     freesurfer:
       version: &freesurfer_version 7.4.1
-      optional_args:
+      args:
         exclude_paths:
           - average/mult-comp-cor
           - lib/cuda
