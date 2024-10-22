@@ -28,4 +28,6 @@ def test_t1w_preprocess_yaml(tmp_path: Path):
         / "preprocess.yaml"
     )
 
-    app.make(build_dir=tmp_path, generate_only=True)
+    app.make(
+        build_dir=tmp_path, generate_only=True, resources_dir=PKG_DIR / "resources"
+    )

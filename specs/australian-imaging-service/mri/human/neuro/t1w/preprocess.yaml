@@ -22,7 +22,23 @@ packages:
     australianimagingservice:
   neurodocker:
     mrtrix3: 3.0.2
-    freesurfer: &freesurfer_version 7.4.1
+    freesurfer:
+      version: &freesurfer_version 7.4.1
+      optional_args:
+        exclude_paths:
+          - average/mult-comp-cor
+          - lib/cuda
+          - lib/qt
+          - subjects/V1_average
+          - subjects/bert
+          - subjects/cvs_avg35
+          - subjects/cvs_avg35_inMNI152
+          - subjects/fsaverage3
+          - subjects/fsaverage4
+          # - subjects/fsaverage5
+          - subjects/fsaverage6
+          - subjects/fsaverage_sym
+          - trctrain
     fsl: 6.0.5.1
 authors:
   # Authors of the pipeline. The first email will be considered to be the maintainer of
