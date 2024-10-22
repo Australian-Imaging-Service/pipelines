@@ -26,8 +26,8 @@ packages:
     mrtrix3: "3.0.2"
 commands:
   mriqc:
-    task: arcana.bids:bids_app
-    row_frequency: session
+    task: frametree.bids:bids_app
+    row_frequency: common:Clinical[session]
     inputs:
       T1w:
         datatype: medimage/nifti-gz-x

@@ -67,8 +67,8 @@ docs:
       url: https://github.com/nipreps/fmriprep/issues
 commands:
   fmriprep:
-    task: arcana.bids:bids_app
-    row_frequency: session
+    task: frametree.bids:bids_app
+    row_frequency: common:Clinical[session]
     inputs:
       T1w:
         datatype: medimage/nifti-gz-x

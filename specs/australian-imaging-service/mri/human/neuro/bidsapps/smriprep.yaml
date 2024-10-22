@@ -31,7 +31,7 @@ docs:
     SMRIPrep: a structural MRI data preprocessing pipeline including Freesurfer
 commands:
   smriprep:
-    task: arcana.bids:bids_app
+    task: frametree.bids:bids_app
     inputs:
       T1w:
         datatype: medimage/nifti-gz-x
@@ -64,7 +64,7 @@ commands:
         help: >-
           JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to
           handle special cases where the dcm2niix fails to produce valid a BIDS
-    row_frequency: session
+    row_frequency: common:Clinical[session]
     configuration:
       name: smriprep
       executable: /opt/conda/bin/smriprep
