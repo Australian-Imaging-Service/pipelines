@@ -1,8 +1,8 @@
 import json
-from arcana.core.cli.deploy import make
-from arcana.core.utils.misc import show_cli_trace
-from arcana.xnat.deploy import XnatApp
-from arcana.xnat.utils.testing import install_and_launch_xnat_cs_command
+from pipeline2app.core.cli import make
+from pipeline2app.xnat import XnatApp
+from frametree.core.utils import show_cli_trace
+from pipeline2app.xnat.deploy import install_and_launch_xnat_cs_command
 
 
 SKIP_BUILD = False
