@@ -1,7 +1,6 @@
 title: "Functional MRI data preprocessing pipeline"
 schema_version: 1.0
-version:
-  package: &package_version "23.1.4"
+version: &package_version "23.1.4"
 base_image:
   name: nipreps/fmriprep
   tag: *package_version
