@@ -50,7 +50,7 @@ authors:
 licenses:
   freesurfer:
     destination:
-      !join &freesurfer_license [
+      &freesurfer_license !join [
         "/opt/freesurfer-",
         *freesurfer_version,
         "/license.txt",
@@ -65,8 +65,6 @@ docs:
     Generate a 5TT image (HSVS) and parcellation image (Desikan, Destrieux, HCPMMP1,
     Yeo7 and Yeo17) from a single input anatomical image. Input image should satisfy
     the input requirements for FastSurfer
-resources:
-  neuro-parcellations: /parcellations
 commands:
   single_parc:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:single_parc
@@ -112,9 +110,8 @@ commands:
         help: parcellation type # description of field presented in UI
         default: desikan # Default value, filled in on the UI
     configuration: # Additional args passed to arcana.common:shell_cmd
-      mrtrix_lut_dir: /home/ubuntu/git/pipelines/resources/neuro-parcellations # /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
-      freesurfer_home:
-        !join &freesurfer_home ["/opt/freesurfer-", *freesurfer_version]
+      mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
+      freesurfer_home: &freesurfer_home !join ["/opt/freesurfer-", *freesurfer_version]
       fs_license: *freesurfer_license
       cache_dir: /work/pydra-cache
       fastsurfer_executable:
@@ -160,7 +157,7 @@ commands:
         datatype: medimage-mrtrix3/image-format-gz # MIME-type or "MIME-like" format
         help: 5tt image HSVS # description of field presented in UI
     configuration: # Additional args passed to arcana.common:shell_cmd
-      mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
+      mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert ## should this be 
       freesurfer_home: *freesurfer_home
       fs_license: *freesurfer_license
       cache_dir: /work/pydra-cache
@@ -168,3 +165,8 @@ commands:
         - /fastsurfer/Docker/entrypoint.sh
         - /fastsurfer/run_fastsurfer.sh
         - --allow_root
+resources:
+  neuro-parcellations: /parcellations
+  yeo2011-parcellations: !join [*freesurfer_home, "Yeo2011"]
+  mica-mni-parcellations: !join [*freesurfer_home, "MICA_MNI_parcellations"]
+  mica-mni-surfaces: !join [*freesurfer_home, "MICA_MNI_surfaces"]
