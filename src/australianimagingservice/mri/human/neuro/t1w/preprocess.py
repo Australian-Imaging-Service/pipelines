@@ -351,10 +351,14 @@ def single_parc(
             lh_annotation = os.path.join(FS_dir, "label", "lh.Yeo7.annot")
             rh_annotation = os.path.join(FS_dir, "label", "rh.Yeo7.annot")
             source_annotation_file_lh = os.path.join(
-                fsavg_dir, "label", "lh.Yeo2011_7Networks_N1000.split_components.annot"
+                freesurfer_home,
+                "Yeo2011",
+                "lh.Yeo2011_7Networks_N1000.split_components.annot",
             )
             source_annotation_file_rh = os.path.join(
-                fsavg_dir, "label", "rh.Yeo2011_7Networks_N1000.split_components.annot"
+                freesurfer_home,
+                "Yeo2011",
+                "rh.Yeo2011_7Networks_N1000.split_components.annot",
             )
             annot_short = ""
             l2v_temp = ""
@@ -392,10 +396,14 @@ def single_parc(
             lh_annotation = os.path.join(FS_dir, "label", "lh.Yeo17.annot")
             rh_annotation = os.path.join(FS_dir, "label", "rh.Yeo17.annot")
             source_annotation_file_lh = os.path.join(
-                fsavg_dir, "label", "lh.Yeo2011_17Networks_N1000.split_components.annot"
+                freesurfer_home,
+                "Yeo2011",
+                "lh.Yeo2011_17Networks_N1000.split_components.annot",
             )
             source_annotation_file_rh = os.path.join(
-                fsavg_dir, "label", "rh.Yeo2011_17Networks_N1000.split_components.annot"
+                freesurfer_home,
+                "Yeo2011",
+                "rh.Yeo2011_17Networks_N1000.split_components.annot",
             )
             annot_short = ""
             l2v_temp = ""
