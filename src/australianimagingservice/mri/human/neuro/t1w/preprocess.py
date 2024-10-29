@@ -312,10 +312,10 @@ def single_parc(
             lh_annotation = os.path.join(FS_dir, "label", "lh.HCPMMP1.annot")
             rh_annotation = os.path.join(FS_dir, "label", "rh.HCPMMP1.annot")
             source_annotation_file_lh = os.path.join(
-                fsavg_dir, "label", "lh.HCPMMP1.annot"
+                freesurfer_home, "HCPMMP1", "lh.HCPMMP1.annot"
             )
             source_annotation_file_rh = os.path.join(
-                fsavg_dir, "label", "rh.HCPMMP1.annot"
+                freesurfer_home, "HCPMMP1", "rh.HCPMMP1.annot"
             )
             annot_short = ""
             l2v_temp = ""

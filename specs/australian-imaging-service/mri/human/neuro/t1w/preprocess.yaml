@@ -164,6 +164,7 @@ commands:
         - --allow_root
 resources:
   neuro-parcellations: /parcellations
-  yeo2011-parcellations: !join [*freesurfer_home, "Yeo2011"]
-  mica-mni-parcellations: !join [*freesurfer_home, "MICA_MNI_parcellations"]
-  mica-mni-surfaces: !join [*freesurfer_home, "MICA_MNI_surfaces"]
+  yeo2011-parcellations: !join [*freesurfer_home, "/Yeo2011"]
+  mica-mni-parcellations: !join [*freesurfer_home, "/MICA_MNI_parcellations"]
+  mica-mni-surfaces: !join [*freesurfer_home, "/MICA_MNI_surfaces"]
+  hcpmmp1-parcellations: !join [*freesurfer_home, "/HCPMMP1"]
