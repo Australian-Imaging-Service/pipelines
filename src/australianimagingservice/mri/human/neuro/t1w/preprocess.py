@@ -61,7 +61,6 @@ def single_parc(
             fsaparc=True,
             parallel=True,
             threads=24,
-            batch=8,  # temporary change to see if memory is causing crash
         )
     )
     if fastsurfer_executable:
