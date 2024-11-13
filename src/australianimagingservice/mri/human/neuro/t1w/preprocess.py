@@ -1028,7 +1028,7 @@ def single_parc(
 # # ########################
 parcellation_list = [
     "aparca2009s",
-    # "aparc",
+    "aparc",
     "desikan",
     "destrieux",
     "economo",
