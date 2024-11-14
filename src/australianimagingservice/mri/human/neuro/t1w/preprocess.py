@@ -1076,7 +1076,7 @@ def all_parcs(
     )
 
     def collate_parcs(out_dir: Path, **parcs: Mif) -> DirectoryOf[Mif]:  # type: ignore[type-arg]
-        for name, parc in parcs.values():
+        for name, parc in parcs.items():
             parc.copy(out_dir, new_stem=name)
         return DirectoryOf[Mif](out_dir)  # type: ignore[no-any-return,type-arg,misc]
 
