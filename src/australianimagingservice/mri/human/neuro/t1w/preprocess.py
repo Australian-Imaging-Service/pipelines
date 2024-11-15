@@ -1075,10 +1075,14 @@ def all_parcs(
         cache_dir=cache_dir,
     )
 
-    def collate_parcs(out_dir: Path, **parcs: Mif) -> DirectoryOf[Mif]:  # type: ignore[type-arg]
-        for name, parc in parcs.items():
-            parc.copy(out_dir, new_stem=name)
-        return DirectoryOf[Mif](out_dir)  # type: ignore[no-any-return,type-arg,misc]
+
+def collate_parcs(out_dir: Path = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  # type: ignore[type-arg]
+    if out_dir is None:
+        out_dir = Path("./out_dir").absolute()
+        out_dir.mkdir(exist_ok=True)
+    for name, parc in parcs.items():
+        parc.copy(out_dir, new_stem=name)
+    return DirectoryOf[Mif](out_dir)  # type: ignore[no-any-return,type-arg,misc]
 
     wf.add(
         FunctionTask(
