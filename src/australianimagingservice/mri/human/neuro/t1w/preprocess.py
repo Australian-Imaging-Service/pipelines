@@ -20,7 +20,6 @@ from pathlib import Path
 import os
 
 os.environ["SUBJECTS_DIR"] = ""
-os.environ["out_dir"] = ""
 
 
 def single_parc(
@@ -1035,6 +1034,7 @@ def single_parc(
                 bases=(BaseSpec,),
                 fields=[("out_dir", DirectoryOf[Mif])],  # type: ignore[misc]
             ),
+            out_dir="out_dir",
         )
     )
 
@@ -1127,7 +1127,7 @@ def all_parcs(
 def collate_parcs(out_dir: Path = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  # type: ignore[type-arg]
     if out_dir is None:
         out_dir = Path("./out_dir").absolute()
-        out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(exist_ok=True)
     for name, parc in parcs.items():
         parc.copy(out_dir, new_stem=name)
     return DirectoryOf[Mif](out_dir)  # type: ignore[no-any-return,type-arg,misc]
