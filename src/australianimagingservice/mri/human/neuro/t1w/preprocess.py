@@ -20,6 +20,7 @@ from pathlib import Path
 import os
 
 os.environ["SUBJECTS_DIR"] = ""
+os.environ["out_dir"] = ""
 
 
 def single_parc(
@@ -1139,5 +1140,3 @@ if __name__ == "__main__":
 
     wf = all_parcs(*args)  # type: ignore[arg-type]
     wf(t1w=sys.argv[1])
-
-wf.collate_parcs.inputs.out_dir = ""
