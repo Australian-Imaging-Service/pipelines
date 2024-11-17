@@ -1020,6 +1020,53 @@ def single_parc(
         ]
     )
 
+    wf.add(
+        FunctionTask(
+            collate_parcs,
+            name="collate_parcs",
+            input_spec=SpecInfo(
+                name="CollateParcsInputs",
+                bases=(BaseSpec,),
+                fields=[(p, Mif) for p in parcellation_list],
+            ),
+            output_spec=SpecInfo(
+                name="CollateParcsOutputs",
+                bases=(BaseSpec,),
+                fields=[("out_dir", DirectoryOf[Mif])],  # type: ignore[misc]
+            ),
+        )
+    )
+
+    for parcellation in parcellation_list:
+
+        wf.add(
+            single_parc(
+                t1w=wf.lzin.t1w,
+                parcellation=parcellation,
+                freesurfer_home=freesurfer_home,
+                mrtrix_lut_dir=mrtrix_lut_dir,
+                cache_dir=cache_dir,
+                fs_license=fs_license,
+                fastsurfer_executable=fastsurfer_executable,
+                fastsurfer_python=fastsurfer_python,
+                name=parcellation,
+            )
+        )
+
+        setattr(
+            wf.collate_parcs.inputs,
+            parcellation,
+            getattr(wf, parcellation).lzout.parc_image,
+        )
+
+    wf.set_output(("parcellations", wf.collate_parcs.lzout.out_dir))
+    wf.set_output(("vis_image_fsl", wf.desikan.lzout.vis_image_fsl))
+    wf.set_output(("ftt_image_fsl", wf.desikan.lzout.ftt_image_fsl))
+    wf.set_output(("vis_image_freesurfer", wf.desikan.lzout.vis_image_freesurfer))
+    wf.set_output(("ftt_image_freesurfer", wf.desikan.lzout.ftt_image_freesurfer))
+    wf.set_output(("vis_image_hsvs", wf.desikan.lzout.vis_image_hsvs))
+    wf.set_output(("ftt_image_hsvs", wf.desikan.lzout.ftt_image_hsvs))
+
     return wf
 
 
@@ -1084,55 +1131,6 @@ def collate_parcs(out_dir: Path = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  
         parc.copy(out_dir, new_stem=name)
     return DirectoryOf[Mif](out_dir)  # type: ignore[no-any-return,type-arg,misc]
 
-    wf.add(
-        FunctionTask(
-            collate_parcs,
-            name="collate_parcs",
-            input_spec=SpecInfo(
-                name="CollateParcsInputs",
-                bases=(BaseSpec,),
-                fields=[(p, Mif) for p in parcellation_list],
-            ),
-            output_spec=SpecInfo(
-                name="CollateParcsOutputs",
-                bases=(BaseSpec,),
-                fields=[("out_dir", DirectoryOf[Mif])],  # type: ignore[misc]
-            ),
-        )
-    )
-
-    for parcellation in parcellation_list:
-
-        wf.add(
-            single_parc(
-                t1w=wf.lzin.t1w,
-                parcellation=parcellation,
-                freesurfer_home=freesurfer_home,
-                mrtrix_lut_dir=mrtrix_lut_dir,
-                cache_dir=cache_dir,
-                fs_license=fs_license,
-                fastsurfer_executable=fastsurfer_executable,
-                fastsurfer_python=fastsurfer_python,
-                name=parcellation,
-            )
-        )
-
-        setattr(
-            wf.collate_parcs.inputs,
-            parcellation,
-            getattr(wf, parcellation).lzout.parc_image,
-        )
-
-    wf.set_output(("parcellations", wf.collate_parcs.lzout.out_dir))
-    wf.set_output(("vis_image_fsl", wf.desikan.lzout.vis_image_fsl))
-    wf.set_output(("ftt_image_fsl", wf.desikan.lzout.ftt_image_fsl))
-    wf.set_output(("vis_image_freesurfer", wf.desikan.lzout.vis_image_freesurfer))
-    wf.set_output(("ftt_image_freesurfer", wf.desikan.lzout.ftt_image_freesurfer))
-    wf.set_output(("vis_image_hsvs", wf.desikan.lzout.vis_image_hsvs))
-    wf.set_output(("ftt_image_hsvs", wf.desikan.lzout.ftt_image_hsvs))
-
-    return wf
-
 
 if __name__ == "__main__":
     import sys
@@ -1141,3 +1139,5 @@ if __name__ == "__main__":
 
     wf = all_parcs(*args)  # type: ignore[arg-type]
     wf(t1w=sys.argv[1])
+
+wf.collate_parcs.inputs.out_dir = ""
