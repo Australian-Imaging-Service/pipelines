@@ -1123,6 +1123,8 @@ def all_parcs(
         cache_dir=cache_dir,
     )
 
+    return wf
+
 
 def collate_parcs(out_dir: Path = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  # type: ignore[type-arg]
     if out_dir is None:
