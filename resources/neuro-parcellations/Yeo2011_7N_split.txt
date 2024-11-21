@@ -10,6 +10,8 @@
 6       L.SVA.PO   7Networks_LH_SalVentAttn_ParOper    196 58  250 0
 7       L.SVA.TO   7Networks_LH_SalVentAttn_TempOcc    196 58  251 0
 8       L.SVA.FO   7Networks_LH_SalVentAttn_FrOper     196 59  250 0
+8    	L.SVA.FO   7Networks_LH_SalVentAttn_FrOperIns  196 59  250 0
+
 9       L.SVA.PFCl 7Networks_LH_SalVentAttn_PFCl       196 59  251 0
 10      L.SVA.Med  7Networks_LH_SalVentAttn_Med        197 58  250 0
 11      L.L.OFC    7Networks_LH_Limbic_OFC             220 248 164 0
@@ -27,6 +29,8 @@
 23      L.D.Temp   7Networks_LH_Default_Temp           205 62  79  0
 24      L.D.PFC    7Networks_LH_Default_PFC            205 63  78  0
 25      L.D.PCC    7Networks_LH_Default_PCC            205 63  79  0
+25    	L.D.PCC	   7Networks_LH_Default_pCunPCC        205 63  79  0
+
 26      L.D.PHC    7Networks_LH_Default_PHC            206 62  78  0
 
 27      L.Cer      Left-Cerebellum-Cortex              230 148 34  255
@@ -57,6 +61,8 @@
 48      R.SVA.TOP  7Networks_RH_SalVentAttn_TempOccPar 197 58  251 0
 49      R.SVA.PrC  7Networks_RH_SalVentAttn_PrC        197 59  250 0
 50      R.SVA.FO   7Networks_RH_SalVentAttn_FrOper     197 59  251 0
+50		R.SVA.FO   7Networks_RH_SalVentAttn_FrOperIns  197 59  251 0
+
 51      R.SVA.PFCv 7Networks_RH_SalVentAttn_PFCv       196 58  249 0
 52      R.SVA.PFCl 7Networks_RH_SalVentAttn_PFCl       196 57  250 0
 53      R.SVA.Med  7Networks_RH_SalVentAttn_Med        196 57  249 0
@@ -72,6 +78,9 @@
 63      R.D.Par    7Networks_RH_Default_Par            205 62  77  0
 64      R.D.Temp   7Networks_RH_Default_Temp           205 61  78  0
 65      R.D.PFCv   7Networks_RH_Default_PFCv           205 61  77  0
-66      R.D.PFCm   7Networks_RH_Default_PFCm           204 62  78  0
+66      R.D.PFCm   7Networks_RH_Default_PFCm           204 62  78  0 
+66      R.D.PFCm   7Networks_RH_Default_PFCdPFCm       204 62  78  0
+
 67      R.D.PCC    7Networks_RH_Default_PCC            204 62  77  0
+67		R.D.PCC    7Networks_RH_Default_pCunPCC        204 62  77  0
 

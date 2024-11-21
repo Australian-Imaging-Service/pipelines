@@ -5,6 +5,8 @@
 1       L.VS.Str       17Networks_LH_VisCent_Striate       120 18  134 0
 2       L.VC.ExStr     17Networks_LH_VisCent_ExStr         120 18  135 0
 3       L.VP.Str       17Networks_LH_VisPeri_Striate       255 0   0   0
+3       L.VP.Str       17Networks_LH_VisPeri_StriCal       255 0   0   0
+
 4       L.VP.ExStrInf  17Networks_LH_VisPeri_ExStrInf      255 0   1   0
 5       L.VP.ExStrSup  17Networks_LH_VisPeri_ExStrSup      255 1   0   0
 6       L.SMA          17Networks_LH_SomMotA               70  130 180 0
@@ -21,6 +23,8 @@
 17      L.DAB.PrCv     17Networks_LH_DorsAttnB_PrCv        0   119 15  0
 18      L.SVAA.ParOper 17Networks_LH_SalVentAttnA_ParOper  196 58  250 0
 19      L.SVAA.PrCv    17Networks_LH_SalVentAttnA_PrCv     196 58  251 0
+19      L.SVAA.PrCv    17Networks_LH_SalVentAttnA_FrOper   196 58  251 0
+
 20      L.SVAA.Ins     17Networks_LH_SalVentAttnA_Ins      196 59  250 0
 21      L.SVAA.ParMed  17Networks_LH_SalVentAttnA_ParMed   196 59  251 0
 22      L.SVAA.FrMed   17Networks_LH_SalVentAttnA_FrMed    197 58  250 0
@@ -28,16 +32,24 @@
 24      L.SVAB.PFCd    17Networks_LH_SalVentAttnB_PFCd     255 152 214 0
 25      L.SVAB.PFCl    17Networks_LH_SalVentAttnB_PFCl     255 153 213 0
 26      L.SVAB.PFCv    17Networks_LH_SalVentAttnB_PFCv     255 153 214 0
+26      L.SVAB.PFCv    17Networks_LH_SalVentAttnB_Ins      255 153 214 0
+
 27      L.SVAB.OFC     17Networks_LH_SalVentAttnB_OFC      255 152 212 0
 28      L.SVAB.PFCmp   17Networks_LH_SalVentAttnB_PFCmp    255 151 213 0
 29      L.L.TempPole   17Networks_LH_Limbic_TempPole       220 248 164 0
+29      L.L.TempPole   17Networks_LH_LimbicA_TempPole      220 248 164 0
+
 30      L.L.OFC        17Networks_LH_Limbic_OFC            122 135 50  0
+30    	L.L.OFC 	   17Networks_LH_LimbicB_OFC           122 135 50  0
+
 31      L.CA.Temp      17Networks_LH_ContA_Temp            230 148 34  0
 32      L.CA.IPS       17Networks_LH_ContA_IPS             230 148 35  0
 33      L.CA.PFCd      17Networks_LH_ContA_PFCd            230 149 34  0
 34      L.CA.PFCl      17Networks_LH_ContA_PFCl            230 149 35  0
 35      L.CA.PFClv     17Networks_LH_ContA_PFClv           231 148 34  0
 36      L.CA.Cinga     17Networks_LH_ContA_Cinga           231 148 35  0
+36 		L.CA.Cinga     17Networks_LH_ContA_Cingm           231 148 35  0
+
 37      L.CB.Temp      17Networks_LH_ContB_Temp            135 50  74  0
 38      L.CB.IPL       17Networks_LH_ContB_IPL             135 50  75  0
 39      L.CB.PFCd      17Networks_LH_ContB_PFCd            135 51  74  0
@@ -49,6 +61,8 @@
 45      L.DA.IPL       17Networks_LH_DefaultA_IPL          255 255 0   0
 46      L.DA.PFCd      17Networks_LH_DefaultA_PFCd         255 255 1   0
 47      L.DA.PCC       17Networks_LH_DefaultA_PCC          255 254 0   0
+47    	L.DA.PCC 	   17Networks_LH_DefaultA_pCunPCC      255 254 0   0
+
 48      L.DA.PFCm      17Networks_LH_DefaultA_PFCm         254 255 0   0
 49      L.DB.Temp      17Networks_LH_DefaultB_Temp         205 62  78  0
 50      L.DB.IPL       17Networks_LH_DefaultB_IPL          205 62  79  0
@@ -83,6 +97,9 @@
 74      R.VC.Str       17Networks_RH_VisCent_Striate       120 19  134 0
 75      R.VC.ExStr     17Networks_RH_VisCent_ExStr         120 19  135 0
 76      R.VP.Str       17Networks_RH_VisPeri_Striate       255 1   1   0
+76      R.VP.Str       17Networks_RH_VisPeri_StriCal       255 1   1   0
+
+
 77      R.VP.ExStrinf  17Networks_RH_VisPeri_ExStrInf      254 0   0   0
 78      R.VP.ExStrSup  17Networks_RH_VisPeri_ExStrSup      254 0   1   0
 79      R.SMA          17Networks_RH_SomMotA               70  131 181 0
@@ -100,6 +117,8 @@
 91      R.SVAA.ParOper 17Networks_RH_SalVentAttnA_ParOper  196 58  249 0
 92      R.SVAA.PrC     17Networks_RH_SalVentAttnA_PrC      196 57  250 0
 93      R.SVAA.PrCv    17Networks_RH_SalVentAttnA_PrCv     196 57  249 0
+93    	R.SVAA.PrCv    17Networks_RH_SalVentAttnA_FrOper   196 57  249 0
+
 94      R.SVAA.Ins     17Networks_RH_SalVentAttnA_Ins      195 58  250 0
 95      R.SVAA.ParMed  17Networks_RH_SalVentAttnA_ParMed   195 58  249 0
 96      R.SVAA.FrMed   17Networks_RH_SalVentAttnA_FrMed    195 57  250 0
@@ -108,15 +127,25 @@
 99      R.SVAB.PFCl    17Networks_RH_SalVentAttnB_PFCl     254 151 213 0
 100     R.SVAB.PFClv   17Networks_RH_SalVentAttnB_PFClv    254 151 212 0
 101     R.SVAB.PFCv    17Networks_RH_SalVentAttnB_PFCv     254 152 214 0
+101    	R.SVAB.PFCv    17Networks_RH_SalVentAttnB_Ins      254 152 214 0
+
 102     R.SVAB.PFCmp   17Networks_RH_SalVentAttnB_PFCmp    254 153 213 0
 103     R.SVAB.Cinga   17Networks_RH_SalVentAttnB_Cinga    255 151 212 0
 104     R.L.TempPole   17Networks_RH_Limbic_TempPole       220 248 165 0
+104     R.L.TempPole   17Networks_RH_LimbicA_TempPole      220 248 165 0
+
+
 105     R.L.OFC        17Networks_RH_Limbic_OFC            122 135 51  0
+105    	R.L.OFC 	   17Networks_RH_LimbicB_OFC           122 135 51  0
+
+
 106     R.CA.Temp      17Networks_RH_ContA_Temp            230 148 33  0
 107     R.CA.IPS       17Networks_RH_ContA_IPS             230 147 34  0
 108     R.CA.PFCd      17Networks_RH_ContA_PFCd            230 147 33  0
 109     R.CA.PFCl      17Networks_RH_ContA_PFCl            229 148 34  0
 110     R.CA.Cinga     17Networks_RH_ContA_Cinga           229 148 33  0
+110    	R.CA.Cinga	   17Networks_RH_ContA_Cingm           229 148 33  0
+
 111     R.CB.Temp      17Networks_RH_ContB_Temp            136 51  75  0
 112     R.CB.IPL       17Networks_RH_ContB_IPL             135 50  73  0
 113     R.CB.PFCld     17Networks_RH_ContB_PFCld           135 49  74  0
@@ -128,6 +157,8 @@
 119     R.DA.IPL       17Networks_RH_DefaultA_IPL          255 254 1   0
 120     R.DA.PFCd      17Networks_RH_DefaultA_PFCd         255 255 2   0
 121     R.DA.PCC       17Networks_RH_DefaultA_PCC          255 253 0   0
+121     R.DA.PCC 	   17Networks_RH_DefaultA_pCunPCC      255 253 0   0
+
 122     R.DA.PFCm      17Networks_RH_DefaultA_PFCm         253 255 0   0
 123     R.DB.Temp      17Networks_RH_DefaultB_Temp         206 62  79  0
 124     R.DB.AntTemp   17Networks_RH_DefaultB_AntTemp      206 63  78  0
