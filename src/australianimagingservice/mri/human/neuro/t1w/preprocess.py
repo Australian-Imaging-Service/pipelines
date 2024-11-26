@@ -360,7 +360,7 @@ def single_parc(
                 "Yeo2011",
                 "rh.Yeo2011_7Networks_N1000.split_components.annot",
             )
-            annot_short = ""
+            annot_short = "Yeo7"
             l2v_temp = ""
             l2v_regheader = ""
 
@@ -405,7 +405,7 @@ def single_parc(
                 "Yeo2011",
                 "rh.Yeo2011_17Networks_N1000.split_components.annot",
             )
-            annot_short = ""
+            annot_short = "Yeo17"
             l2v_temp = ""
             l2v_regheader = ""
 
