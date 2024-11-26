@@ -317,7 +317,7 @@ def single_parc(
             source_annotation_file_rh = os.path.join(
                 freesurfer_home, "HCPMMP1", "rh.HCPMMP1.annot"
             )
-            annot_short = ""
+            annot_short = "HCPMMP1"
             l2v_temp = ""
             l2v_regheader = ""
 
