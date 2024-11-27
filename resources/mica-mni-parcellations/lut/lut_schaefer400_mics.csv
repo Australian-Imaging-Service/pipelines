@@ -1,5 +1,5 @@
 #roi	label	R	G	B	A				
-1000	medial_wall	0	0	0	0				
+1000	medial_wall_LH	0	0	0	0				
 1001	7Networks_LH_Vis_1	120	17	128	0				
 1002	7Networks_LH_Vis_2	120	17	129	0				
 1003	7Networks_LH_Vis_3	120	17	130	0				
@@ -200,7 +200,7 @@
 1198	7Networks_LH_Default_pCunPCC_9	205	66	80	0				
 1199	7Networks_LH_Default_pCunPCC_10	205	66	81	0				
 1200	7Networks_LH_Default_pCunPCC_11	205	66	82	0				
-2000	medial_wall	0	0	0	0				
+2000	medial_wall_RH	0	0	0	0				
 2001	7Networks_RH_Vis_1	124	17	130	0				
 2002	7Networks_RH_Vis_2	124	17	131	0				
 2003	7Networks_RH_Vis_3	124	17	132	0				
