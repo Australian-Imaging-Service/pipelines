@@ -956,6 +956,7 @@ def single_parc(
                 cache_dir=cache_dir,
                 subject=wf.FastSurfer_task.lzout.subjects_dir_output,  # wf.lzin.FS_dir,
                 old_ribbon=True,
+                annotname=wf.join_task.lzout.annot_short,
             )
         )
         volfile = wf.mri_a2a_task_originals.lzout.volfile
