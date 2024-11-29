@@ -949,7 +949,7 @@ def single_parc(
 
         wf.add(
             ShellCommandTask(
-                name="mri_s2s_task_originals_rh",
+                name="mri_a2a_task_originals",
                 executable="mri_aparc2aseg",
                 input_spec=mri_a2a_input_spec,
                 output_spec=mri_a2a_output_spec,
