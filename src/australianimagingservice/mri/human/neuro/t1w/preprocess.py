@@ -932,7 +932,7 @@ def single_parc(
                     output_spec=mri_s2s_output_spec,
                     cache_dir=cache_dir,
                     source_subject_id=wf.join_task.lzout.fsavg_dir,
-                    target_subject_id=wf.FastSurfer_task.lzout.subjects_dir_output,  # wf.lzin.FS_dir,
+                    target_subject_id=wf.mri_s2s_task_originals_lh.lzout.target_subject_id,  # create dependency on lh being executed first
                     source_annotation_file=getattr(
                         wf.join_task.lzout, f"source_annotation_file_{hemi}"
                     ),
@@ -949,12 +949,12 @@ def single_parc(
 
         wf.add(
             ShellCommandTask(
-                name="mri_a2a_task_originals",
+                name="mri_s2s_task_originals_rh",
                 executable="mri_aparc2aseg",
                 input_spec=mri_a2a_input_spec,
                 output_spec=mri_a2a_output_spec,
                 cache_dir=cache_dir,
-                subject=wf.FastSurfer_task.lzout.subjects_dir_output,  # wf.lzin.FS_dir,
+                subject=wf.mri_s2s_task_rh.lzout.target_subject_id,  # wf.lzin.FS_dir,
                 old_ribbon=True,
                 annotname=wf.join_task.lzout.annot_short,
             )
