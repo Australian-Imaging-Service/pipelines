@@ -954,7 +954,7 @@ def single_parc(
                 input_spec=mri_a2a_input_spec,
                 output_spec=mri_a2a_output_spec,
                 cache_dir=cache_dir,
-                subject=wf.mri_s2s_task_rh.lzout.target_subject_id,  # wf.lzin.FS_dir,
+                subject=wf.mri_s2s_task_originals_rh.lzout.target_subject_id,  # wf.lzin.FS_dir,
                 old_ribbon=True,
                 annotname=wf.join_task.lzout.annot_short,
             )
