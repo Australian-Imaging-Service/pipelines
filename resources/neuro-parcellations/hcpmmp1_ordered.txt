@@ -395,3 +395,22 @@
 377  R_Accumbens   255 165   0 255
 378  R_VentralDC   165  42  42 255
 379  Brain-Stem    119 159 176 255
+
+361  Left-Cerebellum  230 148  34 255
+362  Left-Thalamus      0 118  14 255
+363  Left-Caudate     122 186 220 255
+364  Left-Putamen     236  13 176 255
+365  Left-Pallidum     12  48 255 255
+366  Left-Hippocampus 220 216  20 255
+367  Left-Amygdala    103 255 255 255
+368  Left-Accumbens   255 165   0 255
+369  Left-VentralDC   165  42  42 255
+370  Right-Cerebellum  230 148  34 255
+371  Right-Thalamus      0 118  14 255
+372  Right-Caudate     122 186 220 255
+373  Right-Putamen     236  13 176 255
+374  Right-Pallidum     13  48 255 255
+375  Right-Hippocampus 220 216  20 255
+376  Right-Amygdala    103 255 255 255
+377  Right-Accumbens   255 165   0 255
+378  Right-VentralDC   165  42  42 255
