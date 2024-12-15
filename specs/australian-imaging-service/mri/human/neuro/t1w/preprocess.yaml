@@ -155,7 +155,7 @@ commands:
         help: 5tt image HSVS # description of field presented in UI
     configuration: # Additional args passed to arcana.common:shell_cmd
       mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert ## should this be 
-      freesurfer_home: *freesurfer_home
+      freesurfer_home: &freesurfer_home !join ["/opt/freesurfer-", *freesurfer_version] ## freesurfer_home: *freesurfer_home
       fs_license: *freesurfer_license
       cache_dir: /work/pydra-cache
       fastsurfer_executable:
