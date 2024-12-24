@@ -145,7 +145,7 @@ def single_parc(
     # PARCELLATION IMAGE GENERATION #
     #################################
 
-    @mark.task  # type: ignore[misc]
+    @python.define  # type: ignore[misc]
     @mark.annotate(
         {
             "parcellation": str,
