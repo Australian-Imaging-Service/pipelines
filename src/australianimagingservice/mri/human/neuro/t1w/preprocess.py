@@ -453,7 +453,7 @@ def single_parc(
                 "source_subject_id",
                 str,
                 {
-                    "help_string": "source subject",
+                    "help": "source subject",
                     "argstr": "--srcsubject",
                     "mandatory": True,
                 },
@@ -462,7 +462,7 @@ def single_parc(
                 "target_subject_id",
                 str,
                 {
-                    "help_string": "target subject",
+                    "help": "target subject",
                     "argstr": "--trgsubject",
                     "mandatory": True,
                 },
@@ -471,7 +471,7 @@ def single_parc(
                 "source_annotation_file",
                 str,
                 {
-                    "help_string": "annotfile : map annotation",
+                    "help": "annotfile : map annotation",
                     "argstr": "--sval-annot",
                     "mandatory": True,
                 },
@@ -480,7 +480,7 @@ def single_parc(
                 "target_annotation_file",
                 str,
                 {
-                    "help_string": "path of file in which to store output values",
+                    "help": "path of file in which to store output values",
                     "argstr": "--tval",
                     "mandatory": True,
                 },
@@ -489,7 +489,7 @@ def single_parc(
                 "hemisphere",
                 str,
                 {
-                    "help_string": "hemisphere : (lh or rh) for both source and targ",
+                    "help": "hemisphere : (lh or rh) for both source and targ",
                     "argstr": "--hemi",
                     "mandatory": True,
                 },
@@ -505,7 +505,7 @@ def single_parc(
                 "target_annotation_file",
                 File,
                 {
-                    "help_string": "path of file in which to store output values",
+                    "help": "path of file in which to store output values",
                     "argstr": "--tval",
                     "mandatory": True,
                 },
@@ -514,7 +514,7 @@ def single_parc(
                 "target_subject_id",
                 Directory,
                 {
-                    "help_string": "target subject",
+                    "help": "target subject",
                     "argstr": "--trgsubject",
                     "mandatory": False,
                 },
@@ -534,7 +534,7 @@ def single_parc(
                 "subject",
                 Directory,
                 {
-                    "help_string": "Name of the subject as found in the SUBJECTS_DIR",
+                    "help": "Name of the subject as found in the SUBJECTS_DIR",
                     "argstr": "--s",
                     "mandatory": True,
                 },
@@ -543,7 +543,7 @@ def single_parc(
                 "old_ribbon",
                 bool,
                 {
-                    "help_string": "use mri/hemi.ribbon.mgz as a mask for the cortex",
+                    "help": "use mri/hemi.ribbon.mgz as a mask for the cortex",
                     "argstr": "--old-ribbon",
                 },
             ),
@@ -551,7 +551,7 @@ def single_parc(
                 "new_ribbon",
                 bool,
                 {
-                    "help_string": "Mask cortical voxels with mri/ribbon.mgz. Same as --volmask",
+                    "help": "Mask cortical voxels with mri/ribbon.mgz. Same as --volmask",
                     "argstr": "--new-ribbon",
                 },
             ),
@@ -559,7 +559,7 @@ def single_parc(
                 "annotname",
                 str,
                 {
-                    "help_string": "Use annotname surface annotation. By default, uses ?h.aparc.annot. With this option, it will load ?h.annotname.annot. The output file will be set to annotname+aseg.mgz, but this can be changed with --o. Note: running --annot aparc.a2009s is NOT the same as running --a2009s. The index numbers will be different.",
+                    "help": "Use annotname surface annotation. By default, uses ?h.aparc.annot. With this option, it will load ?h.annotname.annot. The output file will be set to annotname+aseg.mgz, but this can be changed with --o. Note: running --annot aparc.a2009s is NOT the same as running --a2009s. The index numbers will be different.",
                     "argstr": "--annot",
                 },
             ),
@@ -567,7 +567,7 @@ def single_parc(
                 "volfile",
                 Path,
                 {
-                    "help_string": "Full path of file to save the output segmentation in. Default is mri/aparc+aseg.mgz",
+                    "help": "Full path of file to save the output segmentation in. Default is mri/aparc+aseg.mgz",
                     "argstr": "--o",
                     "output_file_template": "volfile.nii.gz",
                 },
@@ -583,7 +583,7 @@ def single_parc(
                 "volfile",
                 NiftiGz,
                 {
-                    "help_string": "Full path of file to save the output segmentation in. Default is mri/aparc+aseg.mgz",
+                    "help": "Full path of file to save the output segmentation in. Default is mri/aparc+aseg.mgz",
                     "argstr": "--o",
                 },
             ),
@@ -602,7 +602,7 @@ def single_parc(
                 "seg",
                 Path,
                 {
-                    "help_string": "segpath : segmentation",
+                    "help": "segpath : segmentation",
                     "argstr": "--seg",
                     "mandatory": True,
                 },
@@ -611,7 +611,7 @@ def single_parc(
                 "temp",
                 File,
                 {
-                    "help_string": "tempvolid : output template volume",
+                    "help": "tempvolid : output template volume",
                     "argstr": "--temp",
                     "mandatory": True,
                 },
@@ -620,7 +620,7 @@ def single_parc(
                 "regheader",
                 File,
                 {
-                    "help_string": "volid : label template volume (needed with --label or --annot)",
+                    "help": "volid : label template volume (needed with --label or --annot)",
                     "argstr": "--regheader",
                     "mandatory": True,
                 },
@@ -629,7 +629,7 @@ def single_parc(
                 "output",
                 str,
                 {
-                    "help_string": "volid : output volume",
+                    "help": "volid : output volume",
                     "argstr": "--o",
                     "output_file_template": "label2vol1_out.nii.gz",
                 },
@@ -645,7 +645,7 @@ def single_parc(
                 "output",
                 File,
                 {
-                    "help_string": "volid : output volume",
+                    "help": "volid : output volume",
                     "argstr": "--o",
                     "output_file_template": "label2vol_out1.nii.gz",
                 },
@@ -665,7 +665,7 @@ def single_parc(
                 "input_image",
                 File,
                 {
-                    "help_string": "input image",
+                    "help": "input image",
                     "argstr": "{input_image}",
                     "position": 0,
                     "mandatory": True,
@@ -675,7 +675,7 @@ def single_parc(
                 "output_image",
                 str,
                 {
-                    "help_string": "path to output image",
+                    "help": "path to output image",
                     "argstr": "{output_image}",
                     "output_file_template": "out_file_reoriented1.nii.gz",
                     "position": 1,
@@ -692,7 +692,7 @@ def single_parc(
                 "output_image",
                 NiftiGz,
                 {
-                    "help_string": "path to output image",
+                    "help": "path to output image",
                     "argstr": "{output_image}",
                     "output_file_template": "out_file_reoriented1.nii.gz",
                     "position": 1,
@@ -713,7 +713,7 @@ def single_parc(
                 "input_image",
                 str,
                 {
-                    "help_string": "input image",
+                    "help": "input image",
                     "position": 0,
                     "argstr": "{input_image}",
                     "mandatory": True,
@@ -723,7 +723,7 @@ def single_parc(
                 "output_image",
                 Path,
                 {
-                    "help_string": "path to output image",
+                    "help": "path to output image",
                     "mandatory": True,
                     "argstr": " ",
                     "position": 3,
@@ -733,7 +733,7 @@ def single_parc(
                 "threshold",
                 int,
                 {
-                    "help_string": "threshold value",
+                    "help": "threshold value",
                     "position": 1,
                     "argstr": "-thr",
                 },
@@ -749,7 +749,7 @@ def single_parc(
                 "output_image",
                 NiftiGz,
                 {
-                    "help_string": "path to output image",
+                    "help": "path to output image",
                     "mandatory": True,
                     "argstr": "{output_image}",
                     "output_file_template": "out_file_threshold.nii.gz",
