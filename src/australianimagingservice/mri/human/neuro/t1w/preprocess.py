@@ -569,7 +569,7 @@ def single_parc(
                 {
                     "help": "Full path of file to save the output segmentation in. Default is mri/aparc+aseg.mgz",
                     "argstr": "--o",
-                    "output_file_template": "volfile.nii.gz",
+                    "path_template": "volfile.nii.gz",
                 },
             ),
         ],
@@ -631,7 +631,7 @@ def single_parc(
                 {
                     "help": "volid : output volume",
                     "argstr": "--o",
-                    "output_file_template": "label2vol1_out.nii.gz",
+                    "path_template": "label2vol1_out.nii.gz",
                 },
             ),
         ],
@@ -647,7 +647,7 @@ def single_parc(
                 {
                     "help": "volid : output volume",
                     "argstr": "--o",
-                    "output_file_template": "label2vol_out1.nii.gz",
+                    "path_template": "label2vol_out1.nii.gz",
                 },
             ),
         ],
@@ -677,7 +677,7 @@ def single_parc(
                 {
                     "help": "path to output image",
                     "argstr": "{output_image}",
-                    "output_file_template": "out_file_reoriented1.nii.gz",
+                    "path_template": "out_file_reoriented1.nii.gz",
                     "position": 1,
                 },
             ),
@@ -694,7 +694,7 @@ def single_parc(
                 {
                     "help": "path to output image",
                     "argstr": "{output_image}",
-                    "output_file_template": "out_file_reoriented1.nii.gz",
+                    "path_template": "out_file_reoriented1.nii.gz",
                     "position": 1,
                 },
             ),
@@ -752,7 +752,7 @@ def single_parc(
                     "help": "path to output image",
                     "mandatory": True,
                     "argstr": "{output_image}",
-                    "output_file_template": "out_file_threshold.nii.gz",
+                    "path_template": "out_file_threshold.nii.gz",
                     "position": 3,
                 },
             ),
