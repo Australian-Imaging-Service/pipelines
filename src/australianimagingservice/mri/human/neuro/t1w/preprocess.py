@@ -304,8 +304,12 @@ def single_parc(
         elif parcellation == "hcpmmp1":
             # HCPMMP1 definitions
             fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage")
-            parc_lut_file = os.path.join(mrtrix_lut_dir, "hcpmmp1_original.txt")
-            mrtrix_lut_file = os.path.join(mrtrix_lut_dir, "hcpmmp1_ordered.txt")
+            parc_lut_file = os.path.join(
+                mrtrix_lut_dir, "lut_glasser360_subcortical_original.txt"
+            )
+            mrtrix_lut_file = os.path.join(
+                mrtrix_lut_dir, "lut_glasser360_subcortical_reordered.txt"
+            )
             output_parcellation_filename = os.path.join(
                 FS_dir, "mri", f"{parcellation}.nii.gz"
             )
