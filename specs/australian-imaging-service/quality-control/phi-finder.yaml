@@ -1,0 +1,24 @@
+schema_version: '2.0'
+title: PHI-Finder
+version: &version '2025.5.0'
+authors:
+  - name: Pedro Faustini
+    email: pedro.faustini@mq.edu.au
+  - name: Thomas G. Close
+    email: tom.g.close@gmail.com
+docs:
+  description: null
+  info_url: https://place-holder.url
+packages:
+  conda:
+    tesseract: 5.5.0
+  pip:
+    phi-finder: *version
+    torch: 2.2.0
+    thinc: 8.3.4
+commands:
+  phi-finder:
+    row_frequency: common:Clinical[session]
+    task:
+      type: python
+      function: phi_finder.dicom_tools.utils:deidentify_dicom_files
