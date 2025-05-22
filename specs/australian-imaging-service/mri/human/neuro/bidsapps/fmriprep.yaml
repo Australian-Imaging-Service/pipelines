@@ -9,6 +9,7 @@ packages:
   pip:
     - pydra-dcm2niix
     - pydra-mrtrix3
+    - pydra-compose-bidsapp
   neurodocker:
     dcm2niix: v1.0.20201102
     mrtrix3: "3.0.2"
@@ -66,107 +67,65 @@ docs:
       url: https://github.com/nipreps/fmriprep/issues
 commands:
   fmriprep:
-    task: frametree.bids:bids_app
     row_frequency: common:Clinical[session]
-    inputs:
-      T1w:
-        datatype: medimage/nifti-gz-x
-        help: "T1-weighted anatomical scan"
-        configuration:
+    task:
+      type: bidsapp
+      app: /opt/conda/bin/fmriprep
+      inputs:
+        T1w:
+          datatype: medimage/nifti-gz-x
+          help: "T1-weighted anatomical scan"
           path: anat/T1w
-        column_defaults:
-          datatype: medimage/dicom-series
-      T2w:
-        datatype: medimage/nifti-gz-x
-        help: "T2-weighted anatomical scan"
-        configuration:
+        T2w:
+          datatype: medimage/nifti-gz-x
+          help: "T2-weighted anatomical scan"
           path: anat/T2w
-        column_defaults:
-          datatype: medimage/dicom-series
-      bold:
-        datatype: medimage/nifti-gz-x
-        help: "functional MRI"
-        configuration:
+        bold:
+          datatype: medimage/nifti-gz-x
+          help: "functional MRI"
           path: func/task-rest_bold
-        column_defaults:
-          datatype: medimage/dicom-series
-      fmap_magnitude1:
-        datatype: medimage/nifti-gz-x
-        help: "Field map - BIDS Case 1 & 2: magnitude of first echo"
-        configuration:
+        fmap_magnitude1:
+          datatype: medimage/nifti-gz-x
+          help: "Field map - BIDS Case 1 & 2: magnitude of first echo"
           path: fmap/magnitude1
-        column_defaults:
-          datatype: medimage/dicom-series
-      fmap_magnitude2:
-        datatype: medimage/nifti-gz-x
-        help: "Field map - BIDS Case 1 & 2: magnitude of second echo"
-        configuration:
+        fmap_magnitude2:
+          datatype: medimage/nifti-gz-x
+          help: "Field map - BIDS Case 1 & 2: magnitude of second echo"
           path: fmap/magnitude2
-        column_defaults:
-          datatype: medimage/dicom-series
-      fmap_magnitude:
-        datatype: medimage/nifti-gz-x
-        help: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
-        configuration:
+        fmap_magnitude:
+          datatype: medimage/nifti-gz-x
+          help: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
           path: fmap/magnitude
-        column_defaults:
-          datatype: medimage/dicom-series
-      fmap_phasediff:
-        datatype: medimage/nifti-gz-x
-        help: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
-        configuration:
+        fmap_phasediff:
+          datatype: medimage/nifti-gz-x
+          help: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
           path: fmap/phasediff
-        column_defaults:
-          datatype: medimage/dicom-series
-      fmap_phase1:
-        datatype: medimage/nifti-gz-x
-        help: "Field map - BIDS Case 2: phase of first echo"
-        configuration:
+        fmap_phase1:
+          datatype: medimage/nifti-gz-x
+          help: "Field map - BIDS Case 2: phase of first echo"
           path: fmap/phase1
-        column_defaults:
-          datatype: medimage/dicom-series
-      fmap_phase2:
-        datatype: medimage/nifti-gz-x
-        help: "Field map - BIDS Case 2: phase of second echo"
-        configuration:
+        fmap_phase2:
+          datatype: medimage/nifti-gz-x
+          help: "Field map - BIDS Case 2: phase of second echo"
           path: fmap/phase2
-        column_defaults:
-          datatype: medimage/dicom-series
-      fmap_fieldmap:
-        datatype: medimage/nifti-gz-x
-        help: "Field map - BIDS Case 3: directly reconstructed field map"
-        configuration:
+        fmap_fieldmap:
+          datatype: medimage/nifti-gz-x
+          help: "Field map - BIDS Case 3: directly reconstructed field map"
           path: fmap/fieldmap
-        column_defaults:
-          datatype: medimage/dicom-series
-      fmap_epi:
-        datatype: medimage/nifti-gz-x
-        configuration:
+        fmap_epi:
+          datatype: medimage/nifti-gz-x
           path: fmap/epi
-        column_defaults:
-          datatype: medimage/dicom-series
-        help: >-
-          Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding
-          directions to estimate the distortion map corresponding to the nonuniformities
-          of the B0 field
+          help: >-
+            Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding
+            directions to estimate the distortion map corresponding to the nonuniformities
+            of the B0 field
     outputs:
       fmriprep:
         datatype: generic/directory
         help: Preprocessed fMRI data
-        configuration:
     parameters:
-      fmriprep_flags:
-        field: flags
-        datatype: field/text
-        help: Command line flags passed on directly to fMRIPrep
-      json_edits:
-        datatype: field/text
-        help: >-
-          JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to
-          handle special cases where the dcm2niix fails to produce valid a BIDS
+      - flags
     configuration:
-      name: fmriprep
-      executable: /opt/conda/bin/fmriprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
       app_work_dir: /work/nipype-work
