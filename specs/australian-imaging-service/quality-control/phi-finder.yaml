@@ -1,6 +1,6 @@
 schema_version: '2.0'
 title: PHI-Finder
-version: &version '2025.5.0'
+version: &version '2025.5.3'
 authors:
   - name: Pedro Faustini
     email: pedro.faustini@mq.edu.au
@@ -24,7 +24,7 @@ packages:
     tesseract: 5.5.0
   pip:
     phi-finder: *version
-    torch: 2.2.2
+    torch: 2.6.0
     thinc: 8.3.4
 commands:
   phi-finder:
