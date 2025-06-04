@@ -59,7 +59,7 @@ jobs:
       env:
         PUSH: "${{ steps.deployable.outputs.PUSH }}"
       run: >
-        pipeline2app make xnat ./specs/australian-imaging-service/mri/human/neuro/t1w/preprocess.yaml
+        pydra2app make xnat ./specs/australian-imaging-service/quality-control/phi-finder.yaml
         --registry ghcr.io --check-registry --clean-up --loglevel info 
         --resources-dir ./resources --spec-root ./specs --source-package . $PUSH
       # --release pipelines-metapackage $RELEASE --tag-latest 
