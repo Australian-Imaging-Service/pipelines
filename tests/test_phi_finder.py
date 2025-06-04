@@ -34,7 +34,7 @@ assert not result.exit_code, show_cli_trace(result)
 xlogin = xnat4tests.connect()
 
 cmd_id = install_cs_command(
-    "ghcr.io/australian-imaging-service/quality-control.phi-finder:2025.5.3",
+    "ghcr.io/australian-imaging-service/quality-control.phi-finder:2025.6.0",
     xlogin,
     enable=True,
     projects_to_enable=["dummydicomproject"],
