@@ -1,5 +1,6 @@
 pipeline2app >=0.12
 pipeline2app-xnat >= 0.6.2
+phi-finder >= 2025.6.0
 fileformats >= 0.8.6
 fileformats-extras >= 0.2.1
 fileformats-datascience >= 0.1.0
