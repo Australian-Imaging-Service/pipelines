@@ -7,4 +7,3 @@ fileformats-datascience >= 0.1.0
 fileformats-datascience-extras >= 0.1.1
 fileformats-medimage >= 0.4.4
 fileformats-medimage-extras >= 0.1.5
-
