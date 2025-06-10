@@ -14,7 +14,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        spec:
+          - quality-control/phi-finder
     steps:
     - name: Removed unnecessary tools to free space
       run: |
@@ -59,7 +62,7 @@ jobs:
 
     - name: Build and push container images
       run: >
-        pydra2app make xnat ./specs/australian-imaging-service/quality-control/phi-finder.yaml
-        --registry ghcr.io --loglevel info
+        pydra2app make xnat ./specs/australian-imaging-service/${{ matrix.spec }}.yaml
+        --registry ghcr.io --loglevel info --help
         --resources-dir ./resources --spec-root ./specs --source-package . $PUSH
       # --release pipelines-metapackage $RELEASE --tag-latest --check-registry --clean-up 
