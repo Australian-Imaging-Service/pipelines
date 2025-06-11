@@ -65,6 +65,8 @@ jobs:
       run: echo "PUSH=--push" >> $GITHUB_ENV
 
     - name: Build and push container images
+      env:
+        P2A_ACCESS_TOKEN: ${{ secrets.GHCR_TOKEN }}
       run: >
         pydra2app make xnat ./specs/australian-imaging-service/${{ matrix.spec }}.yaml
         --registry ghcr.io --loglevel info
