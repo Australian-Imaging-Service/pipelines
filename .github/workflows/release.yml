@@ -11,6 +11,10 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:  # Allow manual triggering by a user with write access to this repo
 
+permissions:
+  contents: read
+  packages: write  # required for pushing to ghcr.io
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
