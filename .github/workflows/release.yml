@@ -64,5 +64,5 @@ jobs:
       run: >
         pydra2app make xnat ./specs/australian-imaging-service/${{ matrix.spec }}.yaml
         --registry ghcr.io --loglevel info
-        --resources-dir ./resources --spec-root ./specs --source-package . $PUSH
+        --resources-dir ./resources --spec-root ./specs --dont-check-registry --source-package . $PUSH
       # --release pipelines-metapackage $RELEASE --tag-latest --check-registry --clean-up 
