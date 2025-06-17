@@ -27,6 +27,12 @@ jobs:
       run: |
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+    - name: Install packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y yq
+
     - name: Checkout
       uses: actions/checkout@v2
 
@@ -53,16 +59,17 @@ jobs:
         pip install -r requirements.txt
         pip install .
 
-    - name: Check for tagged release
-      id: deployable
-      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-      run: echo "PUSH=--push" >> $GITHUB_ENV
-
     - name: Build and push container images
       env:
         P2A_ACCESS_TOKEN: ${{ secrets.GHCR_TOKEN }}
       run: >
         pydra2app make xnat ./specs/australian-imaging-service/${{ matrix.spec }}.yaml
         --registry ghcr.io --loglevel info
-        --resources-dir ./resources --spec-root ./specs --dont-check-registry --source-package . $PUSH
+        --resources-dir ./resources --spec-root ./specs --dont-check-registry --source-package .
       # --release pipelines-metapackage $RELEASE --tag-latest --check-registry --clean-up 
+
+    - name: Check for tagged release
+      id: deployable
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+      run: |
+        docker push ghcr.io/australian-imaging-service/${{ matrix.spec }}:$(yq e '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)
