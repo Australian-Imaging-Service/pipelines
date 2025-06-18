@@ -68,11 +68,12 @@ jobs:
     - name: Get the tag of the Docker image to be built
       id: version
       run: |
-        echo "SPEC_VERSION=$(yq -r '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)" >> $GITHUB_ENV
+        SPEC_VERSION=$(yq -r '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)
         PIPELINE_NAME="${{ matrix.spec }}"
         PIPELINE_NAME="${PIPELINE_NAME//\//.}"
-        echo "IMAGE_TAG=ghcr.io/australian-imaging-service/${PIPELINE_NAME}:${{ env.SPEC_VERSION }}" >> $GITHUB_ENV
+        IMAGE_TAG=ghcr.io/australian-imaging-service/${PIPELINE_NAME}:${SPEC_VERSION}
         echo "IMAGE_TAG=$IMAGE_TAG"
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
     - name: Build and push container images
       env:
