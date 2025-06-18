@@ -68,7 +68,7 @@ jobs:
     - name: Get the version from the spec
       id: version
       run: |
-        echo "VERSION=$(yq '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)" >> $GITHUB_ENV
+        echo "VERSION=$(yq -r '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)" >> $GITHUB_ENV
         echo "VERSION=${{ env.VERSION }}"  # For debugging purposes
 
     - name: Build and push container images
