@@ -65,10 +65,14 @@ jobs:
         username: tclose
         password: ${{ secrets.GHCR_TOKEN }}
 
-    - name: Get the version from the spec
+    - name: Get the tag of the Docker image to be built
       id: version
       run: |
         echo "SPEC_VERSION=$(yq -r '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)" >> $GITHUB_ENV
+        PIPELINE_NAME="${{ matrix.spec }}"
+        PIPELINE_NAME="${PIPELINE_NAME//\//.}"
+        echo "IMAGE_TAG=ghcr.io/australian-imaging-service/${PIPELINE_NAME}:${{ env.SPEC_VERSION }}" >> $GITHUB_ENV
+        echo "IMAGE_TAG=$IMAGE_TAG"
 
     - name: Build and push container images
       env:
@@ -80,18 +84,10 @@ jobs:
         --resources-dir ./resources --spec-root ./specs --dont-check-registry --source-package .
       # --release pipelines-metapackage $RELEASE --tag-latest --check-registry --clean-up 
 
-    - name: Get name of built Docker image
-      id: image_name
-      run: |
-        PIPELINE_NAME="${{ matrix.spec }}"
-        PIPELINE_NAME="${PIPELINE_NAME//\//.}"
-        echo "IMAGE_NAME=ghcr.io/australian-imaging-service/${PIPELINE_NAME}:${{ env.SPEC_VERSION }}" >> $GITHUB_ENV
-
     - name: List Docker images
       run: docker images
     
     - name: Push built Docker image
       id: deployable
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-      run: |
-        docker push ${{ env.IMAGE_NAME }}
+      run: docker push ${{ env.IMAGE_TAG }}
