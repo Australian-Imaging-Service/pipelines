@@ -65,6 +65,12 @@ jobs:
         username: tclose
         password: ${{ secrets.GHCR_TOKEN }}
 
+    - name: Get the version from the spec
+      id: version
+      run: |
+        echo "VERSION=$(yq '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)" >> $GITHUB_ENV
+        echo "VERSION=${{ env.VERSION }}"  # For debugging purposes
+
     - name: Build and push container images
       env:
         P2A_DOCKER_USER: tclose
@@ -79,4 +85,4 @@ jobs:
       id: deployable
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
       run: |
-        docker push ghcr.io/australian-imaging-service/${{ matrix.spec }}:$(yq '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)
+        docker push ghcr.io/australian-imaging-service/${{ matrix.spec }}:${{ env.VERSION }}
