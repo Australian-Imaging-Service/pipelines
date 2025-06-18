@@ -79,4 +79,4 @@ jobs:
       id: deployable
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
       run: |
-        docker push ghcr.io/australian-imaging-service/${{ matrix.spec }}:$(yq e '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)
+        docker push ghcr.io/australian-imaging-service/${{ matrix.spec }}:$(yq '.version' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml)
