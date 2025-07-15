@@ -32,6 +32,7 @@ commands:
   smriprep:
     task: 
       type: bidsapp
+      app: /opt/conda/bin/smriprep
       inputs:
         t1w:
           type: medimage/nifti-gz-x
@@ -52,7 +53,6 @@ commands:
     row_frequency: common:Clinical[session]
     configuration:
       name: smriprep
-      executable: /opt/conda/bin/smriprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
       app_work_dir: /work/nipype-work # We need to give a work directory outside of the pydra node as otherwise the file paths exceed Freesurfer's file-path char buffers
