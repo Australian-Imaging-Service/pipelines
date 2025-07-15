@@ -1,5 +1,5 @@
 title: "Structural MRI data preprocessing pipeline"
-schema_version: 1.0
+schema_version: 2.0
 version: &package_version "0.9.2"
 authors:
   - name: Mahdieh Dashtbani-Moghari
@@ -14,6 +14,7 @@ packages:
   pip:
     - pydra-tasks-dcm2niix
     - pydra-tasks-mrtrix3
+    - pydra-compose-bidsapp
   neurodocker: # neurodocker templates freesurfer and fsl are already in smriprep image
     dcm2niix: v1.0.20201102
     mrtrix3: "3.0.2"
@@ -29,39 +30,25 @@ docs:
     SMRIPrep: a structural MRI data preprocessing pipeline including Freesurfer
 commands:
   smriprep:
-    task: frametree.bids:bids_app
-    inputs:
-      T1w:
-        datatype: medimage/nifti-gz-x
-        help: "T1-weighted anatomical scan"
-        configuration:
+    task: 
+      type: bidsapp
+      inputs:
+        t1w:
+          type: medimage/nifti-gz-x
+          help: "T1-weighted anatomical scan"
           path: anat/T1w
-        column_defaults:
-          datatype: medimage/dicom-series
-      T2w:
-        datatype: medimage/nifti-gz-x
-        help: "T2-weighted anatomical scan"
-        configuration:
+        T2w:
+          type: medimage/nifti-gz-x
+          help: "T2-weighted anatomical scan"
           path: anat/T2w
-        column_defaults:
-          datatype: medimage/dicom-series
-    outputs:
-      smriprep:
-        datatype: generic/directory
-        help: Preprocessed sMRI data
-        configuration:
+      outputs:
+        smriprep:
+          type: generic/directory
+          help: Preprocessed sMRI data
           path: smriprep
     parameters:
-      smriprep_flags:
-        field: flags # look at app.py =>id, flag, json edit are the input to wf
-        datatype: field/text
-        help: Command line flags passed on directly to sMRIPrep
-      json_edits:
-        field: json_edits
-        datatype: field/text
-        help: >-
-          JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to
-          handle special cases where the dcm2niix fails to produce valid a BIDS
+      - flags
+      - json_edits
     row_frequency: common:Clinical[session]
     configuration:
       name: smriprep

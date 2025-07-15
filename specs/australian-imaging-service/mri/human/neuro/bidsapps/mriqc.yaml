@@ -1,4 +1,4 @@
-schema_version: 1.0
+schema_version: 2.0
 title: "Extract quality control metrics from T1w, T2W and fMRI data"
 version: &package_version "22.0.6"
 authors:
@@ -16,43 +16,34 @@ docs:
     imaging) data.
 packages:
   pip:
-    - pydra
     - pydra-tasks-dcm2niix
     - pydra-tasks-mrtrix3
+    - pydra-compose-bidsapp
   neurodocker:
     dcm2niix: v1.0.20201102
     mrtrix3: "3.0.2"
 commands:
   mriqc:
-    task: frametree.bids:bids_app
     row_frequency: common:Clinical[session]
-    inputs:
-      T1w:
-        datatype: medimage/nifti-gz-x
-        help: "T1-weighted anatomical scan"
-        configuration:
+    task:
+      type: bidsapp
+      inputs:
+        t1w:
+          type: medimage/nifti-gz-x
+          help: "T1-weighted anatomical scan"
           path: anat/T1w
-        column_defaults:
-          datatype: medimage/dicom-series
-      T2w:
-        datatype: medimage/nifti-gz-x
-        help: "T2-weighted anatomical scan"
-        configuration:
+        t2w:
+          type: medimage/nifti-gz-x
+          help: "T2-weighted anatomical scan"
           path: anat/T2w
-        column_defaults:
-          datatype: medimage/dicom-series
-      fMRI:
-        datatype: medimage/nifti-gz-x
-        help: "functional MRI"
-        configuration:
+        fMRI:
+          type: medimage/nifti-gz-x
+          help: "functional MRI"
           path: func/task-rest_bold
-        column_defaults:
-          datatype: medimage/dicom-series
-    outputs:
-      mriqc:
-        datatype: generic/directory
-        help: Generated QC outputs
-        configuration:
+      outputs:
+        mriqc:
+          type: generic/directory
+          help: Generated QC outputs
           path: mriqc
     configuration:
       name: mriqc
