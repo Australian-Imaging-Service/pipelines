@@ -1,6 +1,6 @@
 from pathlib import Path
 from pipeline2app.core import App
-from australianimagingservice.mri.human.neuro.t1w.preprocess import all_parcs
+from australianimagingservice.mri.human.neuro.t1w.preprocess.workflow import all_parcs
 
 PKG_DIR = (
     Path(__file__).parent / ".." / ".." / ".." / ".." / ".." / ".." / ".."
