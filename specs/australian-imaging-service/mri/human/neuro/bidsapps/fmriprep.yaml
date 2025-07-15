@@ -1,5 +1,5 @@
 title: "Functional MRI data preprocessing pipeline"
-schema_version: 1.0
+schema_version: 2.0
 version: &package_version "23.1.4"
 base_image:
   name: nipreps/fmriprep
@@ -66,7 +66,9 @@ docs:
       url: https://github.com/nipreps/fmriprep/issues
 commands:
   fmriprep:
-    task: frametree.bids:bids_app
+    task:
+      type: bids_app
+      
     row_frequency: common:Clinical[session]
     inputs:
       T1w:
