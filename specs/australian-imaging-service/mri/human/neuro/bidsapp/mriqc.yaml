@@ -27,6 +27,7 @@ commands:
     row_frequency: common:Clinical[session]
     task:
       type: bidsapp
+      app: /usr/local/miniconda/bin/mriqc
       inputs:
         t1w:
           type: medimage/nifti-gz-x
@@ -47,6 +48,5 @@ commands:
           path: mriqc
     configuration:
       name: mriqc
-      executable: /usr/local/miniconda/bin/mriqc
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output

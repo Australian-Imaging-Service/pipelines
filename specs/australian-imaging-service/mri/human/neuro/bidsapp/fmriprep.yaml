@@ -69,6 +69,7 @@ commands:
   fmriprep:
     task:
       type: bidsapp
+      app: /opt/conda/bin/fmriprep
       inputs:
         t1w:
           type: medimage/nifti-gz-x
@@ -135,7 +136,6 @@ commands:
     row_frequency: common:Clinical[session]
     configuration:
       name: fmriprep
-      executable: /opt/conda/bin/fmriprep
       dataset: /work/bids-dataset
       app_output_dir: /work/bids-app-output
       app_work_dir: /work/nipype-work
