@@ -17,11 +17,11 @@ docs:
 packages:
   pip:
     - pydra-tasks-dcm2niix
-    - pydra-tasks-mrtrix3
+    - pydra-mrtrix3
     - pydra-compose-bidsapp
   neurodocker:
-    dcm2niix: v1.0.20201102
-    mrtrix3: "3.0.2"
+    dcm2niix: v1.0.20250506
+    mrtrix3: "3.0.4"
 commands:
   mriqc:
     row_frequency: common:Clinical[session]
@@ -47,6 +47,4 @@ commands:
           help: Generated QC outputs
           path: mriqc
     configuration:
-      name: mriqc
-      dataset: /work/bids-dataset
-      app_output_dir: /work/bids-app-output
+      work_dir: /work/nipype-work
