@@ -8,11 +8,11 @@ base_image:
 packages:
   pip:
     - pydra-tasks-dcm2niix
-    - pydra-tasks-mrtrix3
+    - pydra-mrtrix3
     - pydra-compose-bidsapp
   neurodocker:
-    dcm2niix: v1.0.20201102
-    mrtrix3: "3.0.2"
+    dcm2niix: v1.0.20250506
+    mrtrix3: "3.0.4"
 licenses:
   freesurfer:
     destination: /opt/freesurfer/license.txt
@@ -132,13 +132,9 @@ commands:
           path: fmriprep
     parameters:
       - flags
-      - json_edits
     row_frequency: common:Clinical[session]
     configuration:
-      name: fmriprep
-      dataset: /work/bids-dataset
-      app_output_dir: /work/bids-app-output
-      app_work_dir: /work/nipype-work
+      work_dir: /work/nipype-work
       json_edits:
         path: "fmap/.*"
         jq_expr: '.IntendedFor = "{bold}"'
