@@ -13,11 +13,11 @@ base_image:
 packages:
   pip:
     - pydra-tasks-dcm2niix
-    - pydra-tasks-mrtrix3
+    - pydra-mrtrix3
     - pydra-compose-bidsapp
   neurodocker: # neurodocker templates freesurfer and fsl are already in smriprep image
-    dcm2niix: v1.0.20201102
-    mrtrix3: "3.0.2"
+    dcm2niix: v1.0.20250506
+    mrtrix3: "3.0.4"
 licenses:
   freesurfer:
     destination: /opt/freesurfer/license.txt # where in the docker image it should be installed
@@ -52,7 +52,4 @@ commands:
       - json_edits
     row_frequency: common:Clinical[session]
     configuration:
-      name: smriprep
-      dataset: /work/bids-dataset
-      app_output_dir: /work/bids-app-output
-      app_work_dir: /work/nipype-work # We need to give a work directory outside of the pydra node as otherwise the file paths exceed Freesurfer's file-path char buffers
+      work_dir: /work/nipype-work # We need to give a work directory outside of the pydra node as otherwise the file paths exceed Freesurfer's file-path char buffers
