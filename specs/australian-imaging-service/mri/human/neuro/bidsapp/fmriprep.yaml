@@ -80,11 +80,11 @@ commands:
           help: "T2-weighted anatomical scan"
           path: anat/T2w
         bold:
-          datatype: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x
           help: "functional MRI"
           path: func/task-rest_bold
         fmap_magnitude1:
-          datatype: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x
           help: "Field map - BIDS Case 1 & 2: magnitude of first echo"
           path: fmap/magnitude1
         fmap_magnitude2:
@@ -107,11 +107,11 @@ commands:
           help: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
           path: fmap/phasediff
         fmap_phase1:
-          datatype: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x
           help: "Field map - BIDS Case 2: phase of first echo"
           path: fmap/phase1
         fmap_phase2:
-          datatype: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x
           help: "Field map - BIDS Case 2: phase of second echo"
           path: fmap/phase2
         fmap_fieldmap:
