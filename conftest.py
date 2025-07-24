@@ -67,11 +67,12 @@ BIDS_APP_PARAMETERS = {
 
 bids_apps_dir = (
     Path(__file__).parent
-    / "australianimagingservice"
+    / "specs"
+    / "australian-imaging-service"
     / "mri"
     / "human"
     / "neuro"
-    / "bidsapps"
+    / "bidsapp"
 )
 test_data_dir = Path(__file__).parent / "tests" / "data"
 test_bids_data_dir = test_data_dir / "specs" / "mri" / "human" / "neuro" / "bidsapps"
