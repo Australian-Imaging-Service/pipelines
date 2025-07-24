@@ -64,14 +64,15 @@ BIDS_APP_PARAMETERS = {
 
 bids_apps_dir = (
     Path(__file__).parent
-    / "australianimagingservice"
+    / "specs"
+    / "australian-imaging-service"
     / "mri"
     / "human"
     / "neuro"
-    / "bidsapps"
+    / "bidsapp"
 )
 test_bids_data_dir = (
-    Path(__file__).parent / "tests" / "data" / "mri" / "human" / "neuro" / "bidsapps"
+    Path(__file__).parent / "tests" / "data" / "mri" / "human" / "neuro" / "bidsapp"
 )
 
 bids_specs = [str(p.stem) for p in bids_apps_dir.glob("*.yaml")]

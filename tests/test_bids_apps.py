@@ -1,8 +1,8 @@
 import json
-from pipeline2app.core.cli import make
-from pipeline2app.xnat import XnatApp
+from pydra2app.core.cli import make
+from pydra2app.xnat import XnatApp
 from frametree.core.utils import show_cli_trace
-from pipeline2app.xnat.deploy import install_and_launch_xnat_cs_command
+from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
 
 
 SKIP_BUILD = False

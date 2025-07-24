@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from click.testing import CliRunner
-from pipeline2app.core.cli import make_docs
+from pydra2app.core.cli import make_docs
 
 PKG_PATH = Path(__file__).parent.parent.absolute()
 
