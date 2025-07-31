@@ -98,13 +98,6 @@ commands:
         fmap_phasediff:
           type: medimage/nifti-gz-x
           help: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
-        fmap_magnitude:
-          type: medimage/nifti-gz-x
-          help: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
-          path: fmap/magnitude
-        fmap_phasediff:
-          type: medimage/nifti-gz-x
-          help: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
           path: fmap/phasediff
         fmap_phase1:
           type: medimage/nifti-gz-x

@@ -31,15 +31,15 @@ commands:
       inputs:
         t1w:
           type: medimage/nifti-gz-x
-          help: "T1-weighted anatomical scan"
+          help: "T1-weighted anatomical MRI"
           path: anat/T1w
         t2w:
           type: medimage/nifti-gz-x
-          help: "T2-weighted anatomical scan"
+          help: "T2-weighted anatomical MRI"
           path: anat/T2w
-        fMRI:
+        bold:
           type: medimage/nifti-gz-x
-          help: "functional MRI"
+          help: "Resting-state functional MRI"
           path: func/task-rest_bold
       outputs:
         mriqc:
