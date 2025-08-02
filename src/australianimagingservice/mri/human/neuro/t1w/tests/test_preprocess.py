@@ -1,5 +1,5 @@
 from pathlib import Path
-from pipeline2app.core import App
+from pydra2app.core import App
 from australianimagingservice.mri.human.neuro.t1w.preprocess import all_parcs
 
 PKG_DIR = (
