@@ -1,5 +1,5 @@
 from frametree.core.utils import show_cli_trace
-from pipeline2app.core.cli import make_docs
+from pydra2app.core.cli import make_docs
 
 
 def test_make_docs(bids_app_spec_path, cli_runner, work_dir):
