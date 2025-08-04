@@ -10,42 +10,42 @@ PKG_PATH = Path(__file__).parent.parent.absolute()
 runner = CliRunner()
 
 
-result = runner.invoke(
-    make,
-    [
-        "xnat",
-        (
-            f"{PKG_PATH}/specs/"
-            "australian-imaging-service/quality-control/phi-finder.yaml"
-        ),
-        "--spec-root",
-        f"{PKG_PATH}/specs",
-        "--registry",
-        "ghcr.io",
-        "--for-localhost",
-        "--use-local-packages",
-        "--raise-errors",
-    ],
-)
+def test_phi_finder():
+    result = runner.invoke(
+        make,
+        [
+            "xnat",
+            (
+                f"{PKG_PATH}/specs/"
+                "australian-imaging-service/quality-control/phi-finder.yaml"
+            ),
+            "--spec-root",
+            f"{PKG_PATH}/specs",
+            "--registry",
+            "ghcr.io",
+            "--for-localhost",
+            "--use-local-packages",
+            "--raise-errors",
+        ],
+    )
 
-assert not result.exit_code, show_cli_trace(result)
+    assert not result.exit_code, show_cli_trace(result)
 
+    xlogin = xnat4tests.connect()
 
-xlogin = xnat4tests.connect()
+    cmd_id = install_cs_command(
+        "ghcr.io/australian-imaging-service/quality-control.phi-finder:2025.7.2",
+        xlogin,
+        enable=True,
+        projects_to_enable=["dummydicomproject"],
+        replace_existing=True,
+        command_name="phi-finder",
+    )
 
-cmd_id = install_cs_command(
-    "ghcr.io/australian-imaging-service/quality-control.phi-finder:2025.7.2",
-    xlogin,
-    enable=True,
-    projects_to_enable=["dummydicomproject"],
-    replace_existing=True,
-    command_name="phi-finder",
-)
-
-launch_cs_command(
-    cmd_id,
-    xlogin=xlogin,
-    inputs={},
-    project_id="dummydicomproject",
-    session_id="dummydicomsession",
-)
+    launch_cs_command(
+        cmd_id,
+        xlogin=xlogin,
+        inputs={},
+        project_id="dummydicomproject",
+        session_id="dummydicomsession",
+    )
