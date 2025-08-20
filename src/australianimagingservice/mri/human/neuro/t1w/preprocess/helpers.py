@@ -1,6 +1,6 @@
 import os
-from pathlib import Path
 import typing as ty
+from fileformats.generic import Directory
 from pydra.compose import python
 
 
@@ -24,9 +24,9 @@ from pydra.compose import python
 )  # type: ignore[misc]
 def JoinTaskCatalogue(
     parcellation: str,
-    FS_dir: str,
-    freesurfer_home: str,
-    mrtrix_lut_dir: Path,
+    FS_dir: Directory,
+    freesurfer_home: Directory,
+    mrtrix_lut_dir: Directory,
 ) -> ty.Tuple[str, str, str, str, str, str, str, str, str, str, str, str, str, str]:
     node_image = parcellation + "_nodes.mif"
     final_parc_image = os.path.join(f"Atlas_{parcellation}.mif.gz")
