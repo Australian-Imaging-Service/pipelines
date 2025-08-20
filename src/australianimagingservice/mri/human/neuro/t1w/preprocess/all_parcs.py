@@ -1,3 +1,10 @@
+from pathlib import Path
+from fileformats.generic import File, Directory, DirectoryOf
+from fileformats.medimage import NiftiGz
+from fileformats.medimage_mrtrix3 import ImageFormat as Mif
+from pydra.compose import workflow, python
+from .single_parc import SingleParcellation
+
 # # ########################
 # # # Execute the workflow #
 # # ########################
@@ -28,80 +35,8 @@ parcellation_list = [
 ]  # List of different parcellations
 
 
-def all_parcs(
-    freesurfer_home: Path,
-    mrtrix_lut_dir: Path,
-    cache_dir: Path,
-    fs_license: Path,
-    fastsurfer_executable: ty.Union[str, ty.List[str], None] = None,
-    fastsurfer_python: str = "python3",
-    name: str = "t1_preprocessing_pipeline_all",
-) -> Workflow:
-
-    # Define the input values using input_spec
-    input_spec = {
-        "t1w": File,
-        "FS_dir": str,
-    }
-
-    wf = Workflow(
-        name=name,
-        input_spec=input_spec,
-        cache_dir=cache_dir,
-    )
-
-    wf.add(
-        FunctionTask(
-            collate_parcs,
-            name="collate_parcs",
-            input_spec=SpecInfo(
-                name="CollateParcsInputs",
-                bases=(BaseSpec,),
-                fields=[(p, Mif) for p in parcellation_list],
-            ),
-            output_spec=SpecInfo(
-                name="CollateParcsOutputs",
-                bases=(BaseSpec,),
-                fields=[("out_dir", DirectoryOf[Mif])],  # type: ignore[misc]
-            ),
-            out_dir="out_dir",
-        )
-    )
-
-    for parcellation in parcellation_list:
-
-        wf.add(
-            single_parc(
-                t1w=wf.lzin.t1w,
-                parcellation=parcellation,
-                freesurfer_home=freesurfer_home,
-                mrtrix_lut_dir=mrtrix_lut_dir,
-                cache_dir=cache_dir,
-                fs_license=fs_license,
-                fastsurfer_executable=fastsurfer_executable,
-                fastsurfer_python=fastsurfer_python,
-                name=parcellation,
-            )
-        )
-
-        setattr(
-            wf.collate_parcs.inputs,
-            parcellation,
-            getattr(wf, parcellation).lzout.parc_image,
-        )
-
-    wf.set_output(("parcellations", wf.collate_parcs.lzout.out_dir))
-    wf.set_output(("vis_image_fsl", wf.desikan.lzout.vis_image_fsl))
-    wf.set_output(("ftt_image_fsl", wf.desikan.lzout.ftt_image_fsl))
-    wf.set_output(("vis_image_freesurfer", wf.desikan.lzout.vis_image_freesurfer))
-    wf.set_output(("ftt_image_freesurfer", wf.desikan.lzout.ftt_image_freesurfer))
-    wf.set_output(("vis_image_hsvs", wf.desikan.lzout.vis_image_hsvs))
-    wf.set_output(("ftt_image_hsvs", wf.desikan.lzout.ftt_image_hsvs))
-
-    return wf
-
-
-def collate_parcs(out_dir: Path = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  # type: ignore[type-arg]
+def collate_parcellations(out_dir: Path | None = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  # type: ignore[type-arg]
+    """Collate multiple parcellations into a single directory."""
     if out_dir is None:
         out_dir = Path("./out_dir").absolute()
     out_dir.mkdir(exist_ok=True)
@@ -110,13 +45,88 @@ def collate_parcs(out_dir: Path = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  
     return DirectoryOf[Mif](out_dir)  # type: ignore[no-any-return,type-arg,misc]
 
 
+@workflow.define(
+    outputs=[
+        "parcellations",
+        "vis_image_fsl",
+        "ftt_image_fsl",
+        "vis_image_freesurfer",
+        "ftt_image_freesurfer",
+        "vis_image_hsvs",
+        "ftt_image_hsvs",
+    ]
+)
+def AllParcellations(
+    t1w: NiftiGz,
+    subjects_dir: Path,
+    freesurfer_home: Directory,
+    mrtrix_lut_dir: Directory,
+    cache_dir: Path,
+    fs_license: File,
+    fastsurfer_executable: str | list[str] | None = None,
+    fastsurfer_python: str = "python3",
+) -> tuple[
+    Mif,
+    Mif,
+    Mif,
+    Mif,
+    Mif,
+    Mif,
+    Mif,
+]:
+
+    collate_parcs = workflow.add(
+        python.define(
+            collate_parcellations,
+            inputs={p: Mif for p in parcellation_list},
+            outputs={"out_dir": DirectoryOf[Mif]},
+        )
+    )
+
+    parcs = {}
+
+    for parcellation in parcellation_list:
+
+        parcs[parcellation] = workflow.add(
+            SingleParcellation(
+                t1w=t1w,
+                parcellation=parcellation,
+                freesurfer_home=freesurfer_home,
+                mrtrix_lut_dir=mrtrix_lut_dir,
+                cache_dir=cache_dir,
+                fs_license=fs_license,
+                fastsurfer_executable=fastsurfer_executable,
+                fastsurfer_python=fastsurfer_python,
+                subjects_dir=subjects_dir,
+            ),  # pyright: ignore[reportArgumentType]
+            name=parcellation,
+        )
+
+        setattr(
+            collate_parcs,
+            parcellation,
+            parcs[parcellation].parc_image,
+        )
+
+    return (
+        collate_parcs.out_dir,
+        parcs["desikan"].vis_image_fsl,
+        parcs["desikan"].ftt_image_fsl,
+        parcs["desikan"].vis_image_freesurfer,
+        parcs["desikan"].ftt_image_freesurfer,
+        parcs["desikan"].vis_image_hsvs,
+        parcs["desikan"].ftt_image_hsvs,
+    )
+
+
 if __name__ == "__main__":
     import sys
 
     args = sys.argv[2:]
 
-    wf = all_parcs(*args)  # type: ignore[arg-type]
-    wf(t1w=sys.argv[1])
+    wf = AllParcellations(*args)  # type: ignore[arg-type]
+    wf(t1w=sys.argv[1])  # pyright: ignore[reportCallIssue]
+
 # if __name__ == "__main__":
 #     import sys
 

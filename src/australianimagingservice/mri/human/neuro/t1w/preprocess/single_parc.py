@@ -3,7 +3,6 @@ from pydra.compose import workflow
 from pydra.tasks.fsl.v6 import Reorient2Std, Threshold
 from pydra.tasks.freesurfer.v8 import (
     SurfaceSmooth,
-    SurfaceTransform,
     Label2Vol,
     Aparc2Aseg,
 )
@@ -40,14 +39,14 @@ os.environ["SUBJECTS_DIR"] = ""
         "ftt_image_hsvs",
     ]
 )
-def single_parc(
+def SingleParcellation(
     t1w: NiftiGz,
     parcellation: str,
     freesurfer_home: Directory,
     mrtrix_lut_dir: Directory,
-    cache_dir: Directory,
+    cache_dir: Path,
     fs_license: File,
-    subjects_dir: Directory,
+    subjects_dir: Path,
     fastsurfer_executable: ty.Union[str, ty.List[str], None] = None,
     fastsurfer_python: str = "python3",
 ) -> tuple[Mif, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None]:
@@ -320,7 +319,7 @@ def single_parc(
                 path_in=threshold_task.output_image,
                 lut_in=join_task.parc_lut_file,
                 lut_out=join_task.mrtrix_lut_file,
-                image_out=join_task.final_parc_image,
+                image_out=join_task.final_parc_image,  # type: ignore[]
                 # name="LabelConvert_task",
             )
         )
@@ -443,6 +442,8 @@ def single_parc(
         )
 
         return_image = SGMfix_task.out_file
+    else:
+        return_image = volfile
 
     return (
         return_image,
