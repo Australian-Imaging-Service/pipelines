@@ -49,6 +49,9 @@ source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "src/australianimagingservice/_version.py"
 
+[tool.pyright]
+reportAssignmentType = false
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/australianimagingservice"]
 
