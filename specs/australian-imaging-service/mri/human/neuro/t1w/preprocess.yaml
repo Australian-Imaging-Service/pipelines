@@ -64,7 +64,7 @@ docs:
     the input requirements for FastSurfer
 commands:
   single_parc:
-    task: australianimagingservice.mri.human.neuro.t1w.preprocess:single_parc
+    task: australianimagingservice.mri.human.neuro.t1w.preprocess:SingleParcellation
     row_frequency: common:Clinical[session] # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
     inputs:
        - t1w
@@ -78,7 +78,7 @@ commands:
         - /fastsurfer/run_fastsurfer.sh
         - --allow_root
   all_parcs:
-    task: australianimagingservice.mri.human.neuro.t1w.preprocess:all_parcs
+    task: australianimagingservice.mri.human.neuro.t1w.preprocess:AllParcellations
     row_frequency: common:Clinical[session] # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
     inputs: # List the inputs that are presented to end-user in UI
       - t1w
