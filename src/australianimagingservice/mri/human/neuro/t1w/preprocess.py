@@ -760,6 +760,95 @@ def single_parc(
         bases=(ShellOutSpec,),
     )
 
+    # ######################
+    # # labelsgm spec info #
+    # ######################
+
+    labelsgmfix_input_spec = SpecInfo(
+        name="Input",
+        fields=[
+            (
+                "parc",
+                File,
+                {
+                    "help": "The input FreeSurfer parcellation image",
+                    "position": 0,
+                    "argstr": "{parc}",
+                    "mandatory": True,
+                },
+            ),
+            (
+                "t1",
+                File,
+                {
+                    "help": "The T1 image to be provided to FIRST",
+                    "position": 1,
+                    "argstr": "{t1}",
+                    "mandatory": True,
+                },
+            ),
+            (
+                "lut",
+                File,
+                {
+                    "help": "The lookup table file that the parcellated image is based on",
+                    "position": 2,
+                    "argstr": "{lut}",
+                    "mandatory": True,
+                },
+            ),
+            (
+                "output",
+                File,
+                {
+                    "help": "The output parcellation image",
+                    "position": 3,
+                    "argstr": "{output}",
+                    "mandatory": True,
+                },
+            ),
+            (
+                "premasked",
+                bool,
+                {
+                    "help": "Indicate that brain masking has been applied to the T1 input image",
+                    "position": 4,
+                    "argstr": "{premasked}",
+                    "mandatory": False,
+                },
+            ),
+            (
+                "sgm_amyg_hipp",
+                bool,
+                {
+                    "help": "Indicate that brain masking has been applied to the T1 input image",
+                    "position": 4,
+                    "argstr": "{sgm_amyg_hipp}",
+                    "mandatory": False,
+                },
+            ),
+
+        ],
+        bases=(ShellSpec,),
+    )
+
+    labelsgmfix_output_spec = SpecInfo(
+        name="Output",
+        fields=[
+            (
+                "output",
+                File,
+                {
+                    "help": "The output parcellation image",
+                    "position": 3,
+                    "argstr": "{output}",
+                    "mandatory": True,
+                },
+            ),
+        ],
+        bases=(ShellOutSpec,),
+    )
+
     #########################
     # # v2 atlas processing #
     #########################
@@ -975,12 +1064,17 @@ def single_parc(
 
         wf.add(
             LabelSgmfix(
+                name="SGMfix_task",
+                executable="labelsgmfix",
+                input_spec=labelsgmfix_input_spec,
+                output_spec=labelsgmfix_output_spec,
+                cache_dir=cache_dir,
                 parc=wf.LabelConvert_task_originals.lzout.image_out,
                 t1=wf.join_task.lzout.normimg_path,
                 lut=wf.join_task.lzout.mrtrix_lut_file,
                 out_file=wf.join_task.lzout.final_parc_image,
                 name="SGMfix_task",
-                nocleanup=True,
+                # nocleanup=True,
                 premasked=True,
                 sgm_amyg_hipp=True,
             )
