@@ -6,7 +6,7 @@ from pydra.tasks.freesurfer.v8 import (
     Label2Vol,
     Aparc2Aseg,
 )
-from pydra.tasks.mrtrix3.v3_0 import (
+from pydra.tasks.mrtrix3.v3_1 import (
     LabelConvert,
     # LabelSgmfix,
     Fivett2Vis,
