@@ -1,21 +1,21 @@
 import typing as ty
 import attrs
-from pydra import Workflow, mark, ShellCommandTask
-from pydra.engine.specs import SpecInfo, ShellSpec, ShellOutSpec, File
+# from pydra import Workflow, mark, ShellCommandTask
+# from pydra.engine.specs import SpecInfo, ShellSpec, ShellOutSpec, File
 from pydra.tasks.mrtrix3.v3_0 import (
     LabelConvert,
-    LabelSgmfix,
+    # LabelSgmfix,
     Fivett2Vis,
     FivettGen_Hsvs,
     FivettGen_Freesurfer,
     FivettGen_Fsl,
 )
-from fileformats.generic import Directory, DirectoryOf
+from fileformats.generic import Directory, DirectoryOf, File
 from fileformats.medimage import NiftiGz
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
 from pydra.tasks.fastsurfer.latest import Fastsurfer
-from pydra.engine.task import FunctionTask
-from pydra.engine.specs import BaseSpec
+# from pydra.engine.task import FunctionTask
+# from pydra.engine.specs import BaseSpec
 from pathlib import Path
 import os
 
@@ -32,7 +32,7 @@ def single_parc(
     fastsurfer_python: str = "python3",
     name: str = "t1_preprocessing_pipeline",
     t1w: File = attrs.NOTHING,
-) -> Workflow:
+):
     # Define the input values using input_spec
     input_spec = {
         "t1w": File,
@@ -1061,7 +1061,7 @@ def all_parcs(
     fastsurfer_executable: ty.Union[str, ty.List[str], None] = None,
     fastsurfer_python: str = "python3",
     name: str = "t1_preprocessing_pipeline_all",
-) -> Workflow:
+):
 
     # Define the input values using input_spec
     input_spec = {
