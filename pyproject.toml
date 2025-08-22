@@ -14,7 +14,7 @@ dependencies = [
     "pydra-tasks-fastsurfer",
     "pydra-tasks-freesurfer",
     "pydra-tasks-fsl",
-    "pydra-tasks-mrtrix3",
+    "pydra-tasks-mrtrix3 >=3.1.0a1",
 ]
 license = "CC-BY-4.0"
 authors = [{ name = "Thomas G. Close", email = "tom.g.close@gmail.com" }]
