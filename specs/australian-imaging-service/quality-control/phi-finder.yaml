@@ -1,6 +1,6 @@
 schema_version: '2.0'
 title: PHI-Finder
-version: '2025.7.2.post2'
+version: '2025.7.2.post3'
 authors:
   - name: Pedro Faustini
     email: pedro.faustini@mq.edu.au

@@ -11,7 +11,7 @@ dependencies = [
     "fileformats",
     "fileformats-medimage",
     "pydra >=0.23a0",
-    "pydra-mrtrix3",
+    "pydra-tasks-mrtrix3",
     "pydra-fastsurfer",
 ]
 license = "CC-BY-4.0"
