@@ -17,8 +17,8 @@ docs:
 packages:
   pip:
     - pydra
-    - pydra-dcm2niix
-    - pydra-mrtrix3
+    - pydra-tasks-dcm2niix
+    - pydra-tasks-mrtrix3
   neurodocker:
     dcm2niix: v1.0.20201102
     mrtrix3: "3.0.2"

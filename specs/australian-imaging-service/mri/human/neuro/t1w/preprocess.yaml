@@ -9,7 +9,7 @@ base_image:
 packages:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
-    pydra-mrtrix3: 3.0.4a9
+    pydra-tasks-mrtrix3: 3.0.4a9
     pydra-fsl:
     fileformats:
     pydra-fastsurfer:
