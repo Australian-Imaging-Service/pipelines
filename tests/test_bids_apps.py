@@ -38,13 +38,13 @@ def test_bids_app(
                     "--build-dir",
                     str(build_dir),
                     build_arg,
-                "--for-localhost",
-                "--use-local-packages",
-                "--raise-errors",
+                    "--for-localhost",
+                    "--use-local-packages",
+                    "--raise-errors",
                 ],
                 *licenses,
             )
-        )
+        ),
     )
 
     assert result.exit_code == 0, show_cli_trace(result)
@@ -55,11 +55,9 @@ def test_bids_app(
 
         build_name = image_spec.name.split(".")[-1]
 
-        with open(
-            build_dir / "xnat_commands" / (build_name + ".json")
-        ) as f:
+        with open(build_dir / "xnat_commands" / (build_name + ".json")) as f:
             xnat_command = json.load(f)
-        xnat_command['name'] = xnat_command['label'] = image_spec.name + run_prefix
+        xnat_command["name"] = xnat_command["label"] = image_spec.name + run_prefix
 
         test_xsession = next(iter(xlogin.projects[bp.project_id].experiments.values()))
 
@@ -83,7 +81,7 @@ def test_bids_app(
         for pname, pval in bp.parameters.items():
             inputs_json[pname] = pval
 
-        inputs_json["pydra_flags"] = (
+        inputs_json["pydra2app_flags"] = (
             "--worker debug "
             "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
             "--dataset-name default "
