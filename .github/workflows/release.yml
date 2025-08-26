@@ -92,9 +92,11 @@ jobs:
       # --release pipelines-metapackage $RELEASE --tag-latest --check-registry --clean-up 
 
     - name: List Docker images
-      run: docker images
-    
+      run: docker images   
     - name: Push built Docker image
       id: deployable
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
       run: docker push ${{ env.IMAGE_TAG }}
+
+    - name: Display XNAT command JSONs
+      run: docker run --rm --entrypoint cat ${{ env.IMAGE_TAG }} /xnat_commands/*
