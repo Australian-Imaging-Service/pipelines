@@ -1,5 +1,7 @@
 import json
 import itertools
+import typing as ty
+from anyio import Path
 from pydra2app.core.cli import make
 from pydra2app.xnat import XnatApp
 from frametree.core.utils import show_cli_trace
@@ -10,7 +12,11 @@ SKIP_BUILD = False
 
 
 def test_bids_app(
-    bids_app_blueprint, run_prefix, xnat_connect, license_src, cli_runner
+    bids_app_blueprint,
+    run_prefix,
+    xnat_connect: ty.Any,
+    license_src: Path,
+    cli_runner: ty.Any,
 ):
 
     bp = bids_app_blueprint
