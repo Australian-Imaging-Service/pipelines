@@ -114,4 +114,8 @@ jobs:
       run: docker push ${{ env.IMAGE_TAG }}
 
     - name: Display XNAT command JSONs
-      run: docker run --rm --entrypoint cat ${{ env.IMAGE_TAG }} /xnat_commands/*
+      run: |
+        for command in $(yq -r '.commands | keys | join(" ")' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml); do
+          echo "### $command ###"
+          docker run --rm --entrypoint cat ${{ env.IMAGE_TAG }} /xnat_commands/${command}.json
+        done
