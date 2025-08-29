@@ -1,6 +1,6 @@
 from pathlib import Path
 from pydra2app.core import App
-from australianimagingservice.mri.human.neuro.t1w.preprocess import all_parcs
+from australianimagingservice.mri.human.neuro.t1w.preprocess import AllParcellations
 
 PKG_DIR = (
     Path(__file__).parent / ".." / ".." / ".." / ".." / ".." / ".." / ".."
@@ -8,10 +8,15 @@ PKG_DIR = (
 
 
 def test_t1w_preprocess():
-    wf = all_parcs(
+    wf = AllParcellations(
+        t1w=,
+        subjects_dir=,
+        freesurfer_home=,
+        mrtrix_lut_dir=,
+        fs_license=,
         "/opt/FastSurfer",
         "/opt/mrtrix3/3.0.4/share/mrtrix3/labelconvert",
-        "/Users/tclose/Desktop/cache-dir",
+        cache_dir="/Users/tclose/Desktop/cache-dir",
         "/Users/tclose/Desktop/file1.txt",
     )
 
