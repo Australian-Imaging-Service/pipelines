@@ -4,6 +4,7 @@
 
 @shell.define(outputs=["output"])
 class LabelSgmFix(shell.Task["LabelSgmFix.Outputs"]):
+    
     parc: File = shell.arg(
         help="The input FreeSurfer parcellation image",
         position=0,

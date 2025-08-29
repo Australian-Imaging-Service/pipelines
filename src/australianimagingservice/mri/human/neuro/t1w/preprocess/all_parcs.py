@@ -121,33 +121,47 @@ def AllParcellations(
 
 if __name__ == "__main__":
     import sys
+    import os
 
-    args = sys.argv[2:]
+    # Helper: get arg or fallback to env var or default
+    def get_arg(idx: int, env: str | None = None, default: str | None = None) -> str:
+        if len(sys.argv) > idx:
+            return sys.argv[idx]
+        if env and env in os.environ:
+            return os.environ[env]
+        if default is not None:
+            return default
+        print(f"Missing required argument {idx} (env {env})")
+        sys.exit(1)
 
-    wf = AllParcellations(*args)  # type: ignore[arg-type]
-    wf(t1w=sys.argv[1])  # pyright: ignore[reportCallIssue]
+    if len(sys.argv) < 2:
+        print(
+            "Usage: python all_parcs.py <t1w.nii.gz> "
+            "[subjects_dir] [freesurfer_home] [mrtrix_lut_dir] "
+            "[cache_dir] [fs_license] [fastsurfer_executable] [fastsurfer_python]"
+        )
+        sys.exit(1)
 
-# if __name__ == "__main__":
-#     import sys
+    t1w = Path(sys.argv[1])
+    subjects_dir = Path(get_arg(2, "SUBJECTS_DIR"))
+    freesurfer_home = Path(get_arg(3, "FREESURFER_HOME"))
+    mrtrix_lut_dir = Path(get_arg(4, "MRTRIX_LUT_DIR", "/usr/local/mrtrix3/share/mrtrix3/labelconvert"))
+    cache_dir = Path(get_arg(5, None, "./pydra_cache"))
+    fs_license = Path(get_arg(6, "FS_LICENSE", str(freesurfer_home / "license.txt")))
+    fastsurfer_executable = get_arg(7, "FASTSURFER_EXECUTABLE", "fastsurfer")
+    fastsurfer_python = get_arg(8, None, "python3")
 
-#     # Expecting the first argument to be the T1-weighted image path
-#     t1w_path = sys.argv[1]
+    wf = AllParcellations(
+        t1w=t1w,
+        subjects_dir=subjects_dir,
+        freesurfer_home=freesurfer_home,
+        mrtrix_lut_dir=mrtrix_lut_dir,
+        cache_dir=cache_dir,
+        fs_license=fs_license,
+        fastsurfer_executable=fastsurfer_executable,
+        fastsurfer_python=fastsurfer_python,
+    )
 
-#     # Provide sensible default values or pass from command-line arguments
-#     # freesurfer_home = "/Applications/freesurfer/"  # Adjust this path as per your setup
-#     # mrtrix_lut_dir = "/Users/arkievdsouza/mrtrix3/share/mrtrix3/labelconvert/"  # Adjust this path as per your setup
-#     # cache_dir = "/Users/arkievdsouza/git/t1-pipeline/working-dir/"  # Temporary directory for cache
-#     # fs_license = (
-#     #     "/Applications/freesurfer/license.txt "  # Path to the FreeSurfer license file
-#     # )
-
-#     # Pass the arguments explicitly
-#     wf = all_parcs(*sys.argv[1])
-#     #     freesurfer_home=freesurfer_home,
-#     #     mrtrix_lut_dir=mrtrix_lut_dir,
-#     #     cache_dir=cache_dir,
-#     #     fs_license=fs_license,
-#     # )  # type: ignore[arg-type]
-
-#     # # Run the workflow with the T1-weighted image as input
-#     wf(t1w=t1w_path)
+    result = wf()
+    print("Workflow finished. Outputs:")
+    print(result)
