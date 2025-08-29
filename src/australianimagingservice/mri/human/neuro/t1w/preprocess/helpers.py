@@ -287,37 +287,36 @@ def JoinTaskCatalogue(
 # ######################
 
 
-@shell.define(outputs=["output"])
+@shell.define
 class LabelSgmFix(shell.Task["LabelSgmFix.Outputs"]):
+
+    executable = "labelsgmfix"
+
     parc: File = shell.arg(
         help="The input FreeSurfer parcellation image",
-        position=0,
+        position=1,
         argstr="{parc}",
     )
     t1: File = shell.arg(
         help="The T1 image to be provided to FIRST",
-        position=1,
+        position=2,
         argstr="{t1}",
     )
     lut: File = shell.arg(
         help="The lookup table file that the parcellated image is based on",
-        position=2,
+        position=3,
         argstr="{lut}",
     )
     premasked: bool = shell.arg(
         help="Indicate that brain masking has been applied to the T1 input image",
-        position=4,
-        argstr="{premasked}",
     )
     sgm_amyg_hipp: bool = shell.arg(
         help="Indicate that brain masking has been applied to the T1 input image",
-        position=4,
-        argstr="{sgm_amyg_hipp}",
     )
 
     class Outputs(shell.Outputs):
         out_file: File = shell.outarg(
             help="The output parcellation image",
-            position=3,
+            position=4,
             argstr="{output}",
         )
