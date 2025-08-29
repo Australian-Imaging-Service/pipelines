@@ -38,7 +38,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
-test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree-xnat", "xnat4tests"]
+test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.14.5", "xnat4tests>=0.3.14", "pydra2app>=0.18.8", "pydra2app-xnat>=0.8.2"]
 
 
 [project.urls]
