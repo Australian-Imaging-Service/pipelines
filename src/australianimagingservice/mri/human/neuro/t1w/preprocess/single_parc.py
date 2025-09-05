@@ -1,9 +1,8 @@
-
 import typing as ty
 from pydra.compose import workflow
 from pydra.tasks.fsl.v6 import Reorient2Std, Threshold
 from pydra.tasks.freesurfer.v8 import (
-    SurfaceSmooth,
+    SurfaceTransform,
     Label2Vol,
     Aparc2Aseg,
 )
@@ -17,8 +16,9 @@ from pydra.tasks.mrtrix3.v3_1 import (
 from fileformats.generic import Directory, File
 from fileformats.medimage import NiftiGz
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
+from pydra.environments.docker import Docker
 from pydra.tasks.fastsurfer.latest import Fastsurfer
-from .helpers import JoinTaskCatalogue, LabelSgmFix
+from .helpers import JoinTaskCatalogue, LabelSgmFix, Dependency
 
 # from pydra.engine.task import FunctionTask
 # from pydra.engine.specs import BaseSpec
@@ -44,7 +44,6 @@ def SingleParcellation(
     parcellation: str,
     freesurfer_home: Directory,
     mrtrix_lut_dir: Directory,
-    cache_dir: Path,
     fs_license: File,
     subjects_dir: Path,
     fastsurfer_executable: ty.Union[str, ty.List[str], None] = None,
@@ -67,7 +66,8 @@ def SingleParcellation(
             parallel=True,
             threads=24,
             subjects_dir=subjects_dir,
-        )
+        ),
+        environment=Docker(image="deepmi/fastsurfer:latest"),
     )
     if fastsurfer_executable:
         fastsurfer.inputs.executable = fastsurfer_executable
@@ -97,7 +97,8 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_hsvs.out_file,
                 # out_file="5TTvis_hsvs.mif.gz",
-            )
+            ),
+            name="fTTvis_task_hsvs",
         )
 
         # Five tissue-type task FreeSurfer
@@ -117,7 +118,8 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_freesurfer.out_file,
                 # out_file="5TTvis_freesurfer.mif.gz",
-            )
+            ),
+            name="fTTvis_task_freesurfer",
         )
 
         # Five tissue-type task fsl
@@ -139,6 +141,7 @@ def SingleParcellation(
                 in_file=fTTgen_task_fsl.out_file,
                 #    out_file="5TTvis_fsl.mif.gz",
             ),
+            name="fTTvis_task_fsl",
         )
         fTTgen_task_hsvs_out = fTTgen_task_hsvs.out_file
         fTTvis_task_hsvs_out = fTTvis_task_hsvs.out_file
@@ -184,89 +187,56 @@ def SingleParcellation(
         # mri_surf2surf task - lh and rh #
         ##################################
         hemispheres = ["lh"]
-        mri_s2s_tasks = {}
+        # mri_s2s_tasks = {}
         for hemi in hemispheres:
-            mri_s2s_tasks[hemi] = workflow.add(
-                SurfaceSmooth(
-                    cache_dir=cache_dir,
-                    source_subject_id=join_task.fsavg_dir,
-                    target_subject_id=fastsurfer.subjects_dir_output,
-                    source_annotation_file=getattr(
-                        join_task, f"source_annotation_file_{hemi}"
-                    ),
-                    target_annotation_file=getattr(join_task, f"{hemi}_annotation"),
-                    hemisphere=hemi,
-                )
-                # ShellCommandTask(
-                #     executable="mri_surf2surf",
-                #     input_spec=mri_s2s_input_spec,
-                #     output_spec=mri_s2s_output_spec,
-                #     cache_dir=cache_dir,
-                #     source_subject_id=join_task.fsavg_dir,
-                #     target_subject_id=fastsurfer.subjects_dir_output,
-                #     source_annotation_file=getattr(
-                #         join_task, f"source_annotation_file_{hemi}"
-                #     ),
-                #     target_annotation_file=getattr(join_task, f"{hemi}_annotation"),
-                #     hemisphere=hemi,
-                # )
+            mri_s2s_task1_v2atlas = workflow.add(
+                SurfaceTransform(
+                    source_subject=join_task.fsavg_dir,
+                    target_subject=fastsurfer.subjects_dir_output,
+                    source_file=getattr(join_task, f"source_annotation_file_{hemi}"),
+                    out_file=getattr(join_task, f"{hemi}_annotation"),
+                    hemi=hemi,
+                ),
+                name="mri_s2s_task_lh",
             )
 
         hemispheres = ["rh"]
-        mri_s2s_tasks2 = {}
+        # mri_s2s_tasks2 = {}
         for hemi in hemispheres:
-            mri_s2s_tasks2[hemi] = workflow.add(
-                SurfaceSmooth(
-                    cache_dir=cache_dir,
-                    source_subject_id=join_task.fsavg_dir,
-                    target_subject_id=mri_s2s_tasks[
-                        "rh"
-                    ].target_subject_id,  # create dependency on lh being executed first
-                    source_annotation_file=getattr(
-                        join_task, f"source_annotation_file_{hemi}"
-                    ),
-                    target_annotation_file=getattr(join_task, f"{hemi}_annotation"),
-                    hemisphere=hemi,
-                )
-                # ShellCommandTask(
-                #     name=f"mri_s2s_task_{hemi}",
-                #     executable="mri_surf2surf",
-                #     input_spec=mri_s2s_input_spec,
-                #     output_spec=mri_s2s_output_spec,
-                #     cache_dir=cache_dir,
-                #     source_subject_id=join_task.fsavg_dir,
-                #     target_subject_id=mri_s2s_task_lh.target_subject_id,  # create dependency on lh being executed first
-                #     source_annotation_file=getattr(
-                #         join_task, f"source_annotation_file_{hemi}"
-                #     ),
-                #     target_annotation_file=getattr(join_task, f"{hemi}_annotation"),
-                #     hemisphere=hemi,
-                # )
+            mri_s2s_task2_v2atlas = workflow.add(
+                SurfaceTransform(
+                    source_subject=join_task.fsavg_dir,
+                    target_subject=fastsurfer.subjects_dir_output,
+                    source_file=getattr(join_task, f"source_annotation_file_{hemi}"),
+                    out_file=getattr(join_task, f"{hemi}_annotation"),
+                    hemi=hemi,
+                ),
+                name="mri_s2s_task_rh",
             )
 
+        # ###########################################################
+        # # dummy task to ensure aparc2aseg occurs after surf2surf  #
+        # ###########################################################
+
+        # dependency_task = workflow.add(
+        #     Dependency(
+        #         subjects_dir=join_task.fsavg_dir,
+        #         annot_file_lh=mri_s2s_task1.out_file,
+        #         annot_file_rh=mri_s2s_task2.out_file,
+        #     )
+        # )
         # ########################
         # # mri_aparc2aseg task  #
         # ########################
 
-        mri_a2a_task = workflow.add(
+        mri_a2a_task_v2atlas = workflow.add(
             Aparc2Aseg(
-                cache_dir=cache_dir,
-                subject=mri_s2s_tasks[
-                    "rh"
-                ].target_subject_id,  # create dependency on lh and rh annot files having been created
-                new_ribbon=True,
-                annotname=join_task.annot_short,
-            )
-            # ShellCommandTask(
-            #     name="mri_a2a_task",
-            #     executable="mri_aparc2aseg",
-            #     input_spec=mri_a2a_input_spec,
-            #     output_spec=mri_a2a_output_spec,
-            #     cache_dir=cache_dir,
-            #     subject=mri_s2s_task_rh.target_subject_id,  # create dependency on lh and rh annot files having been created
-            #     new_ribbon=True,
-            #     annotname=join_task.annot_short,
-            # )
+                subject_id=join_task.fsavg_dir,  # create dependency on lh and rh annot files having been created
+                volmask=True,  # same as --new-ribbon
+                lh_annotation=mri_s2s_task1_v2atlas.out_file,
+                rh_annotation=mri_s2s_task2_v2atlas.out_file,
+            ),
+            name="mri_a2a_task_v2atlasprocessing",
         )
 
         # ##########################
@@ -275,27 +245,16 @@ def SingleParcellation(
 
         mri_l2v_task = workflow.add(
             Label2Vol(
-                cache_dir=cache_dir,
-                seg=mri_a2a_task.volfile,
-                temp=join_task.l2v_temp,
-                regheader=join_task.l2v_regheader,
+                seg_file=mri_a2a_task_v2atlas.out_file,  # volfile,
+                template_file=join_task.l2v_temp,
+                reg_header=join_task.l2v_regheader,
             )
-            # ShellCommandTask(
-            #     name="mri_l2v_task",
-            #     executable="mri_label2vol",
-            #     input_spec=mri_l2v_input_spec,
-            #     output_spec=mri_l2v_output_spec,
-            #     cache_dir=cache_dir,
-            #     seg=mri_a2a_task.volfile,
-            #     temp=join_task.l2v_temp,
-            #     regheader=join_task.l2v_regheader,
-            # )
         )
 
         # reorient to standard
         fslreorient2std_task = workflow.add(
             Reorient2Std(
-                in_file=mri_l2v_task.output,  # l2v_mgz2nii_task.out_file,
+                in_file=mri_l2v_task.vol_label_file,  # l2v_mgz2nii_task.out_file,
             )
         )
 
@@ -306,9 +265,9 @@ def SingleParcellation(
                 # executable="fslmaths",
                 # input_spec=fslthreshold_input_spec,
                 # output_spec=fslthreshold_output_spec,
-                in_file=fslreorient2std_task.output_image,
-                use_robust_range=False,
                 # output_image="label2vol_out_std_threshold.nii.gz",  # join_task.output_parcellation_filename,
+                in_file=fslreorient2std_task.out_file,
+                use_robust_range=False,
                 thresh=1000,
             )
         )
@@ -316,7 +275,7 @@ def SingleParcellation(
         # relabel segmenetation to ascending integers from 1 to N
         LabelConvert_task = workflow.add(
             LabelConvert(
-                path_in=threshold_task.output_image,
+                path_in=threshold_task.out_file,
                 lut_in=join_task.parc_lut_file,
                 lut_out=join_task.mrtrix_lut_file,
                 image_out=join_task.final_parc_image,  # type: ignore[]
@@ -343,65 +302,33 @@ def SingleParcellation(
         ##################################
         hemispheres = ["lh"]
         for hemi in hemispheres:
-            mri_s2s_task_originals[hemi] = workflow.add(
+            mri_s2s_task_originals_lh = workflow.add(
                 SurfaceSmooth(
-                    cache_dir=cache_dir,
-                    source_subject_id=join_task.fsavg_dir,
-                    target_subject_id=fastsurfer.subjects_dir_output,  # FS_dir,
-                    source_annotation_file=getattr(
+                    source_subject=join_task.fsavg_dir,
+                    target_subject=fastsurfer.subjects_dir_output,  # FS_dir,
+                    source_annot_file=getattr(
                         join_task, f"source_annotation_file_{hemi}"
                     ),
-                    target_annotation_file=getattr(join_task, f"{hemi}_annotation"),
+                    out_file=getattr(join_task, f"{hemi}_annotation"),
                     hemi=hemi,
                 ),
-                name=f"mri_s2s_task_originals_{hemi}",
-                # ShellCommandTask(
-                #     name=f"mri_s2s_task_originals_{hemi}",
-                #     executable="mri_surf2surf",
-                #     input_spec=mri_s2s_input_spec,
-                #     output_spec=mri_s2s_output_spec,
-                #     cache_dir=cache_dir,
-                #     source_subject_id=join_task.fsavg_dir,
-                #     target_subject_id=fastsurfer.subjects_dir_output,  # FS_dir,
-                #     source_annotation_file=getattr(
-                #         join_task, f"source_annotation_file_{hemi}"
-                #     ),
-                #     target_annotation_file=getattr(join_task, f"{hemi}_annotation"),
-                #     hemisphere=hemi,
-                # )
+                name="mri_s2s_task_originals_lh",
             )
 
         hemispheres = ["rh"]
         mri_s2s_task_originals = {}
         for hemi in hemispheres:
-            mri_s2s_task_originals[hemi] = workflow.add(
+            mri_s2s_task_originals_rh = workflow.add(
                 SurfaceSmooth(
-                    cache_dir=cache_dir,
-                    source_subject_id=join_task.fsavg_dir,
-                    target_subject_id=mri_s2s_task_originals[
-                        "rh"
-                    ].target_subject_id,  # create dependency on rh being executed first
-                    source_annotation_file=getattr(
+                    source_subject=join_task.fsavg_dir,
+                    target_subject=fastsurfer.subjects_dir_output,  # FS_dir,
+                    source_annot_file=getattr(
                         join_task, f"source_annotation_file_{hemi}"
                     ),
-                    target_annotation_file=getattr(join_task, f"{hemi}_annotation"),
-                    hemisphere=hemi,
+                    out_file=getattr(join_task, f"{hemi}_annotation"),
+                    hemi=hemi,
                 ),
-                name=f"mri_s2s_task_originals_{hemi}",
-                # ShellCommandTask(
-                #     name=f"mri_s2s_task_originals_{hemi}",
-                #     executable="mri_surf2surf",
-                #     input_spec=mri_s2s_input_spec,
-                #     output_spec=mri_s2s_output_spec,
-                #     cache_dir=cache_dir,
-                #     source_subject_id=join_task.fsavg_dir,
-                #     target_subject_id=mri_s2s_task_originals_lh.target_subject_id,  # create dependency on lh being executed first
-                #     source_annotation_file=getattr(
-                #         join_task, f"source_annotation_file_{hemi}"
-                #     ),
-                #     target_annotation_file=getattr(join_task, f"{hemi}_annotation"),
-                #     hemisphere=hemi,
-                # )
+                name="mri_s2s_task_originals_rh",
             )
 
         # ########################
@@ -410,12 +337,13 @@ def SingleParcellation(
 
         mri_a2a_task_originals = workflow.add(
             Aparc2Aseg(
-                cache_dir=cache_dir,
-                subject=mri_s2s_task_originals["rh"].target_subject_id,  # FS_dir,
+                subject_id=mri_s2s_task_originals["rh"].target_subject_id,  # FS_dir,
                 old_ribbon=True,
-                annotname=join_task.annot_short,
+                lh_annotation=mri_s2s_task_originals_lh.out_file,
+                rh_annotation=mri_s2s_task_originals_rh.out_file,
             )
         )
+
         volfile = mri_a2a_task_originals.volfile
 
     if parcellation in ["destrieux", "desikan", "hcpmmp1", "Yeo17", "Yeo7"]:

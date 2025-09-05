@@ -3,7 +3,9 @@ from fileformats.generic import File, Directory, DirectoryOf
 from fileformats.medimage import NiftiGz
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
 from pydra.compose import workflow, python
-from .single_parc import SingleParcellation
+from australianimagingservice.mri.human.neuro.t1w.preprocess.single_parc import (
+    SingleParcellation,
+)
 
 # # ########################
 # # # Execute the workflow #
@@ -34,8 +36,15 @@ parcellation_list = [
     "Yeo7",
 ]  # List of different parcellations
 
+collate_inputs = {p: Mif for p in parcellation_list}
+collate_inputs["out_dir"] = Path | None
 
-def collate_parcellations(out_dir: Path | None = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  # type: ignore[type-arg]
+
+@python.define(
+    inputs=collate_inputs,
+    outputs=["out_dir"],
+)
+def CollateParcellations(out_dir: Path | None = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  # type: ignore[type-arg]
     """Collate multiple parcellations into a single directory."""
     if out_dir is None:
         out_dir = Path("./out_dir").absolute()
@@ -61,12 +70,11 @@ def AllParcellations(
     subjects_dir: Path,
     freesurfer_home: Directory,
     mrtrix_lut_dir: Directory,
-    cache_dir: Path,
     fs_license: File,
     fastsurfer_executable: str | list[str] | None = None,
     fastsurfer_python: str = "python3",
 ) -> tuple[
-    Mif,
+    DirectoryOf[Mif],
     Mif,
     Mif,
     Mif,
@@ -75,13 +83,7 @@ def AllParcellations(
     Mif,
 ]:
 
-    collate_parcs = workflow.add(
-        python.define(
-            collate_parcellations,
-            inputs={p: Mif for p in parcellation_list},
-            outputs={"out_dir": DirectoryOf[Mif]},
-        )
-    )
+    collate_parcs = workflow.add(CollateParcellations(out_dir=None))
 
     parcs = {}
 
@@ -93,7 +95,6 @@ def AllParcellations(
                 parcellation=parcellation,
                 freesurfer_home=freesurfer_home,
                 mrtrix_lut_dir=mrtrix_lut_dir,
-                cache_dir=cache_dir,
                 fs_license=fs_license,
                 fastsurfer_executable=fastsurfer_executable,
                 fastsurfer_python=fastsurfer_python,
@@ -103,7 +104,7 @@ def AllParcellations(
         )
 
         setattr(
-            collate_parcs,
+            collate_parcs.inputs,
             parcellation,
             parcs[parcellation].parc_image,
         )
@@ -145,8 +146,12 @@ if __name__ == "__main__":
     t1w = Path(sys.argv[1])
     subjects_dir = Path(get_arg(2, "SUBJECTS_DIR"))
     freesurfer_home = Path(get_arg(3, "FREESURFER_HOME"))
-    mrtrix_lut_dir = Path(get_arg(4, "MRTRIX_LUT_DIR", "/usr/local/mrtrix3/share/mrtrix3/labelconvert"))
-    cache_dir = Path(get_arg(5, None, "./pydra_cache"))
+    mrtrix_lut_dir = Path(
+        get_arg(4, "MRTRIX_LUT_DIR", "/usr/local/mrtrix3/share/mrtrix3/labelconvert")
+    )
+    cache_dir = Path(
+        get_arg(5, None, "/Users/adso8337/Documents/PydraProcessingDirectory/")
+    )
     fs_license = Path(get_arg(6, "FS_LICENSE", str(freesurfer_home / "license.txt")))
     fastsurfer_executable = get_arg(7, "FASTSURFER_EXECUTABLE", "fastsurfer")
     fastsurfer_python = get_arg(8, None, "python3")
@@ -156,12 +161,11 @@ if __name__ == "__main__":
         subjects_dir=subjects_dir,
         freesurfer_home=freesurfer_home,
         mrtrix_lut_dir=mrtrix_lut_dir,
-        cache_dir=cache_dir,
         fs_license=fs_license,
         fastsurfer_executable=fastsurfer_executable,
         fastsurfer_python=fastsurfer_python,
     )
 
-    result = wf()
+    result = wf(cache_root=cache_dir)
     print("Workflow finished. Outputs:")
     print(result)
