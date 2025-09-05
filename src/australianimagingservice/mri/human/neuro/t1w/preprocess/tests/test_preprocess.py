@@ -20,6 +20,9 @@ def test_t1w_preprocess():
         "/Users/tclose/Desktop/file1.txt",
     )
 
+    outputs = wf()
+    print(outputs)
+
 
 def test_t1w_preprocess_yaml(tmp_path: Path):
     app = App.load(

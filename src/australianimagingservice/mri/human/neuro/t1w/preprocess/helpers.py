@@ -1,8 +1,7 @@
 import os
 import typing as ty
-from fileformats.generic import Directory
+from fileformats.generic import Directory, File
 from pydra.compose import python, shell
-from pytest import File
 
 
 @python.define(
@@ -309,9 +308,11 @@ class LabelSgmFix(shell.Task["LabelSgmFix.Outputs"]):
     )
     premasked: bool = shell.arg(
         help="Indicate that brain masking has been applied to the T1 input image",
+        argstr="-premasked",
     )
     sgm_amyg_hipp: bool = shell.arg(
         help="Indicate that brain masking has been applied to the T1 input image",
+        argstr="-sgm_amyg_hipp",
     )
 
     class Outputs(shell.Outputs):
@@ -319,4 +320,30 @@ class LabelSgmFix(shell.Task["LabelSgmFix.Outputs"]):
             help="The output parcellation image",
             position=4,
             argstr="{output}",
+        )
+
+
+# # ########################
+# # # dependency spec info #
+# # ########################
+
+
+@shell.define
+class Dependency(shell.Task["Dependency.Outputs"]):
+
+    executable = "echo"
+
+    subjects_dir: Directory = shell.arg(
+        help="Freesurfer subjects directory",
+    )
+    annot_file_lh: File = shell.arg(
+        help="output annotation file from mri_surf2surf left-hemisphere",
+    )
+    annot_file_rh: File = shell.arg(
+        help="output annotation file from mri_surf2surf right-hemisphere",
+    )
+
+    class Outputs(shell.Outputs):
+        subjects_dir: Directory = shell.arg(
+            help="Freesurfer subjects directory",
         )
