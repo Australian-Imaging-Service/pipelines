@@ -65,7 +65,7 @@ docs:
 commands:
   single_parc:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:SingleParcellation
-    row_frequency: common:Clinical[session] # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
+    operates_on: medimage/session
     inputs:
        - t1w
     configuration: # Additional args passed to arcana.common:shell_cmd
@@ -79,7 +79,7 @@ commands:
         - --allow_root
   all_parcs:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:AllParcellations
-    row_frequency: common:Clinical[session] # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
+    operates_on: medimage/session
     inputs: # List the inputs that are presented to end-user in UI
       - t1w
     configuration: # Additional args passed to arcana.common:shell_cmd
