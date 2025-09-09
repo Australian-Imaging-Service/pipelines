@@ -10,10 +10,7 @@ from frametree.xnat import Xnat
 from fileformats.application import Dicom
 import pytest
 from click.testing import CliRunner
-<<<<<<< HEAD
-=======
 from fileformats.medimage import DicomDir
->>>>>>> 50fed32 (fixed upload of test data so that scan ID and scan type match that in DICOM header)
 import xnat
 import xnat4tests
 
