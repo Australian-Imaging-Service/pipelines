@@ -50,6 +50,6 @@ commands:
     parameters:
       - flags
       - json_edits
-    row_frequency: common:Clinical[session]
+    operates_on: medimage/session
     configuration:
       work_dir: /work/nipype-work # We need to give a work directory outside of the pydra node as otherwise the file paths exceed Freesurfer's file-path char buffers
