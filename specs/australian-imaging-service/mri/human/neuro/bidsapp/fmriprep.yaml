@@ -125,7 +125,7 @@ commands:
           path: fmriprep
     parameters:
       - flags
-    row_frequency: common:Clinical[session]
+    operates_on: medimage/session
     configuration:
       work_dir: /work/nipype-work
       json_edits:
