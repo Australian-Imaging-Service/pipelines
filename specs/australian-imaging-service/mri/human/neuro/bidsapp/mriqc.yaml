@@ -24,7 +24,7 @@ packages:
     mrtrix3: "3.0.4"
 commands:
   mriqc:
-    row_frequency: common:Clinical[session]
+    operates_on: medimage/session
     task:
       type: bidsapp
       app: /usr/local/miniconda/bin/mriqc
