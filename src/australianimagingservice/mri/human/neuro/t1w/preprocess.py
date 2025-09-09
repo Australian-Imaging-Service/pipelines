@@ -1,8 +1,9 @@
 import typing as ty
 import attrs
+
 # from pydra import Workflow, mark, ShellCommandTask
 # from pydra.engine.specs import SpecInfo, ShellSpec, ShellOutSpec, File
-from pydra.tasks.mrtrix3.v3_0 import (
+from pydra.tasks.mrtrix3.v3_1 import (
     LabelConvert,
     # LabelSgmfix,
     Fivett2Vis,
@@ -14,6 +15,7 @@ from fileformats.generic import Directory, DirectoryOf, File
 from fileformats.medimage import NiftiGz
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
 from pydra.tasks.fastsurfer.latest import Fastsurfer
+
 # from pydra.engine.task import FunctionTask
 # from pydra.engine.specs import BaseSpec
 from pathlib import Path

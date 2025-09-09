@@ -17,8 +17,8 @@ def test_make_docs():
             "australian-imaging-service",
             "docs/pipelines",
             "--flatten",
-            "--default-data-space",
-            "arcana.common:Clinical",
+            "--default-axes",
+            "medimage",
         ],
         catch_exceptions=False,
     )
