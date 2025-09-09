@@ -164,7 +164,8 @@ def upload_test_dataset_to_xnat(
             # Create scan
             xscan = xclasses.MrScanData(
                 id=mdata["SeriesNumber"],
-                type=mdata["SeriesDescription"],
+                type=varname2path(test_scan_dir.stem),
+                series_description=mdata["SeriesDescription"],
                 parent=xsession,
             )
 
