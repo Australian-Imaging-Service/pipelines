@@ -58,7 +58,7 @@ jobs:
       run: |
         pip install -r requirements.txt
         pip install .
-        pip install git+https://github.com/ReproNim/neurodocker.git@master
+      # pip install git+https://github.com/ReproNim/neurodocker.git@master
 
     - name: Login to Docker registry
       uses: docker/login-action@v2
