@@ -4,6 +4,8 @@ from pydra2app.core.cli import make
 from frametree.core.utils import show_cli_trace
 import xnat4tests
 from pydra2app.xnat.deploy import install_cs_command, launch_cs_command
+import yaml
+
 
 PKG_PATH = Path(__file__).parent.parent.absolute()
 
@@ -11,6 +13,12 @@ runner = CliRunner()
 
 
 def test_phi_finder():
+    yaml_spec_path = (
+        f"{PKG_PATH}/specs/australian-imaging-service/quality-control/phi-finder.yaml"
+    )
+    with open(yaml_spec_path) as f:
+        yaml_spec = yaml.safe_load(f)
+
     result = runner.invoke(
         make,
         [
@@ -34,7 +42,7 @@ def test_phi_finder():
     xlogin = xnat4tests.connect()
 
     cmd_id = install_cs_command(
-        "ghcr.io/australian-imaging-service/quality-control.phi-finder:2025.7.2",
+        f"ghcr.io/australian-imaging-service/quality-control.phi-finder:{yaml_spec['version']}",
         xlogin,
         enable=True,
         projects_to_enable=["dummydicomproject"],

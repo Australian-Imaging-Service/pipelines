@@ -1,6 +1,6 @@
 schema_version: '2.0'
 title: PHI-Finder
-version: '2025.7.2.post3'
+version: &package_version "0.1.2"
 authors:
   - name: Pedro Faustini
     email: pedro.faustini@mq.edu.au
@@ -20,15 +20,16 @@ packages:
     - poppler-utils 
     - ghostscript
     - qpdf
+    - g++
   conda:
     tesseract: 5.5.0
   pip:
-    phi-finder: '2025.7.2'
+    phi-finder: *package_version
     torch: 2.6.0
     thinc: 8.3.4
 commands:
   phi-finder:
-    row_frequency: common:Clinical[session]
+    operates_on: medimage/session
     task:
       type: python
       function: phi_finder.dicom_tools.utils:deidentify_dicom_files
