@@ -20,6 +20,7 @@ packages:
     - poppler-utils 
     - ghostscript
     - qpdf
+    - g++
   conda:
     tesseract: 5.5.0
   pip:
@@ -28,7 +29,7 @@ packages:
     thinc: 8.3.4
 commands:
   phi-finder:
-    row_frequency: common:Clinical[session]
+    operates_on: medimage/session
     task:
       type: python
       function: phi_finder.dicom_tools.utils:deidentify_dicom_files

@@ -13,7 +13,9 @@ runner = CliRunner()
 
 
 def test_phi_finder():
-    yaml_spec_path = f"{PKG_PATH}/specs/australian-imaging-service/quality-control/phi-finder.yaml"
+    yaml_spec_path = (
+        f"{PKG_PATH}/specs/australian-imaging-service/quality-control/phi-finder.yaml"
+    )
     with open(yaml_spec_path) as f:
         yaml_spec = yaml.safe_load(f)
 
