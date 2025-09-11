@@ -67,7 +67,10 @@ def SingleParcellation(
             threads=24,
             subjects_dir=subjects_dir,
         ),
-        environment=Docker(image="deepmi/fastsurfer", tag="latest"),
+        environment=Docker(
+            image="deepmi/fastsurfer",
+            tag="latest",
+        ),
     )
     if fastsurfer_executable:
         fastsurfer.inputs.executable = fastsurfer_executable
