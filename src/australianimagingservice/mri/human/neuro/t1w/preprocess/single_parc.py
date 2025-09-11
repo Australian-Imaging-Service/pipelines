@@ -69,7 +69,15 @@ def SingleParcellation(
         ),
         environment=Docker(
             image="deepmi/fastsurfer",
-            tag="latest",
+            tag="cpu-v2.4.2",
+            xargs=[
+                "--user",
+                "1000:1000",
+                "--entrypoint",
+                "/bin/bash",
+                "-v",
+                f"{subjects_dir}:/mnt/pydra/{subjects_dir}:rw",
+            ],
         ),
     )
     if fastsurfer_executable:
