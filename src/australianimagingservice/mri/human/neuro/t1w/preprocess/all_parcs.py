@@ -162,7 +162,7 @@ if __name__ == "__main__":
         freesurfer_home=freesurfer_home,
         mrtrix_lut_dir=mrtrix_lut_dir,
         fs_license=fs_license,
-        fastsurfer_executable=fastsurfer_executable,
+        fastsurfer_executable=None,
         fastsurfer_python=fastsurfer_python,
     )
 
