@@ -9,13 +9,13 @@ base_image:
 packages:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
-    pydra-tasks-mrtrix3: 3.0.4a9
-    pydra-fsl:
+    pydra-tasks-mrtrix3:
+    pydra-tasks-fsl:
     fileformats:
-    pydra-fastsurfer:
+    pydra-tasks-fastsurfer:
     fileformats-medimage-extras:
-    fileformats-medimage-mrtrix3: 3.0.4a12
-    fileformats-medimage-mrtrix3-extras: 3.0.4a12
+    fileformats-medimage-mrtrix3:
+    fileformats-medimage-mrtrix3-extras:
     australianimagingservice:
   neurodocker:
     mrtrix3: 3.0.2
@@ -66,31 +66,33 @@ commands:
   single_parc:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:SingleParcellation
     operates_on: medimage/session
-    inputs:
-       - t1w
+    sources:
+      T1w:
+        field: t1w
+        help: "The T1-weighted MRI dataset to preprocess"
+    parameters:
+      Parcellation:
+        field: parcellation
+        help: "The parcellation to parcelate the cortex with"
     configuration: # Additional args passed to arcana.common:shell_cmd
       mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
       freesurfer_home: &freesurfer_home !join ["/opt/freesurfer-", *freesurfer_version]
       fs_license: *freesurfer_license
-      cache_dir: /work/pydra-cache
-      fastsurfer_executable:
-        - /fastsurfer/Docker/entrypoint.sh
-        - /fastsurfer/run_fastsurfer.sh
-        - --allow_root
+      subjects_dir: /work/subjects
+      in_fastsurfer_container: true
   all_parcs:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:AllParcellations
     operates_on: medimage/session
-    inputs: # List the inputs that are presented to end-user in UI
-      - t1w
+    sources:
+      T1w:
+        field: t1w
+        help: "The T1-weighted MRI dataset to preprocess"
     configuration: # Additional args passed to arcana.common:shell_cmd
       mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert ## should this be 
-      freesurfer_home: &freesurfer_home !join ["/opt/freesurfer-", *freesurfer_version] ## freesurfer_home: *freesurfer_home
+      freesurfer_home: *freesurfer_home ## freesurfer_home: *freesurfer_home
       fs_license: *freesurfer_license
-      cache_dir: /work/pydra-cache
-      fastsurfer_executable:
-        - /fastsurfer/Docker/entrypoint.sh
-        - /fastsurfer/run_fastsurfer.sh
-        - --allow_root
+      subjects_dir: /work/subjects
+      in_fastsurfer_container: true
 resources:
   neuro-parcellations: /parcellations
   yeo2011-parcellations: !join [*freesurfer_home, "/Yeo2011"]

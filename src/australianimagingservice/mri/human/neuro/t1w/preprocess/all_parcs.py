@@ -71,7 +71,7 @@ def AllParcellations(
     freesurfer_home: Directory,
     mrtrix_lut_dir: Directory,
     fs_license: File,
-    fastsurfer_executable: str | list[str] | None = None,
+    in_fastsurfer_container: bool = False,
     fastsurfer_python: str = "python3",
 ) -> tuple[
     DirectoryOf[Mif],
@@ -96,7 +96,7 @@ def AllParcellations(
                 freesurfer_home=freesurfer_home,
                 mrtrix_lut_dir=mrtrix_lut_dir,
                 fs_license=fs_license,
-                fastsurfer_executable=fastsurfer_executable,
+                in_fastsurfer_container=in_fastsurfer_container,
                 fastsurfer_python=fastsurfer_python,
                 subjects_dir=subjects_dir,
             ),  # pyright: ignore[reportArgumentType]
