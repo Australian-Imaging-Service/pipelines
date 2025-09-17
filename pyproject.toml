@@ -12,7 +12,7 @@ dependencies = [
     "fileformats-medimage",
     "pydra >=0.23a0",
     "pydra-tasks-mrtrix3",
-    "pydra-fastsurfer",
+    "pydra-tasks-fastsurfer",
 ]
 license = "CC-BY-4.0"
 authors = [{ name = "Thomas G. Close", email = "tom.g.close@gmail.com" }]
