@@ -74,7 +74,14 @@ bids_apps_dir = (
     / "bidsapp"
 )
 test_bids_data_dir = (
-    Path(__file__).parent / "tests" / "data" / "mri" / "human" / "neuro" / "bidsapp"
+    Path(__file__).parent
+    / "tests"
+    / "data"
+    / "specs"
+    / "mri"
+    / "human"
+    / "neuro"
+    / "bidsapp"
 )
 
 bids_specs = [str(p.stem) for p in bids_apps_dir.glob("*.yaml")]
@@ -162,8 +169,16 @@ def upload_test_dataset_to_xnat(
                 continue
             mdata = DicomDir(test_scan_dir / "DICOM").metadata
             # Create scan
+            series_number = int(mdata["SeriesNumber"])
+            while True:
+                try:
+                    xsession.scans[str(series_number)]
+                except KeyError:
+                    break
+                else:
+                    series_number += 1000
             xscan = xclasses.MrScanData(
-                id=mdata["SeriesNumber"],
+                id=series_number,
                 type=varname2path(test_scan_dir.stem),
                 series_description=mdata["SeriesDescription"],
                 parent=xsession,
@@ -171,10 +186,18 @@ def upload_test_dataset_to_xnat(
 
             for resource_path in test_scan_dir.iterdir():
 
+                if not resource_path.is_dir():
+                    continue
                 # Create the resource
                 xresource = xscan.create_resource(resource_path.stem)
                 # Create the dummy files
                 xresource.upload_dir(resource_path, method="tar_file")
 
         # Populate metadata from DICOM headers
-        login.put(f"/data/experiments/{xsession.id}?pullDataFromHeaders=true")
+        try:
+            login.put(f"/data/experiments/{xsession.id}?pullDataFromHeaders=true")
+        except xnat.exceptions.XNATResponseError as e:
+            logger.warning(
+                f"Failed to pull metadata from DICOM headers for session {xsession.id} "
+                f"with error: {e}"
+            )
