@@ -8,7 +8,7 @@ base_image:
 packages:
   pip:
     - pydra-tasks-dcm2niix
-    - pydra-mrtrix3
+    - pydra-tasks-mrtrix3
     - pydra-compose-bidsapp
   neurodocker:
     dcm2niix: v1.0.20250506

@@ -76,7 +76,7 @@ bids_apps_dir = (
     / "bidsapp"
 )
 test_data_dir = Path(__file__).parent / "tests" / "data"
-test_bids_data_dir = test_data_dir / "specs" / "mri" / "human" / "neuro" / "bidsapps"
+test_bids_data_dir = test_data_dir / "specs" / "mri" / "human" / "neuro" / "bidsapp"
 
 bids_specs = [str(p.stem) for p in bids_apps_dir.glob("*.yaml")]
 
@@ -198,6 +198,8 @@ def upload_test_dataset_to_xnat(
 
             for resource_path in test_scan_dir.iterdir():
 
+                if not resource_path.is_dir():
+                    continue
                 # Create the resource
                 xresource = xscan.create_resource(resource_path.stem)
                 # Create the dummy files
