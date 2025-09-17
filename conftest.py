@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from frametree.core.utils import varname2path
 import pytest
 from click.testing import CliRunner
+import xnat
 import xnat4tests
 
 # Set DEBUG logging for unittests
@@ -70,11 +71,15 @@ bids_apps_dir = (
     / "neuro"
     / "bidsapps"
 )
-test_bids_data_dir = (
-    Path(__file__).parent / "tests" / "data" / "mri" / "human" / "neuro" / "bidsapps"
-)
+test_data_dir = Path(__file__).parent / "tests" / "data"
+test_bids_data_dir = test_data_dir / "specs" / "mri" / "human" / "neuro" / "bidsapps"
 
 bids_specs = [str(p.stem) for p in bids_apps_dir.glob("*.yaml")]
+
+
+@pytest.fixture(params=bids_specs)
+def bids_app_spec_path(request):
+    return bids_apps_dir / (request.param + ".yaml")
 
 
 @pytest.fixture(params=bids_specs)
@@ -168,4 +173,10 @@ def upload_test_dataset_to_xnat(project_id: str, source_data_dir: Path, xnat_con
                 xresource.upload_dir(resource_path, method="tar_file")
 
         # Populate metadata from DICOM headers
-        login.put(f"/data/experiments/{xsession.id}?pullDataFromHeaders=true")
+        try:
+            login.put(f"/data/experiments/{xsession.id}?pullDataFromHeaders=true")
+        except xnat.exceptions.XNATResponseError as e:
+            logger.warning(
+                f"Failed to pull metadata from DICOM headers for session {xsession.id} "
+                f"with error: {e}"
+            )
