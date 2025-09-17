@@ -17,6 +17,7 @@ from fileformats.generic import Directory, File
 from fileformats.medimage import NiftiGz
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
 from pydra.environments.docker import Docker
+from pydra.environments.native import Native
 from pydra.tasks.fastsurfer.latest import Fastsurfer
 from .helpers import JoinTaskCatalogue, LabelSgmFix, Dependency
 
@@ -46,7 +47,7 @@ def SingleParcellation(
     mrtrix_lut_dir: Directory,
     fs_license: File,
     subjects_dir: Path,
-    fastsurfer_executable: ty.Union[str, ty.List[str], None] = None,
+    in_fastsurfer_container: bool = False,
     fastsurfer_python: str = "python3",
 ) -> tuple[Mif, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None]:
 
@@ -54,20 +55,10 @@ def SingleParcellation(
     # # FASTSURFER TASK #
     # ###################
 
-    fastsurfer = workflow.add(
-        Fastsurfer(
-            T1_files=t1w,
-            fs_license=fs_license,
-            subject_id="FS_outputs",
-            py=fastsurfer_python,
-            # norm_img="norm.mgz",
-            # aparcaseg_img="aparcaseg.mgz",
-            fsaparc=True,
-            parallel=True,
-            threads=24,
-            subjects_dir=subjects_dir,
-        ),
-        environment=Docker(
+    if in_fastsurfer_container:
+        fs_environment = Native()
+    else:
+        fs_environment = Docker(
             image="deepmi/fastsurfer",
             tag="cpu-v2.4.2",
             xargs=[
@@ -75,13 +66,29 @@ def SingleParcellation(
                 "1000:1000",
                 "--entrypoint",
                 "/bin/bash",
-                "-v",
-                f"{subjects_dir}:/mnt/pydra/{subjects_dir}:rw",
             ],
+        )
+
+    fastsurfer = workflow.add(
+        Fastsurfer(
+            T1_files=t1w,
+            fs_license=fs_license,
+            subject_id="FS_outputs",
+            # norm_img="norm.mgz",
+            # aparcaseg_img="aparcaseg.mgz",
+            fsaparc=True,
+            parallel=True,
+            threads=24,
+            subjects_dir=subjects_dir,
         ),
+        environment=fs_environment,
     )
-    if fastsurfer_executable:
-        fastsurfer.inputs.executable = fastsurfer_executable
+
+    if in_fastsurfer_container:
+        fastsurfer.inputs.py = "python3"
+        fastsurfer.inputs.executable = "/fastsurfer/run_fastsurfer.sh"
+    else:
+        fastsurfer.inputs.py = fastsurfer_python
 
     # #################################################
     # # FIVE TISSUE TYPE Generation and visualisation #

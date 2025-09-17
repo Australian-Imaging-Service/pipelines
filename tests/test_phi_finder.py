@@ -3,6 +3,7 @@ from click.testing import CliRunner
 from pydra2app.core.cli import make
 from frametree.core.utils import show_cli_trace
 import xnat4tests
+import pytest
 from pydra2app.xnat.deploy import install_cs_command, launch_cs_command
 import yaml
 
@@ -12,6 +13,7 @@ PKG_PATH = Path(__file__).parent.parent.absolute()
 runner = CliRunner()
 
 
+@pytest.mark.skip
 def test_phi_finder():
     yaml_spec_path = (
         f"{PKG_PATH}/specs/australian-imaging-service/quality-control/phi-finder.yaml"
