@@ -76,6 +76,7 @@ jobs:
         IMAGE_TAG=ghcr.io/australian-imaging-service/${PIPELINE_NAME}:${SPEC_VERSION}
         echo "IMAGE_TAG=$IMAGE_TAG"
         echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+        echo "PIPELINE_NAME=$PIPELINE_NAME" >> $GITHUB_ENV
 
     - name: Build and push container images
       env:
@@ -88,8 +89,19 @@ jobs:
       # --release pipelines-metapackage $RELEASE --tag-latest --check-registry --clean-up 
 
     - name: Dump XNAT command JSON to file
-      run: docker run --entrypoint cat ${{ env.IMAGE_TAG }} /xnat_commands/*.json > ./${{ matrix.spec }}.json
-    
+      run: |
+        mkdir -p ./xnat_commands
+        for command in $(yq -r '.commands | keys | join(" ")' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml); do
+          echo "Extracting command: $command"
+          docker run --entrypoint cat ${{ env.IMAGE_TAG }} /xnat_commands/${command}.json > ./xnat_commands/${command}.json
+        done
+
+    - name: Upload XNAT command JSON artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: xnat-commands-${{ env.PIPELINE_NAME }}
+        path: ./xnat_commands/*.json
+        
     - name: Push built Docker image
       id: deployable
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
