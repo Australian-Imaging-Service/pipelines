@@ -87,8 +87,8 @@ jobs:
         --resources-dir ./resources --spec-root ./specs --dont-check-registry --source-package .
       # --release pipelines-metapackage $RELEASE --tag-latest --check-registry --clean-up 
 
-    - name: List Docker images
-      run: docker images
+    - name: Dump XNAT command JSON to file
+      run: docker run --entrypoint cat ${{ env.IMAGE_TAG }} /xnat_commands/*.json > ./${{ matrix.spec }}.json
     
     - name: Push built Docker image
       id: deployable
