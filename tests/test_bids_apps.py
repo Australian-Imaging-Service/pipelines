@@ -73,11 +73,12 @@ def test_bids_app(
         for pname, pval in bp.parameters.items():
             inputs_json[pname] = pval
 
-        inputs_json["Arcana_flags"] = (
+        inputs_json["pydra2app_flags"] = (
             "--worker serial "
             "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
             "--dataset-name default "
-            "--loglevel debug "
+            "--logger frametree debug "
+            "--logger pydra2app debug "
         )
 
         workflow_id, status, out_str = install_and_launch_xnat_cs_command(
