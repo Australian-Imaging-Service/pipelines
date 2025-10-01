@@ -97,7 +97,7 @@ jobs:
         done
 
     - name: Upload XNAT command JSON artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: xnat-commands-${{ env.PIPELINE_NAME }}
         path: ./xnat_commands/*.json
