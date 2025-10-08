@@ -10,9 +10,9 @@ packages:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
     pydra-tasks-mrtrix3: 3.0.4a9
-    pydra-fsl:
+    pydra-tasks-fsl:
     fileformats:
-    pydra-fastsurfer:
+    pydra-tasks-fastsurfer:
     fileformats-medimage-extras:
     fileformats-medimage-mrtrix3: 3.0.4a12
     fileformats-medimage-mrtrix3-extras: 3.0.4a12
@@ -65,7 +65,7 @@ docs:
 commands:
   # single_parc:
   #   task: australianimagingservice.mri.human.neuro.t1w.preprocess:single_parc
-  #   row_frequency: common:Clinical[session] # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
+  #   row_frequency: medimage/session # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
   #   inputs: # List the inputs that are presented to end-user in UI
   #     t1w:
   #       datatype: medimage/nifti-gz # MIME-type or "MIME-like" format
@@ -110,14 +110,14 @@ commands:
   #     mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
   #     freesurfer_home: &freesurfer_home !join ["/opt/freesurfer-", *freesurfer_version]
   #     fs_license: *freesurfer_license
-  #     cache_dir: /work/pydra-cache
+  #     cache_dir: /work/pydra-tasks-cache
   #     fastsurfer_executable:
   #       - /fastsurfer/Docker/entrypoint.sh
   #       - /fastsurfer/run_fastsurfer.sh
   #       - --allow_root
   all_parcs:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:all_parcs
-    row_frequency: common:Clinical[session] # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
+    operates_on: medimage/session # the pipeline is desgined to run on imaging "sessions" as opposed to "subjects" or "projects"
     inputs: # List the inputs that are presented to end-user in UI
       t1w:
         datatype: medimage/nifti-gz # MIME-type or "MIME-like" format
@@ -157,7 +157,7 @@ commands:
       mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert ## should this be 
       freesurfer_home: &freesurfer_home !join ["/opt/freesurfer-", *freesurfer_version] ## freesurfer_home: *freesurfer_home
       fs_license: *freesurfer_license
-      cache_dir: /work/pydra-cache
+      cache_dir: /work/pydra-tasks-cache
       fastsurfer_executable:
         - /fastsurfer/Docker/entrypoint.sh
         - /fastsurfer/run_fastsurfer.sh

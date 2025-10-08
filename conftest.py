@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from frametree.core.utils import varname2path
 import pytest
 from click.testing import CliRunner
+from fileformats.medimage import DicomDir
+import xnat
 import xnat4tests
 
 # Set DEBUG logging for unittests
@@ -64,14 +66,22 @@ BIDS_APP_PARAMETERS = {
 
 bids_apps_dir = (
     Path(__file__).parent
-    / "australianimagingservice"
+    / "specs"
+    / "australian-imaging-service"
     / "mri"
     / "human"
     / "neuro"
-    / "bidsapps"
+    / "bidsapp"
 )
 test_bids_data_dir = (
-    Path(__file__).parent / "tests" / "data" / "mri" / "human" / "neuro" / "bidsapps"
+    Path(__file__).parent
+    / "tests"
+    / "data"
+    / "specs"
+    / "mri"
+    / "human"
+    / "neuro"
+    / "bidsapp"
 )
 
 bids_specs = [str(p.stem) for p in bids_apps_dir.glob("*.yaml")]
@@ -122,8 +132,8 @@ else:
 
 
 @pytest.fixture
-def cli_runner():
-    def invoke(*args, **kwargs):
+def cli_runner() -> ty.Callable[..., None]:
+    def invoke(*args: ty.Any, **kwargs: ty.Any) -> ty.Callable[..., None]:
         runner = CliRunner()
         result = runner.invoke(*args, catch_exceptions=catch_cli_exceptions, **kwargs)
         return result
@@ -135,11 +145,13 @@ TEST_SUBJECT_LABEL = "TESTSUBJ"
 TEST_SESSION_LABEL = "TESTSUBJ_01"
 
 
-def make_project_id(dataset_name: str, run_prefix: ty.Optional[str] = None):
+def make_project_id(dataset_name: str, run_prefix: ty.Optional[str] = None) -> str:
     return (run_prefix if run_prefix else "") + dataset_name
 
 
-def upload_test_dataset_to_xnat(project_id: str, source_data_dir: Path, xnat_connect):
+def upload_test_dataset_to_xnat(
+    project_id: str, source_data_dir: Path, xnat_connect: xnat.XNATSession
+) -> None:
     """
     Creates dataset for each entry in dataset_structures
     """
@@ -155,17 +167,37 @@ def upload_test_dataset_to_xnat(project_id: str, source_data_dir: Path, xnat_con
         for test_scan_dir in source_data_dir.iterdir():
             if test_scan_dir.name.startswith("."):
                 continue
-            scan_id = test_scan_dir.stem
-            scan_path = varname2path(scan_id)
+            mdata = DicomDir(test_scan_dir / "DICOM").metadata
             # Create scan
-            xscan = xclasses.MrScanData(id=scan_id, type=scan_path, parent=xsession)
+            series_number = int(mdata["SeriesNumber"])
+            while True:
+                try:
+                    xsession.scans[str(series_number)]
+                except KeyError:
+                    break
+                else:
+                    series_number += 1000
+            xscan = xclasses.MrScanData(
+                id=series_number,
+                type=varname2path(test_scan_dir.stem),
+                series_description=mdata["SeriesDescription"],
+                parent=xsession,
+            )
 
             for resource_path in test_scan_dir.iterdir():
 
+                if not resource_path.is_dir():
+                    continue
                 # Create the resource
                 xresource = xscan.create_resource(resource_path.stem)
                 # Create the dummy files
                 xresource.upload_dir(resource_path, method="tar_file")
 
         # Populate metadata from DICOM headers
-        login.put(f"/data/experiments/{xsession.id}?pullDataFromHeaders=true")
+        try:
+            login.put(f"/data/experiments/{xsession.id}?pullDataFromHeaders=true")
+        except xnat.exceptions.XNATResponseError as e:
+            logger.warning(
+                f"Failed to pull metadata from DICOM headers for session {xsession.id} "
+                f"with error: {e}"
+            )

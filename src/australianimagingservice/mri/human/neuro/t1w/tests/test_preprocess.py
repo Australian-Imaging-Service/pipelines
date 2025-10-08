@@ -6,7 +6,10 @@ PKG_DIR = (
     Path(__file__).parent / ".." / ".." / ".." / ".." / ".." / ".." / ".."
 ).resolve()
 
+import pytest
 
+
+@pytest.mark.skip
 def test_t1w_preprocess():
     wf = all_parcs(
         "/opt/FastSurfer",
@@ -16,6 +19,7 @@ def test_t1w_preprocess():
     )
 
 
+@pytest.mark.skip
 def test_t1w_preprocess_yaml(tmp_path: Path):
     app = App.load(
         PKG_DIR

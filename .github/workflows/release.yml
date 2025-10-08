@@ -22,6 +22,10 @@ jobs:
       matrix:
         spec:
           - quality-control/phi-finder
+          - mri/human/neuro/bidsapp/fmriprep
+          - mri/human/neuro/bidsapp/mriqc
+          - mri/human/neuro/bidsapp/smriprep
+          # - mri/human/neuro/t1w/preprocess
     steps:
     - name: Removed unnecessary tools to free space
       run: |
@@ -88,9 +92,15 @@ jobs:
       # --release pipelines-metapackage $RELEASE --tag-latest --check-registry --clean-up 
 
     - name: List Docker images
-      run: docker images
-    
+      run: docker images   
     - name: Push built Docker image
       id: deployable
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
       run: docker push ${{ env.IMAGE_TAG }}
+
+    - name: Display XNAT command JSONs
+      run: |
+        for command in $(yq -r '.commands | keys | join(" ")' ./specs/australian-imaging-service/${{ matrix.spec }}.yaml); do
+          echo "### $command ###"
+          docker run --rm --entrypoint cat ${{ env.IMAGE_TAG }} /xnat_commands/${command}.json
+        done
