@@ -1,7 +1,7 @@
 from pathlib import Path
 from fileformats.generic import File, Directory, DirectoryOf
 from fileformats.medimage import NiftiGz
-from fileformats.medimage_mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from pydra.compose import workflow, python
 from australianimagingservice.mri.human.neuro.t1w.preprocess.single_parc import (
     SingleParcellation,

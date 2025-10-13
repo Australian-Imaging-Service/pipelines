@@ -14,8 +14,8 @@ packages:
     fileformats:
     pydra-tasks-fastsurfer:
     fileformats-medimage-extras:
-    fileformats-medimage-mrtrix3:
-    fileformats-medimage-mrtrix3-extras:
+    fileformats-vendor-mrtrix3:
+    fileformats-vendor-mrtrix3-extras:
     australianimagingservice:
   neurodocker:
     mrtrix3: 3.0.2
