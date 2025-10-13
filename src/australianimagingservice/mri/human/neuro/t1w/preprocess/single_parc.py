@@ -15,7 +15,7 @@ from pydra.tasks.mrtrix3.v3_1 import (
 )
 from fileformats.generic import Directory, File
 from fileformats.medimage import NiftiGz
-from fileformats.medimage_mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from pydra.environments.docker import Docker
 from pydra.environments.native import Native
 from pydra.tasks.fastsurfer.latest import Fastsurfer
