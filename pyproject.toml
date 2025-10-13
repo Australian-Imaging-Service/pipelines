@@ -9,7 +9,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "fileformats",
-    "fileformats-medimage",
+    "fileformats-medimage-extras",
     "pydra >=1.0a",
     "pydra-tasks-fastsurfer",
     "pydra-tasks-freesurfer",

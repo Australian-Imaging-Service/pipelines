@@ -9,7 +9,6 @@ from conftest import upload_test_dataset_to_xnat, test_data_dir
 home_dir = Path("~").expanduser()
 
 
-@pytest.mark.skip
 def test_t1w_preprocess(tmp_path: Path):
 
     test_data = test_data_dir / "src" / "mri" / "human" / "neuro" / "t1w" / "preprocess"
