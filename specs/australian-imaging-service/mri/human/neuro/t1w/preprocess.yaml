@@ -10,12 +10,13 @@ packages:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
     pydra-tasks-mrtrix3:
-    pydra-tasks-fsl:
+    pydra-tasks-fsl: 0.3.1
     fileformats:
     pydra-tasks-fastsurfer:
     fileformats-medimage-extras:
     fileformats-vendor-mrtrix3:
     fileformats-vendor-mrtrix3-extras:
+    frametree:
     australianimagingservice:
   neurodocker:
     mrtrix3: 3.0.2

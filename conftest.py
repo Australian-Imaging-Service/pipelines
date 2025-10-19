@@ -6,6 +6,7 @@ import typing as ty
 from datetime import datetime
 from dataclasses import dataclass
 from frametree.core.utils import varname2path
+from frametree.xnat import Xnat
 import pytest
 from click.testing import CliRunner
 import xnat
@@ -97,10 +98,30 @@ def bids_app_blueprint(run_prefix, xnat_connect, request):
 
 
 @pytest.fixture(scope="session")
-def xnat_connect():
+def xnat_connect() -> xnat.XNATSession:
     xnat4tests.start_xnat()
     yield xnat4tests.connect
     # xnat4tests.stop_xnat()
+
+
+@pytest.fixture(scope="session")
+def xnat_repository(
+    run_prefix: str, xnat_connect: xnat.XNATSession
+) -> Xnat:
+    
+    config = xnat4tests.Config()
+
+    repository = Xnat(
+        server=config.xnat_uri,
+        user=config.xnat_user,
+        password=config.xnat_password,
+        cache_dir=tempfile.mkdtemp(),
+    )
+
+    # Stash a project prefix in the repository object
+    repository.__annotations__["run_prefix"] = run_prefix
+
+    yield repository  # pyright: ignore[reportReturnType]
 
 
 @pytest.fixture(scope="session")
