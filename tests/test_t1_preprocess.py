@@ -104,7 +104,7 @@ def test_t1_preprocess_app(
 
             inputs_json = command_inputs[command_obj.name]
             inputs_json["pydra2app_flags"] = (
-                "--worker serial "
+                "--worker debug "
                 "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
                 "--dataset-name default "
                 "--logger frametree debug "
