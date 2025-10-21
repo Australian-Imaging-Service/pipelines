@@ -7,6 +7,7 @@ from datetime import datetime
 from dataclasses import dataclass
 from frametree.core.utils import varname2path
 from frametree.xnat import Xnat
+from fileformats.application import Dicom
 import pytest
 from click.testing import CliRunner
 import xnat
@@ -105,10 +106,8 @@ def xnat_connect() -> xnat.XNATSession:
 
 
 @pytest.fixture(scope="session")
-def xnat_repository(
-    run_prefix: str, xnat_connect: xnat.XNATSession
-) -> Xnat:
-    
+def xnat_repository(run_prefix: str, xnat_connect: xnat.XNATSession) -> Xnat:
+
     config = xnat4tests.Config()
 
     repository = Xnat(
@@ -182,9 +181,16 @@ def upload_test_dataset_to_xnat(project_id: str, source_data_dir: Path, xnat_con
             if test_scan_dir.name.startswith("."):
                 continue
             scan_id = test_scan_dir.stem
-            scan_path = varname2path(scan_id)
+            dicom_resource = test_scan_dir / "DICOM"
+            if dicom_resource.exists():
+                mdata = Dicom(next(dicom_resource.iterdir())).metadata
+                scan_id = mdata["SeriesNumber"]
+                scan_type = mdata["SeriesDescription"]
+            else:
+                scan_id = test_scan_dir.stem
+                scan_type = varname2path(scan_id)
             # Create scan
-            xscan = xclasses.MrScanData(id=scan_id, type=scan_path, parent=xsession)
+            xscan = xclasses.MrScanData(id=scan_id, type=scan_type, parent=xsession)
 
             for resource_path in test_scan_dir.iterdir():
 

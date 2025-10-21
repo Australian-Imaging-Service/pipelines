@@ -82,12 +82,11 @@ def test_t1_preprocess_app(
 
     command_inputs = {
         "single_parc": {
-            "T1w": str(test_data / "T1w"),
+            "T1w": "t1_mprage_sag_p2_iso_1_ADNI",
             "Parcellation": "desikan",
         },
         "all_parcs": {
-            "T1w": str(test_data / "T1w"),
-            "Parcellation": "desikan",
+            "T1w": "t1_mprage_sag_p2_iso_1_ADNI",
         },
     }
 

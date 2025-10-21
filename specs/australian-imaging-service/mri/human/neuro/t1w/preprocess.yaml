@@ -16,7 +16,9 @@ packages:
     fileformats-medimage-extras:
     fileformats-vendor-mrtrix3:
     fileformats-vendor-mrtrix3-extras:
+    pydra2app:
     frametree:
+    frametree-xnat:
     australianimagingservice:
   neurodocker:
     mrtrix3: 3.0.2
