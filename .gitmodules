@@ -1,0 +1,3 @@
+[submodule "specs/australian-imaging-service/mri/quality-control/GSP_vial_metrics_pydra"]
+	path = specs/australian-imaging-service/mri/quality-control/GSP_vial_metrics_pydra
+	url = https://github.com/arkiev/GSP_vial_metrics_pydra.git
