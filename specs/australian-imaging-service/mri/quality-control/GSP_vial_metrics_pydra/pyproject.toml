@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gsp-vial-metrics"
+description = "Analysis pipelines library of the Australian Imaging Service"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "fileformats",
+    "fileformats-medimage-extras",
+    "pydra >=1.0a",
+    "pydra-tasks-ants",
+    "pydra-tasks-mrtrix3",
+]
+license = "CC-BY-4.0"
+authors = [{ name = "Thomas G. Close", email = "tom.g.close@gmail.com" }]
+maintainers = [{ name = "Thomas G. Close", email = "tom.g.close@gmail.com" }]
+keywords = ["file formats", "data"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
+test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1"]
+
+
+[project.urls]
+repository = "https://github.com/arkiev/GSP_vial_metrics_pydra"
+
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/australianimagingservice/_version.py"
+
+[tool.pyright]
+reportAssignmentType = false
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/australianimagingservice"]
+
+[tool.black]
+target-version = ['py38']
+exclude = "src/australianimagingservice/_version.py"
+
+[tool.codespell]
+ignore-words = ".codespell-ignorewords"
+
+[tool.flake8]
+doctests = true
+per-file-ignores = ["__init__.py:F401"]
+max-line-length = 88
+select = "C,E,F,W,B,B950"
+extend-ignore = ['E203', 'E501', 'E129', 'W503']
+
+
+[tool.mypy]
+python_version = "3.8"
+ignore_missing_imports = true
+strict = true
+namespace_packages = true
+explicit_package_bases = true
+exclude = ["tests", "scripts", "docs", "build", "dist"]
