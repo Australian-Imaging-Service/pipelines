@@ -39,7 +39,9 @@ class PhantomProcessor:
         # Template files
         self.template_phantom = self.template_dir / "ImageTemplate.nii.gz"
         self.vial_dir = self.template_dir / "VialsLabelled"
-        self.vial_masks = sorted(self.vial_dir.glob("*.nii.gz"))  # Fixed to accept .nii.gz files
+        self.vial_masks = sorted(
+            self.vial_dir.glob("*.nii.gz")
+        )  # Fixed to accept .nii.gz files
 
         # Load rotation library
         self.rotations = self._load_rotations()
@@ -495,24 +497,30 @@ class PhantomProcessor:
                 ]
 
                 result = subprocess.run(cmd, capture_output=True, text=True)
-                
+
                 # Check for errors
                 if result.returncode != 0:
-                    print(f"    ✗ mrstats failed for vial {vial_name}, volume {vol_idx}")
+                    print(
+                        f"    ✗ mrstats failed for vial {vial_name}, volume {vol_idx}"
+                    )
                     print(f"      stderr: {result.stderr}")
                     # Skip this vial/volume
                     continue
-                
+
                 values = result.stdout.strip().split()
-                
+
                 # Check if we got the expected 5 values
                 if len(values) != 5:
-                    print(f"    ⚠ Warning: Expected 5 values from mrstats, got {len(values)} for vial {vial_name}, volume {vol_idx}")
+                    print(
+                        f"    ⚠ Warning: Expected 5 values from mrstats, got {len(values)} for vial {vial_name}, volume {vol_idx}"
+                    )
                     print(f"      Output: '{result.stdout.strip()}'")
                     print(f"      Stderr: '{result.stderr.strip()}'")
                     # Skip this vial/volume if no valid output
                     if len(values) == 0:
-                        print(f"    ✗ Skipping vial {vial_name} - empty output (mask may not overlap with image)")
+                        print(
+                            f"    ✗ Skipping vial {vial_name} - empty output (mask may not overlap with image)"
+                        )
                         continue
 
                 metrics_data["mean"][vial_name].append(float(values[0]))
@@ -630,7 +638,9 @@ class PhantomProcessor:
                 # Regrid each vial to contrast space and combine
                 regridded_vials = []
                 for vial_mask in vial_masks_list:
-                    vial_name = vial_mask.name.replace(".nii.gz", "").replace(".nii", "")
+                    vial_name = vial_mask.name.replace(".nii.gz", "").replace(
+                        ".nii", ""
+                    )
                     regridded = str(tmp_vial_dir / f"{contrast_name}_{vial_name}.nii")
 
                     cmd = [
@@ -722,8 +732,9 @@ class PhantomProcessor:
         # - t1map files (processed maps, not raw contrasts)
         # - files without numbers after 'ir' (not actual contrast images)
         ir_contrasts = [
-            f for f in contrast_files 
-            if "ir" in f.stem.lower() 
+            f
+            for f in contrast_files
+            if "ir" in f.stem.lower()
             and "t1map" not in f.stem.lower()  # Exclude processed T1 maps
             and "t1_map" not in f.stem.lower()  # Exclude alternative naming
         ]
@@ -750,7 +761,9 @@ class PhantomProcessor:
                     # Regrid vials and combine
                     regridded_vials = []
                     for vial_mask in vial_masks_list:
-                        vial_name = vial_mask.name.replace(".nii.gz", "").replace(".nii", "")
+                        vial_name = vial_mask.name.replace(".nii.gz", "").replace(
+                            ".nii", ""
+                        )
                         regridded = str(tmp_vial_dir / f"ir_{vial_name}.nii")
 
                         cmd = [
@@ -835,8 +848,9 @@ class PhantomProcessor:
         # - t2map files (processed maps, not raw contrasts)
         # - files without numbers after 'te' (not actual contrast images)
         te_contrasts = [
-            f for f in contrast_files 
-            if "te" in f.stem.lower() 
+            f
+            for f in contrast_files
+            if "te" in f.stem.lower()
             and "t2map" not in f.stem.lower()  # Exclude processed T2 maps
             and "t2_map" not in f.stem.lower()  # Exclude alternative naming
         ]
@@ -863,7 +877,9 @@ class PhantomProcessor:
                     # Regrid vials and combine
                     regridded_vials = []
                     for vial_mask in vial_masks_list:
-                        vial_name = vial_mask.name.replace(".nii.gz", "").replace(".nii", "")
+                        vial_name = vial_mask.name.replace(".nii.gz", "").replace(
+                            ".nii", ""
+                        )
                         regridded = str(tmp_vial_dir / f"te_{vial_name}.nii")
 
                         cmd = [
