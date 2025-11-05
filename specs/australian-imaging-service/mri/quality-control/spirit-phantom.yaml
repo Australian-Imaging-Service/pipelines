@@ -1,0 +1,30 @@
+title: "Spirit Phantom Analysis" # Short name for the pipeline referenced in the UI
+schema_version: "2.0" # the version of the specification format used for this file
+version: "1.0"
+packages:
+  # Install dependencies for DICOM->NIfTI conversion
+  pip:
+    pydra-tasks-dcm2niix:
+    pydra-tasks-ants:
+    pydra-tasks-mrtrix3:
+    fileformats:
+  neurodocker:
+    ants: 2.6.3
+    mrtrix3: 3.0.2
+authors:
+  # Authors of the pipeline. The first email will be considered to be the maintainer of
+  # the generated container images
+  - name: Arkiev D'Souza
+    email: arkiev.dsouza@sydney.edu.au
+  - name: Thomas G. Close
+    email: thomas.close@sydney.edu.au
+docs:
+  info_url: "https://placeholder.org" # Link to external documentation for underlying tool
+  description: | # Description of tool for auto-docs
+    Generate a 5TT image (HSVS) and parcellation image (Desikan, Destrieux, HCPMMP1,
+    Yeo7 and Yeo17) from a single input anatomical image. Input image should satisfy
+    the input requirements for FastSurfer
+commands:
+  anatomical_qa:
+    task: australianimagingservice.mri.human.neuro.t1w.preprocess:SingleParcellation
+    operates_on: medimage/session
