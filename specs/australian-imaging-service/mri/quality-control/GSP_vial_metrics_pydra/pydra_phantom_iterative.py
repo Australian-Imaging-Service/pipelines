@@ -495,7 +495,25 @@ class PhantomProcessor:
                 ]
 
                 result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                # Check for errors
+                if result.returncode != 0:
+                    print(f"    ✗ mrstats failed for vial {vial_name}, volume {vol_idx}")
+                    print(f"      stderr: {result.stderr}")
+                    # Skip this vial/volume
+                    continue
+                
                 values = result.stdout.strip().split()
+                
+                # Check if we got the expected 5 values
+                if len(values) != 5:
+                    print(f"    ⚠ Warning: Expected 5 values from mrstats, got {len(values)} for vial {vial_name}, volume {vol_idx}")
+                    print(f"      Output: '{result.stdout.strip()}'")
+                    print(f"      Stderr: '{result.stderr.strip()}'")
+                    # Skip this vial/volume if no valid output
+                    if len(values) == 0:
+                        print(f"    ✗ Skipping vial {vial_name} - empty output (mask may not overlap with image)")
+                        continue
 
                 metrics_data["mean"][vial_name].append(float(values[0]))
                 metrics_data["median"][vial_name].append(float(values[1]))
@@ -700,7 +718,15 @@ class PhantomProcessor:
         """Generate T1/T2 parametric map plots"""
 
         # Check for IR contrasts
-        ir_contrasts = [f for f in contrast_files if "ir" in f.stem.lower()]
+        # Filter for files with 'ir' in name, but exclude:
+        # - t1map files (processed maps, not raw contrasts)
+        # - files without numbers after 'ir' (not actual contrast images)
+        ir_contrasts = [
+            f for f in contrast_files 
+            if "ir" in f.stem.lower() 
+            and "t1map" not in f.stem.lower()  # Exclude processed T1 maps
+            and "t1_map" not in f.stem.lower()  # Exclude alternative naming
+        ]
         if ir_contrasts:
             print(
                 f"  Found {len(ir_contrasts)} IR contrasts: {[f.name for f in ir_contrasts]}"
@@ -805,7 +831,15 @@ class PhantomProcessor:
             print(f"  No IR contrasts found (searched for 'ir' in filenames)")
 
         # Check for TE contrasts
-        te_contrasts = [f for f in contrast_files if "te" in f.stem.lower()]
+        # Filter for files with 'te' in name, but exclude:
+        # - t2map files (processed maps, not raw contrasts)
+        # - files without numbers after 'te' (not actual contrast images)
+        te_contrasts = [
+            f for f in contrast_files 
+            if "te" in f.stem.lower() 
+            and "t2map" not in f.stem.lower()  # Exclude processed T2 maps
+            and "t2_map" not in f.stem.lower()  # Exclude alternative naming
+        ]
         if te_contrasts:
             print(
                 f"  Found {len(te_contrasts)} TE contrasts: {[f.name for f in te_contrasts]}"

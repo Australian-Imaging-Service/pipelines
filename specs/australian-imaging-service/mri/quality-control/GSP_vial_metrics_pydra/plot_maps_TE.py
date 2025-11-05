@@ -47,16 +47,44 @@ def find_csv_file(metric_dir, contrast_name, suffix):
 
 def extract_numeric(label):
     """
-    Extract the last numeric value from a string label.
+    Extract echo time from filename by looking for number after 'te', 'se', or 'echo'.
 
-    Used to extract echo times from filenames (e.g., 'SE_80' → 80)
+    Strategy:
+    1. First, try to find number immediately after 'te' or 'echo' (case-insensitive)
+    2. If not found, fall back to last number in filename
+
+    Examples:
+        'se_te_80_15_MR' → 80 (number after 'te')
+        '15_se_te_80_MR' → 80 (number after 'te')
+        'te__14_21_MR' → 14 (number after 'te' with double underscore)
+        'TE_160_17_MR' → 160 (number after 'TE')
+        'te_echo100' → 100 (number after 'echo')
+        'TE_40' → 40 (number after 'TE')
+        'contrast_500' → 500 (fallback to last number)
 
     Args:
-        label: String containing numbers (e.g., 'contrast_100')
+        label: Filename string (without extension)
 
     Returns:
-        Last integer found in the string, or None if no numbers found
+        Integer representing echo time, or None if no numbers found
     """
+    # Convert to lowercase for pattern matching
+    label_lower = label.lower()
+
+    # Pattern 1: Look for number after 'te' (with optional separators)
+    # Matches: te_80, te__14, te80, TE_100, te-40, te___20, etc.
+    # [_-]* means zero or more underscores or dashes
+    match = re.search(r"te[_-]*(\d+)", label_lower)
+    if match:
+        return int(match.group(1))
+
+    # Pattern 2: Look for number after 'echo' (with optional separators)
+    # Matches: echo_100, echo__50, echo100, ECHO_80, echo-40, etc.
+    match = re.search(r"echo[_-]*(\d+)", label_lower)
+    if match:
+        return int(match.group(1))
+
+    # Fallback: Use last number in string (original behavior)
     numbers = re.findall(r"\d+", label)
     return int(numbers[-1]) if numbers else None
 
