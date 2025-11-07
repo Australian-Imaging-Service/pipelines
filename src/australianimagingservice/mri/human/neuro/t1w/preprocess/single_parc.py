@@ -12,6 +12,7 @@ from pydra.tasks.mrtrix3.v3_1 import (
     FivettGen_Hsvs,
     FivettGen_Freesurfer,
     FivettGen_Fsl,
+    LabelSgmfirst,
 )
 from fileformats.generic import Directory, File
 from fileformats.medimage import NiftiGz
@@ -19,7 +20,7 @@ from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from pydra.environments.docker import Docker
 from pydra.environments.native import Native
 from pydra.tasks.fastsurfer.latest import Fastsurfer
-from .helpers import JoinTaskCatalogue, LabelSgmFix, Dependency
+from .helpers import JoinTaskCatalogue, Dependency
 
 # from pydra.engine.task import FunctionTask
 # from pydra.engine.specs import BaseSpec
@@ -375,8 +376,8 @@ def SingleParcellation(
             )
         )
 
-        SGMfix_task = workflow.add(
-            LabelSgmFix(
+        sgm_first = workflow.add(
+            LabelSgmfirst(
                 parc=LabelConvert_task_originals.image_out,
                 t1=join_task.normimg_path,
                 lut=join_task.mrtrix_lut_file,
@@ -387,7 +388,7 @@ def SingleParcellation(
             )
         )
 
-        return_image = SGMfix_task.out_file
+        return_image = sgm_first.out_file
     else:
         return_image = volfile
 
