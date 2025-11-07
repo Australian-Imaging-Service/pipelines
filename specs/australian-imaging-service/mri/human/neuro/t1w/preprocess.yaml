@@ -21,6 +21,7 @@ packages:
     frametree-xnat:
     australianimagingservice:
   neurodocker:
+    dcm2niix: v1.0.20240202
     mrtrix3: 3.0.2
     freesurfer:
       version: &freesurfer_version 7.4.1
