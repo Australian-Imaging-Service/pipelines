@@ -11,7 +11,7 @@ dependencies = [
     "fileformats",
     "fileformats-medimage-extras",
     "pydra >=1.0a",
-    "pydra-tasks-fastsurfer",
+    "pydra-tasks-fastsurfer >=0.2.2",
     "pydra-tasks-freesurfer",
     "pydra-tasks-fsl",
     "pydra-tasks-mrtrix3 >=3.1.0a1",
