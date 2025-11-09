@@ -103,3 +103,4 @@ resources:
   mica-mni-parcellations: !join [*freesurfer_home, "/MICA_MNI_parcellations"]
   mica-mni-surfaces: !join [*freesurfer_home, "/MICA_MNI_surfaces"]
   hcpmmp1-parcellations: !join [*freesurfer_home, "/HCPMMP1"]
+  fastsurfer: /fastsurfer-run

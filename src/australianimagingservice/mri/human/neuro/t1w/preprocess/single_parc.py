@@ -58,6 +58,7 @@ def SingleParcellation(
 
     if in_fastsurfer_container:
         fs_environment = Native()
+        executable = "/fastsurfer-run/run-script.sh"
     else:
         fs_environment = Docker(
             image="deepmi/fastsurfer",
@@ -69,9 +70,11 @@ def SingleParcellation(
                 "/bin/bash",
             ],
         )
+        executable = "/fastsurfer/run_fastsurfer.sh"
 
     fastsurfer = workflow.add(
         Fastsurfer(
+            executable=executable,
             T1_files=t1w,
             fs_license=fs_license,
             subject_id="FS_outputs",
@@ -81,6 +84,7 @@ def SingleParcellation(
             parallel=True,
             threads=24,
             subjects_dir=subjects_dir,
+            allow_root=True,
         ),
         environment=fs_environment,
     )
