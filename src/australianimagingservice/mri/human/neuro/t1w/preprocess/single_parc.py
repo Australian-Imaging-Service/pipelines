@@ -1,4 +1,6 @@
 import typing as ty
+import logging
+
 from pydra.compose import workflow
 from pydra.tasks.fsl.v6 import Reorient2Std, Threshold
 from pydra.tasks.freesurfer.v8 import (
@@ -29,6 +31,10 @@ import os
 
 os.environ["SUBJECTS_DIR"] = ""
 
+logger = logging.getLogger(
+    "australianimagingservice.mri.human.neuro.t1w.preprocess.single_parc"
+)
+
 
 @workflow.define(
     outputs=[
@@ -58,7 +64,8 @@ def SingleParcellation(
 
     if in_fastsurfer_container:
         fs_environment = Native()
-        executable = "/fastsurfer-run/run-script.sh"
+        # executable = "/fastsurfer-run/run-script.sh"
+        logger.info(f"Using FastSurfer executable in container")
     else:
         fs_environment = Docker(
             image="deepmi/fastsurfer",
@@ -70,11 +77,13 @@ def SingleParcellation(
                 "/bin/bash",
             ],
         )
-        executable = "/fastsurfer/run_fastsurfer.sh"
+        # executable = "/fastsurfer/run_fastsurfer.sh"
+
+        logger.info(f"Using FastSurfer in separate Docker container")
 
     fastsurfer = workflow.add(
         Fastsurfer(
-            executable=executable,
+            # executable=executable,
             T1_files=t1w,
             fs_license=fs_license,
             subject_id="FS_outputs",
@@ -89,11 +98,13 @@ def SingleParcellation(
         environment=fs_environment,
     )
 
+    logger.info("Fastsurfer executable is '%s'", fastsurfer.inputs.executable)
+
     if in_fastsurfer_container:
-        fastsurfer.inputs.py = "python3"
+        fastsurfer.inputs.py = "/venv/bin/python"
         fastsurfer.inputs.executable = "/fastsurfer/run_fastsurfer.sh"
-    else:
-        fastsurfer.inputs.py = fastsurfer_python
+    # else:
+    #     fastsurfer.inputs.py = fastsurfer_python
 
     # #################################################
     # # FIVE TISSUE TYPE Generation and visualisation #
