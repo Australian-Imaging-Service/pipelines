@@ -56,6 +56,7 @@ def SingleParcellation(
     subjects_dir: Path,
     in_fastsurfer_container: bool = False,
     fastsurfer_python: str = "python3",
+    fastsurfer_batch: int = 16,
 ) -> tuple[Mif, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None]:
 
     # ###################
@@ -91,6 +92,7 @@ def SingleParcellation(
             # aparcaseg_img="aparcaseg.mgz",
             fsaparc=True,
             parallel=True,
+            batch=fastsurfer_batch,
             threads=24,
             subjects_dir=subjects_dir,
             allow_root=True,

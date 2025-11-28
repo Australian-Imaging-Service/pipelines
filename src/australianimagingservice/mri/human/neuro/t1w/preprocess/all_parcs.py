@@ -73,6 +73,7 @@ def AllParcellations(
     fs_license: File,
     in_fastsurfer_container: bool = False,
     fastsurfer_python: str = "python3",
+    fastsurfer_batch: int = 16,
 ) -> tuple[
     DirectoryOf[Mif],
     Mif,
@@ -98,6 +99,7 @@ def AllParcellations(
                 fs_license=fs_license,
                 in_fastsurfer_container=in_fastsurfer_container,
                 fastsurfer_python=fastsurfer_python,
+                fastsurfer_batch=fastsurfer_batch,
                 subjects_dir=subjects_dir,
             ),  # pyright: ignore[reportArgumentType]
             name=parcellation,

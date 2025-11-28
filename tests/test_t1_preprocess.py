@@ -84,9 +84,11 @@ def test_t1_preprocess_app(
         "single_parc": {
             "T1w": "t1_mprage_sag_p2_iso_1_ADNI",
             "Parcellation": "desikan",
+            "fastsurfer_batch": 4,
         },
         "all_parcs": {
             "T1w": "t1_mprage_sag_p2_iso_1_ADNI",
+            "fastsurfer_batch": 4,
         },
     }
 

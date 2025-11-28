@@ -21,10 +21,10 @@ jobs:
     strategy:
       matrix:
         spec:
-          - quality-control/phi-finder
-          - mri/human/neuro/bidsapps/fmriprep
-          - mri/human/neuro/bidsapps/mriqc
-          - mri/human/neuro/bidsapps/smriprep
+          # - quality-control/phi-finder
+          # - mri/human/neuro/bidsapps/fmriprep
+          # - mri/human/neuro/bidsapps/mriqc
+          # - mri/human/neuro/bidsapps/smriprep
           - mri/human/neuro/t1w/preprocess
     steps:
     - name: Removed unnecessary tools to free space
