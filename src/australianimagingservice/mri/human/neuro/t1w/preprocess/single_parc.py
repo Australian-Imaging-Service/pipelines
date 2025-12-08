@@ -403,7 +403,7 @@ def SingleParcellation(
                 nocleanup=True,
                 premasked=True,
                 sgm_amyg_hipp=True,
-                executable=labelsgmfirst_executable=LabelSgmfirst_executable,
+                executable=labelsgmfirst_executable,
             )
         )
 
