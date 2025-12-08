@@ -74,6 +74,7 @@ def AllParcellations(
     in_fastsurfer_container: bool = False,
     fastsurfer_python: str = "python3",
     fastsurfer_batch: int = 16,
+    labelsgmfirst_executable: str = "labelsgmfirst",
 ) -> tuple[
     DirectoryOf[Mif],
     Mif,
@@ -101,6 +102,7 @@ def AllParcellations(
                 fastsurfer_python=fastsurfer_python,
                 fastsurfer_batch=fastsurfer_batch,
                 subjects_dir=subjects_dir,
+                labelsgmfirst_executable=labelsgmfirst_executable,
             ),  # pyright: ignore[reportArgumentType]
             name=parcellation,
         )

@@ -84,6 +84,7 @@ commands:
       fs_license: *freesurfer_license
       subjects_dir: /work/subjects
       in_fastsurfer_container: true
+      labelsgmfirst_executable: "labelsgmfix"
   all_parcs:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:AllParcellations
     operates_on: medimage/session
@@ -97,6 +98,7 @@ commands:
       fs_license: *freesurfer_license
       subjects_dir: /work/subjects
       in_fastsurfer_container: true
+      labelsgmfirst_executable: "labelsgmfix"
 resources:
   neuro-parcellations: /parcellations
   yeo2011-parcellations: !join [*freesurfer_home, "/Yeo2011"]
