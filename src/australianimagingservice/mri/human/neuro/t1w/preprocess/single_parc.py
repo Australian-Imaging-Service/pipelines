@@ -58,6 +58,7 @@ def SingleParcellation(
     fastsurfer_python: str = "python3",
     fastsurfer_batch: int = 16,
     labelsgmfirst_executable: str = "labelsgmfirst",
+    fastsurfer_nthreads: int = 24,
 ) -> tuple[Mif, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None]:
 
     # ###################
@@ -94,7 +95,7 @@ def SingleParcellation(
             fsaparc=True,
             parallel=True,
             batch=fastsurfer_batch,
-            threads=24,
+            threads=fastsurfer_nthreads,
             subjects_dir=subjects_dir,
             allow_root=True,
         ),
