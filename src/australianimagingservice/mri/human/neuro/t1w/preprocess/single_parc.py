@@ -2,6 +2,7 @@ import typing as ty
 import logging
 
 from pydra.compose import workflow
+from pydra.tasks.ants.v2 import Registration
 from pydra.tasks.fsl.v6 import Reorient2Std, Threshold
 from pydra.tasks.freesurfer.v8 import (
     SurfaceTransform,
@@ -34,6 +35,8 @@ os.environ["SUBJECTS_DIR"] = ""
 logger = logging.getLogger(
     "australianimagingservice.mri.human.neuro.t1w.preprocess.single_parc"
 )
+
+MNI_SPACE_TEMPLATES = []
 
 
 @workflow.define(
@@ -113,87 +116,76 @@ def SingleParcellation(
     # #################################################
     # # FIVE TISSUE TYPE Generation and visualisation #
     # #################################################
-    if (
-        parcellation
-        == parcellation  # this loop is a placeholder for if/when we decide to iterate through each parcellation image"aparc-a2009s"
-    ):  # to avoid repeating this on every iteration of loop, only exectute on one (first) parcellation
 
-        # Five tissue-type task HSVS
-        fTTgen_task_hsvs = workflow.add(
-            FivettGen_Hsvs(
-                in_file=fastsurfer.subjects_dir_output,
-                # out_file="5TT_hsvs.mif.gz",
-                nocrop=True,
-                sgm_amyg_hipp=True,
-                nocleanup=True,
-                white_stem=True,
-            )
+    # Five tissue-type task HSVS
+    fTTgen_task_hsvs = workflow.add(
+        FivettGen_Hsvs(
+            in_file=fastsurfer.subjects_dir_output,
+            # out_file="5TT_hsvs.mif.gz",
+            nocrop=True,
+            sgm_amyg_hipp=True,
+            nocleanup=True,
+            white_stem=True,
         )
+    )
 
-        # Five tissue-type visualisation task HSVS
-        fTTvis_task_hsvs = workflow.add(
-            Fivett2Vis(
-                in_file=fTTgen_task_hsvs.out_file,
-                # out_file="5TTvis_hsvs.mif.gz",
-            ),
-            name="fTTvis_task_hsvs",
+    # Five tissue-type visualisation task HSVS
+    fTTvis_task_hsvs = workflow.add(
+        Fivett2Vis(
+            in_file=fTTgen_task_hsvs.out_file,
+            # out_file="5TTvis_hsvs.mif.gz",
+        ),
+        name="fTTvis_task_hsvs",
+    )
+
+    # Five tissue-type task FreeSurfer
+
+    fTTgen_task_freesurfer = workflow.add(
+        FivettGen_Freesurfer(
+            in_file=fastsurfer.aparcaseg_img,
+            # out_file="5TT_freesurfer.mif.gz",
+            nocrop=True,
+            sgm_amyg_hipp=True,
+            nocleanup=True,
         )
+    )
 
-        # Five tissue-type task FreeSurfer
+    # Five tissue-type visualisation task FreeSurfer
+    fTTvis_task_freesurfer = workflow.add(
+        Fivett2Vis(
+            in_file=fTTgen_task_freesurfer.out_file,
+            # out_file="5TTvis_freesurfer.mif.gz",
+        ),
+        name="fTTvis_task_freesurfer",
+    )
 
-        fTTgen_task_freesurfer = workflow.add(
-            FivettGen_Freesurfer(
-                in_file=fastsurfer.aparcaseg_img,
-                # out_file="5TT_freesurfer.mif.gz",
-                nocrop=True,
-                sgm_amyg_hipp=True,
-                nocleanup=True,
-            )
+    # Five tissue-type task fsl
+
+    fTTgen_task_fsl = workflow.add(
+        FivettGen_Fsl(
+            in_file=fastsurfer.norm_img,
+            # out_file="5TT_fsl.mif.gz",
+            nocrop=True,
+            sgm_amyg_hipp=True,
+            nocleanup=True,
+            premasked=True,
         )
+    )
 
-        # Five tissue-type visualisation task FreeSurfer
-        fTTvis_task_freesurfer = workflow.add(
-            Fivett2Vis(
-                in_file=fTTgen_task_freesurfer.out_file,
-                # out_file="5TTvis_freesurfer.mif.gz",
-            ),
-            name="fTTvis_task_freesurfer",
-        )
-
-        # Five tissue-type task fsl
-
-        fTTgen_task_fsl = workflow.add(
-            FivettGen_Fsl(
-                in_file=fastsurfer.norm_img,
-                # out_file="5TT_fsl.mif.gz",
-                nocrop=True,
-                sgm_amyg_hipp=True,
-                nocleanup=True,
-                premasked=True,
-            )
-        )
-
-        # Five tissue-type visualisation task FSL
-        fTTvis_task_fsl = workflow.add(
-            Fivett2Vis(
-                in_file=fTTgen_task_fsl.out_file,
-                #    out_file="5TTvis_fsl.mif.gz",
-            ),
-            name="fTTvis_task_fsl",
-        )
-        fTTgen_task_hsvs_out = fTTgen_task_hsvs.out_file
-        fTTvis_task_hsvs_out = fTTvis_task_hsvs.out_file
-        fTTgen_task_freesurfer_out = fTTgen_task_freesurfer.out_file
-        fTTvis_task_freesurfer_out = fTTvis_task_freesurfer.out_file
-        fTTgen_task_fsl_out = fTTgen_task_fsl.out_file
-        fTTvis_task_fsl_out = fTTvis_task_fsl.out_file
-    else:
-        fTTgen_task_hsvs_out = None
-        fTTvis_task_hsvs_out = None
-        fTTgen_task_freesurfer_out = None
-        fTTvis_task_freesurfer_out = None
-        fTTgen_task_fsl_out = None
-        fTTvis_task_fsl_out = None
+    # Five tissue-type visualisation task FSL
+    fTTvis_task_fsl = workflow.add(
+        Fivett2Vis(
+            in_file=fTTgen_task_fsl.out_file,
+            #    out_file="5TTvis_fsl.mif.gz",
+        ),
+        name="fTTvis_task_fsl",
+    )
+    fTTgen_task_hsvs_out = fTTgen_task_hsvs.out_file
+    fTTvis_task_hsvs_out = fTTvis_task_hsvs.out_file
+    fTTgen_task_freesurfer_out = fTTgen_task_freesurfer.out_file
+    fTTvis_task_freesurfer_out = fTTvis_task_freesurfer.out_file
+    fTTgen_task_fsl_out = fTTgen_task_fsl.out_file
+    fTTvis_task_fsl_out = fTTvis_task_fsl.out_file
 
     #################################
     # PARCELLATION IMAGE GENERATION #
@@ -411,6 +403,15 @@ def SingleParcellation(
         return_image = sgm_first.out_file
     else:
         return_image = volfile
+
+    if parcellation in MNI_SPACE_TEMPLATES:
+        ants_reg = workflow.add(
+            Registration(
+                fixed_image=t1w,
+            )
+        )
+        return_image = ants_reg.warped_image
+        # warp template to subject space
 
     return (
         return_image,

@@ -25,7 +25,7 @@ packages:
 commands:
   mriqc:
     task: frametree.bids:bids_app
-    row_frequency: common:Clinical[session]
+    operates_on: medimage/session
     inputs:
       T1w:
         datatype: medimage/nifti-gz-x

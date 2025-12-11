@@ -62,7 +62,7 @@ commands:
         help: >-
           JQ filters (https://devdocs.io/jq/) to apply to JSON side-cars in order to
           handle special cases where the dcm2niix fails to produce valid a BIDS
-    row_frequency: common:Clinical[session]
+    operates_on: medimage/session
     configuration:
       name: smriprep
       executable: /opt/conda/bin/smriprep
