@@ -9,10 +9,12 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "fileformats",
-    "fileformats-medimage",
-    "pydra >=0.23a0",
-    "pydra-tasks-mrtrix3",
-    "pydra-fastsurfer",
+    "fileformats-medimage-extras",
+    "pydra >=1.0a",
+    "pydra-tasks-fastsurfer >=0.2.2",
+    "pydra-tasks-freesurfer",
+    "pydra-tasks-fsl",
+    "pydra-tasks-mrtrix3 >=3.1.0a1",
 ]
 license = "CC-BY-4.0"
 authors = [{ name = "Thomas G. Close", email = "tom.g.close@gmail.com" }]
@@ -36,7 +38,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
-test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree-xnat", "xnat4tests"]
+test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.14.5", "xnat4tests>=0.3.14", "pydra2app>=0.18.8", "pydra2app-xnat>=0.8.2"]
 
 
 [project.urls]
@@ -48,6 +50,9 @@ source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/australianimagingservice/_version.py"
+
+[tool.pyright]
+reportAssignmentType = false
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/australianimagingservice"]

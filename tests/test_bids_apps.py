@@ -74,7 +74,7 @@ def test_bids_app(
             inputs_json[pname] = pval
 
         inputs_json["pydra2app_flags"] = (
-            "--worker serial "
+            "--worker debug "
             "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
             "--dataset-name default "
             "--logger frametree debug "
