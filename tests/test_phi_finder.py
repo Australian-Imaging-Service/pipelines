@@ -53,7 +53,13 @@ def test_phi_finder():
     launch_cs_command(
         cmd_id,
         xlogin=xlogin,
-        inputs={},
+        inputs={
+           "score_threshold": 0.5,
+           "spacy_model_name": "en_core_web_md",
+           "destroy_pixels": True,
+           "use_transformers": False,
+           "dry_run": False
+        },
         project_id="dummydicomproject",
         session_id="dummydicomsession",
     )
