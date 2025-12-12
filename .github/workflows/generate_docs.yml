@@ -50,13 +50,3 @@ jobs:
           publish_dir: .
           publish_branch: docs
           enable_jekyll: true  # This branch isn't actually fed to GH pages
-
-      # It's possible, likely even, that we'll trigger unnecessary docs
-      # rebuilds with this. Running this properly as a separate workflow
-      # only when real docs changes occur would require using a PAT.
-      - name: Trigger rebuild of docs
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.GITHUBPAGES_KEY }}
-          repository: Australian-Imaging-Service/Australian-Imaging-Service.github.io
-          event-type: Rebuild docs
