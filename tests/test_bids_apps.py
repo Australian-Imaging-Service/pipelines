@@ -69,10 +69,10 @@ def test_bids_app(
 
         inputs_json = {}
 
-        for inpt in image_spec.command().inputs:
-            if (bids_app_blueprint.test_data / inpt).exists():
+        for src in image_spec.command().sources:
+            if (bids_app_blueprint.test_data / src.name).exists():
                 converter_args_path = (
-                    bids_app_blueprint.test_data / inpt / "converter.json"
+                    bids_app_blueprint.test_data / src.name / "converter.json"
                 )
                 converter_args = ""
                 if converter_args_path.exists():
@@ -80,9 +80,9 @@ def test_bids_app(
                         dct = json.load(f)
                     for name, val in dct.items():
                         converter_args += f" converter.{name}={val}"
-                inputs_json[inpt] = inpt + converter_args
+                inputs_json[src.name] = src.name + converter_args
             else:
-                inputs_json[inpt] = ""
+                inputs_json[src.name] = ""
 
         for pname, pval in bp.parameters.items():
             inputs_json[pname] = pval
