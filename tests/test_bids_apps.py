@@ -1,4 +1,7 @@
 import json
+import itertools
+import typing as ty
+from anyio import Path
 from pydra2app.core.cli import make
 from pydra2app.xnat import XnatApp
 from frametree.core.utils import show_cli_trace
@@ -9,7 +12,11 @@ SKIP_BUILD = False
 
 
 def test_bids_app(
-    bids_app_blueprint, run_prefix, xnat_connect, license_src, cli_runner
+    bids_app_blueprint,
+    run_prefix,
+    xnat_connect: ty.Any,
+    license_src: Path,
+    cli_runner: ty.Any,
 ):
 
     bp = bids_app_blueprint
@@ -23,20 +30,27 @@ def test_bids_app(
     else:
         build_arg = "--build"
 
+    licenses = [["--license", p.stem, str(p)] for p in license_src.glob("*")]
+
     result = cli_runner(
         make,
-        [
-            str(bp.spec_path),
-            "pipelines-core-test",
-            "--build-dir",
-            str(build_dir),
-            build_arg,
-            "--for-localhost",
-            "--use-local-packages",
-            "--raise-errors",
-            "--license-src",
-            str(license_src),
-        ],
+        list(
+            itertools.chain(
+                [
+                    "xnat",
+                    str(bp.spec_path),
+                    "--registry",
+                    "pipelines-core-test",
+                    "--build-dir",
+                    str(build_dir),
+                    build_arg,
+                    "--for-localhost",
+                    "--use-local-packages",
+                    "--raise-errors",
+                ],
+                *licenses,
+            )
+        ),
     )
 
     assert result.exit_code == 0, show_cli_trace(result)
@@ -45,20 +59,20 @@ def test_bids_app(
 
     with xnat_connect() as xlogin:
 
-        with open(
-            build_dir / image_spec.name / "xnat_commands" / (image_spec.name + ".json")
-        ) as f:
+        build_name = image_spec.name.split(".")[-1]
+
+        with open(build_dir / "xnat_commands" / (build_name + ".json")) as f:
             xnat_command = json.load(f)
-        xnat_command.name = xnat_command.label = image_spec.name + run_prefix
+        xnat_command["name"] = xnat_command["label"] = image_spec.name + run_prefix
 
         test_xsession = next(iter(xlogin.projects[bp.project_id].experiments.values()))
 
         inputs_json = {}
 
-        for inpt in image_spec.command.inputs:
-            if (bids_app_blueprint.test_data / inpt.name).exists():
+        for inpt in image_spec.command().inputs:
+            if (bids_app_blueprint.test_data / inpt).exists():
                 converter_args_path = (
-                    bids_app_blueprint.test_data / inpt.name / "converter.json"
+                    bids_app_blueprint.test_data / inpt / "converter.json"
                 )
                 converter_args = ""
                 if converter_args_path.exists():
@@ -66,9 +80,9 @@ def test_bids_app(
                         dct = json.load(f)
                     for name, val in dct.items():
                         converter_args += f" converter.{name}={val}"
-                inputs_json[inpt.name] = inpt.name + converter_args
+                inputs_json[inpt] = inpt + converter_args
             else:
-                inputs_json[inpt.name] = ""
+                inputs_json[inpt] = ""
 
         for pname, pval in bp.parameters.items():
             inputs_json[pname] = pval
