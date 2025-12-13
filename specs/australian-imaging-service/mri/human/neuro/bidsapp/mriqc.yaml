@@ -1,6 +1,6 @@
 schema_version: 2.0
 title: "Extract quality control metrics from T1w, T2W and fMRI data"
-version: &package_version "22.0.6"
+version: &package_version "24.0.2"
 authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au

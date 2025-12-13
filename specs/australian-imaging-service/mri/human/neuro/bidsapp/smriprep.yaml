@@ -1,6 +1,6 @@
 title: "Structural MRI data preprocessing pipeline"
 schema_version: 2.0
-version: &package_version "0.9.2"
+version: &package_version "0.19.1"
 authors:
   - name: Mahdieh Dashtbani-Moghari
     email: mahdieh.dashtbanimoghari@sydney.edu.au
