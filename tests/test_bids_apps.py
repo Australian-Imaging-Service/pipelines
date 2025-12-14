@@ -2,6 +2,8 @@ import json
 import itertools
 import typing as ty
 from anyio import Path
+from fileformats.medimage import DicomDir
+from pydra.utils.typing import TypeParser
 from pydra2app.core.cli import make
 from pydra2app.xnat import XnatApp
 from frametree.core.utils import show_cli_trace
@@ -71,16 +73,20 @@ def test_bids_app(
 
         for src in image_spec.command().sources:
             if (bids_app_blueprint.test_data / src.name).exists():
-                converter_args_path = (
-                    bids_app_blueprint.test_data / src.name / "converter.json"
-                )
+                test_data = bids_app_blueprint.test_data / src.name
+                converter_args_path = test_data / "converter.json"
                 converter_args = ""
                 if converter_args_path.exists():
                     with open(converter_args_path) as f:
                         dct = json.load(f)
                     for name, val in dct.items():
                         converter_args += f" converter.{name}={val}"
-                inputs_json[src.name] = src.name + converter_args
+                input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
+                if isinstance(input_file, DicomDir):
+                    inpt = input_file.metadata["SeriesDescription"]
+                else:
+                    inpt = src.name
+                inputs_json[src.name] = inpt + converter_args
             else:
                 inputs_json[src.name] = ""
 
