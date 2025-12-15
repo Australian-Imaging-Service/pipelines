@@ -1,6 +1,6 @@
 title: "Preprocess T1-weighted MRI" # Short name for the pipeline referenced in the UI
 schema_version: "2.0" # the version of the specification format used for this file
-version: "1.1.3"
+version: "1.1.4"
 base_image:
   # Chose a NeuroDesk FSL container as the base
   name: deepmi/fastsurfer
@@ -101,6 +101,7 @@ commands:
       T1w:
         field: t1w
         help: "The T1-weighted MRI dataset to preprocess"
+    parameters:
       FastSurferBatchSize:
         field: fastsurfer_batch
         help: "Batch size to use for FastSurfer inference"
