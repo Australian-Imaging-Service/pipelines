@@ -31,13 +31,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.11' # Version range or exact version of a Python version to use, using SemVer'
+          python-version: '3.*' # Version range or exact version of a Python version to use, using SemVer'
 
       - name: Install python dependencies
         run: pip install -r ./requirements.txt
 
       - name: Generate pipeline docs
-        run: arcana deploy make-docs ./australian-imaging-service docs/pipelines --flatten --default-axes medimage
+        run: pydra2app deploy make-docs ./specs/australian-imaging-service docs/pipelines --flatten --default-axes medimage
 
       - name: Remove /docs/pipelines/ from .gitignore
         run: sed -i 's%^/docs/pipelines/\*$%%' .gitignore
