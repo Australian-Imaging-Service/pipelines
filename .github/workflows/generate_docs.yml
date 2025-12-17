@@ -33,7 +33,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.*' # Version range or exact version of a Python version to use, using SemVer'
+          python-version: '3.12' # Version range or exact version of a Python version to use, using SemVer'
 
       - name: Install python dependencies
         run: pip install -r ./docs-requirements.txt
