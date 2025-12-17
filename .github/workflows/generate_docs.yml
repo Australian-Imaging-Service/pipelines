@@ -39,7 +39,7 @@ jobs:
         run: pip install -r ./requirements.txt
 
       - name: Generate pipeline docs
-        run: pydra2app deploy make-docs ./specs/australian-imaging-service docs/pipelines --flatten --default-axes medimage
+        run: pydra2app make-docs ./specs/australian-imaging-service docs/pipelines --flatten --default-axes medimage
 
       - name: Remove /docs/pipelines/ from .gitignore
         run: sed -i 's%^/docs/pipelines/\*$%%' .gitignore
