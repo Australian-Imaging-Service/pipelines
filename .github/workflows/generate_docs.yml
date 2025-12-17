@@ -2,8 +2,10 @@ name: generate docs
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, develop ]
+    tags: [ '*' ]
+  pull_request:
+    branches: [ main, develop ]
   repository_dispatch:  # Allow access tokens which have write access to this repo to trigger this action
   workflow_dispatch:  # Allow manual triggering by a user with write access to this repo
 
