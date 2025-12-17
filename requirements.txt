@@ -1,6 +1,5 @@
 pydra2app >=0.18.5
 pydra2app-xnat >= 0.8.1
-# phi-finder >= 0.1.7
 pydra-compose-bidsapp >= 0.2.0
 fileformats >= 0.8.6
 fileformats-extras >= 0.2.1
