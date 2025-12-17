@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         spec:
-          # - quality-control/phi-finder
+          - quality-control/phi-finder
           # - mri/human/neuro/bidsapps/fmriprep
           # - mri/human/neuro/bidsapps/mriqc
           # - mri/human/neuro/bidsapps/smriprep
