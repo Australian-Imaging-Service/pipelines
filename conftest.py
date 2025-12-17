@@ -65,15 +65,10 @@ BIDS_APP_PARAMETERS = {
     "qsiprep": {"qsiprep_flags": "--output-resolution 2.5"},
 }
 
+specs_dir = Path(__file__).parent / "specs"
 
 bids_apps_dir = (
-    Path(__file__).parent
-    / "specs"
-    / "australian-imaging-service"
-    / "mri"
-    / "human"
-    / "neuro"
-    / "bidsapp"
+    specs_dir / "australian-imaging-service" / "mri" / "human" / "neuro" / "bidsapp"
 )
 test_data_dir = Path(__file__).parent / "tests" / "data"
 test_bids_data_dir = test_data_dir / "specs" / "mri" / "human" / "neuro" / "bidsapp"
