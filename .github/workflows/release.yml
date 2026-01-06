@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         spec:
-          # - quality-control/phi-finder
+          - quality-control/phi-finder
           # - mri/human/neuro/bidsapps/fmriprep
           # - mri/human/neuro/bidsapps/mriqc
           # - mri/human/neuro/bidsapps/smriprep
@@ -62,7 +62,15 @@ jobs:
       run: |
         pip install -r requirements.txt
         pip install .
-      # pip install git+https://github.com/ReproNim/neurodocker.git@master
+
+    - name: Install spec-specific requirements if they exist
+      run: |
+        if [ -f "./requirements/${{ matrix.spec }}.txt" ]; then
+          echo "Installing spec-specific requirements for ${{ matrix.spec }}"
+          pip install -r "./requirements/${{ matrix.spec }}.txt"
+        else
+          echo "No spec-specific requirements found for ${{ matrix.spec }}"
+        fi
 
     - name: Login to Docker registry
       uses: docker/login-action@v2
