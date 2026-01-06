@@ -1,15 +1,24 @@
 import json
-from arcana.core.cli.deploy import make_app
-from arcana.core.utils.misc import show_cli_trace
-from arcana.xnat.deploy import XnatApp
-from arcana.xnat.utils.testing import install_and_launch_xnat_cs_command
+import itertools
+import typing as ty
+from anyio import Path
+from fileformats.medimage import DicomDir
+from pydra.utils.typing import TypeParser
+from pydra2app.core.cli import make
+from pydra2app.xnat import XnatApp
+from frametree.core.utils import show_cli_trace
+from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
 
 
 SKIP_BUILD = False
 
 
 def test_bids_app(
-    bids_app_blueprint, run_prefix, xnat_connect, license_src, cli_runner
+    bids_app_blueprint,
+    run_prefix,
+    xnat_connect: ty.Any,
+    license_src: Path,
+    cli_runner: ty.Any,
 ):
 
     bp = bids_app_blueprint
@@ -23,20 +32,27 @@ def test_bids_app(
     else:
         build_arg = "--build"
 
+    licenses = [["--license", p.stem, str(p)] for p in license_src.glob("*")]
+
     result = cli_runner(
-        make_app,
-        [
-            str(bp.spec_path),
-            "pipelines-core-test",
-            "--build-dir",
-            str(build_dir),
-            build_arg,
-            "--use-test-config",
-            "--use-local-packages",
-            "--raise-errors",
-            "--license-src",
-            str(license_src),
-        ],
+        make,
+        list(
+            itertools.chain(
+                [
+                    "xnat",
+                    str(bp.spec_path),
+                    "--registry",
+                    "pipelines-core-test",
+                    "--build-dir",
+                    str(build_dir),
+                    build_arg,
+                    "--for-localhost",
+                    "--use-local-packages",
+                    "--raise-errors",
+                ],
+                *licenses,
+            )
+        ),
     )
 
     assert result.exit_code == 0, show_cli_trace(result)
@@ -45,44 +61,44 @@ def test_bids_app(
 
     with xnat_connect() as xlogin:
 
-        with open(
-            build_dir
-            / image_spec.name
-            / "xnat_commands"
-            / (image_spec.name + ".json")
-        ) as f:
-            xnat_command = json.load(f)
-        xnat_command.name = xnat_command.label = image_spec.name + run_prefix
+        build_name = image_spec.name.split(".")[-1]
 
-        test_xsession = next(
-            iter(xlogin.projects[bp.project_id].experiments.values())
-        )
+        with open(build_dir / "xnat_commands" / (build_name + ".json")) as f:
+            xnat_command = json.load(f)
+        xnat_command["name"] = xnat_command["label"] = image_spec.name + run_prefix
+
+        test_xsession = next(iter(xlogin.projects[bp.project_id].experiments.values()))
 
         inputs_json = {}
 
-        for inpt in image_spec.command.inputs:
-            if (bids_app_blueprint.test_data / inpt.name).exists():
-                converter_args_path = (
-                    bids_app_blueprint.test_data / inpt.name / "converter.json"
-                )
+        for src in image_spec.command().sources:
+            if (bids_app_blueprint.test_data / src.name).exists():
+                test_data = bids_app_blueprint.test_data / src.name
+                converter_args_path = test_data / "converter.json"
                 converter_args = ""
                 if converter_args_path.exists():
                     with open(converter_args_path) as f:
                         dct = json.load(f)
                     for name, val in dct.items():
                         converter_args += f" converter.{name}={val}"
-                inputs_json[inpt.name] = inpt.name + converter_args
+                input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
+                if isinstance(input_file, DicomDir):
+                    inpt = input_file.metadata["SeriesDescription"]
+                else:
+                    inpt = src.name
+                inputs_json[src.name] = inpt + converter_args
             else:
-                inputs_json[inpt.name] = ""
+                inputs_json[src.name] = ""
 
         for pname, pval in bp.parameters.items():
             inputs_json[pname] = pval
 
-        inputs_json['Arcana_flags'] = (
-            "--plugin serial "
+        inputs_json["pydra2app_flags"] = (
+            "--worker debug "
             "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
             "--dataset-name default "
-            "--loglevel debug "
+            "--logger frametree debug "
+            "--logger pydra2app debug "
         )
 
         workflow_id, status, out_str = install_and_launch_xnat_cs_command(

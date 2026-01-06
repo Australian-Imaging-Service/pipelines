@@ -1,0 +1,50 @@
+schema_version: 2.0
+title: "Extract quality control metrics from T1w, T2W and fMRI data"
+version: &package_version "24.0.2"
+authors:
+  - name: Thomas G. Close
+    email: thomas.close@sydney.edu.au
+base_image:
+  name: nipreps/mriqc
+  tag: *package_version
+  package_manager: apt
+docs:
+  info_url: https://mriqc.readthedocs.io
+  description: |
+    MRIQC extracts no-reference IQMs (image quality metrics) from
+    structural (T1w and T2w) and functional MRI (magnetic resonance
+    imaging) data.
+packages:
+  pip:
+    - pydra-tasks-dcm2niix
+    - pydra-tasks-mrtrix3
+    - pydra-compose-bidsapp
+  neurodocker:
+    dcm2niix: v1.0.20250506
+    mrtrix3: "3.0.4"
+commands:
+  mriqc:
+    operates_on: medimage/session
+    task:
+      type: bidsapp
+      app: /usr/local/miniconda/bin/mriqc
+      inputs:
+        t1w:
+          type: medimage/nifti-gz-x
+          help: "T1-weighted anatomical MRI"
+          path: anat/T1w
+        t2w:
+          type: medimage/nifti-gz-x
+          help: "T2-weighted anatomical MRI"
+          path: anat/T2w
+        bold:
+          type: medimage/nifti-gz-x
+          help: "Resting-state functional MRI"
+          path: func/task-rest_bold
+      outputs:
+        mriqc:
+          type: generic/directory
+          help: Generated QC outputs
+          path: mriqc
+    configuration:
+      work_dir: /work/nipype-work

@@ -1,0 +1,126 @@
+title: "Preprocess T1-weighted MRI" # Short name for the pipeline referenced in the UI
+schema_version: "2.0" # the version of the specification format used for this file
+version: "1.1.4"
+base_image:
+  # Chose a NeuroDesk FSL container as the base
+  name: deepmi/fastsurfer
+  package_manager: apt # It is not obvious from the base image what the package manager is
+  tag: gpu-v2.2.0
+packages:
+  # Install dependencies for DICOM->NIfTI conversion
+  pip:
+    pydra: 1.0a6
+    pydra-tasks-mrtrix3:
+    pydra-tasks-fsl: 0.3.1
+    fileformats:
+    pydra-tasks-fastsurfer:
+    fileformats-medimage-extras:
+    fileformats-vendor-mrtrix3:
+    fileformats-vendor-mrtrix3-extras:
+    pydra2app:
+    frametree:
+    frametree-xnat:
+    australianimagingservice:
+  neurodocker:
+    dcm2niix: v1.0.20240202
+    mrtrix3: 3.0.2
+    freesurfer:
+      version: &freesurfer_version 7.4.1
+      args:
+        exclude_paths:
+          - average/mult-comp-cor
+          - lib/cuda
+          - lib/qt
+          - subjects/V1_average
+          - subjects/bert
+          - subjects/cvs_avg35
+          - subjects/cvs_avg35_inMNI152
+          - subjects/fsaverage3
+          - subjects/fsaverage4
+          # - subjects/fsaverage5
+          - subjects/fsaverage6
+          - subjects/fsaverage_sym
+          - trctrain
+    fsl: 6.0.5.1
+authors:
+  # Authors of the pipeline. The first email will be considered to be the maintainer of
+  # the generated container images
+  - name: Arkiev D'Souza
+    email: arkiev.dsouza@sydney.edu.au
+  - name: Thomas G. Close
+    email: thomas.close@sydney.edu.au
+licenses:
+  freesurfer:
+    destination:
+      &freesurfer_license !join [
+        "/opt/freesurfer-",
+        *freesurfer_version,
+        "/license.txt",
+      ]
+    info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
+    description: >
+      FastSurfer, which is used to perform segmentation and surface recon, requires a
+      FreeSurfer license to run.
+docs:
+  info_url: "https://placeholder.org" # Link to external documentation for underlying tool
+  description: | # Description of tool for auto-docs
+    Generate a 5TT image (HSVS) and parcellation image (Desikan, Destrieux, HCPMMP1,
+    Yeo7 and Yeo17) from a single input anatomical image. Input image should satisfy
+    the input requirements for FastSurfer
+commands:
+  single_parc:
+    task: australianimagingservice.mri.human.neuro.t1w.preprocess:SingleParcellation
+    operates_on: medimage/session
+    sources:
+      T1w:
+        field: t1w
+        help: "The T1-weighted MRI dataset to preprocess"
+    parameters:
+      Parcellation:
+        field: parcellation
+        help: "The parcellation to parcelate the cortex with"
+      FastSurferBatchSize:
+        field: fastsurfer_batch
+        help: "Batch size to use for FastSurfer inference"
+        default: 16
+      FastSurferNThreads:
+        field: fastsurfer_nthreads
+        help: "Number of threads to use for FastSurfer inference"
+        default: 24
+    configuration: # Additional args passed to arcana.common:shell_cmd
+      mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
+      freesurfer_home: &freesurfer_home !join ["/opt/freesurfer-", *freesurfer_version]
+      fs_license: *freesurfer_license
+      subjects_dir: /work/subjects
+      in_fastsurfer_container: true
+      labelsgmfirst_executable: labelsgmfix
+  all_parcs:
+    task: australianimagingservice.mri.human.neuro.t1w.preprocess:AllParcellations
+    operates_on: medimage/session
+    sources:
+      T1w:
+        field: t1w
+        help: "The T1-weighted MRI dataset to preprocess"
+    parameters:
+      FastSurferBatchSize:
+        field: fastsurfer_batch
+        help: "Batch size to use for FastSurfer inference"
+        default: 16
+      FastSurferNThreads:
+        field: fastsurfer_nthreads
+        help: "Number of threads to use for FastSurfer inference"
+        default: 24
+    configuration: # Additional args passed to arcana.common:shell_cmd
+      mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert ## should this be 
+      freesurfer_home: *freesurfer_home ## freesurfer_home: *freesurfer_home
+      fs_license: *freesurfer_license
+      subjects_dir: /work/subjects
+      in_fastsurfer_container: true
+      labelsgmfirst_executable: labelsgmfix
+resources:
+  neuro-parcellations: /parcellations
+  yeo2011-parcellations: !join [*freesurfer_home, "/Yeo2011"]
+  mica-mni-parcellations: !join [*freesurfer_home, "/MICA_MNI_parcellations"]
+  mica-mni-surfaces: !join [*freesurfer_home, "/MICA_MNI_surfaces"]
+  hcpmmp1-parcellations: !join [*freesurfer_home, "/HCPMMP1"]
+  fastsurfer: /fastsurfer-run
