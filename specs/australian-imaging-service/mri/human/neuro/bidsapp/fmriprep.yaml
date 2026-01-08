@@ -76,7 +76,7 @@ commands:
           help: "T1-weighted anatomical scan"
           path: anat/T1w
         t2w:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "T2-weighted anatomical scan"
           path: anat/T2w
         bold:
@@ -84,35 +84,35 @@ commands:
           help: "functional MRI"
           path: func/task-rest_bold
         fmap_magnitude1:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 1 & 2: magnitude of first echo"
           path: fmap/magnitude1
         fmap_magnitude2:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 1 & 2: magnitude of second echo"
           path: fmap/magnitude2
         fmap_magnitude:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
           path: fmap/magnitude
         fmap_phasediff:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
           path: fmap/phasediff
         fmap_phase1:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 2: phase of first echo"
           path: fmap/phase1
         fmap_phase2:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 2: phase of second echo"
           path: fmap/phase2
         fmap_fieldmap:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 3: directly reconstructed field map"
           path: fmap/fieldmap
         fmap_epi:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           path: fmap/epi
           help: >-
             Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding
