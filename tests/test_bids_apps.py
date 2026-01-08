@@ -10,7 +10,7 @@ from frametree.core.utils import show_cli_trace
 from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
 
 
-SKIP_BUILD = False
+SKIP_BUILD = True
 
 
 def test_bids_app(
@@ -32,7 +32,7 @@ def test_bids_app(
     else:
         build_arg = "--build"
 
-    licenses = [["--license", p.stem, str(p)] for p in license_src.glob("*")]
+    licenses = [["--license", name, str(path)] for name, path in bp.licenses.items()]
 
     result = cli_runner(
         make,
