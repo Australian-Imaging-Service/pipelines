@@ -79,6 +79,7 @@ commands:
           type: medimage/nifti-gz-x?
           help: "T2-weighted anatomical scan"
           path: anat/T2w
+          default: null
         bold:
           type: medimage/nifti-gz-x
           help: "functional MRI"
@@ -87,30 +88,37 @@ commands:
           type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 1 & 2: magnitude of first echo"
           path: fmap/magnitude1
+          default: null
         fmap_magnitude2:
           type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 1 & 2: magnitude of second echo"
           path: fmap/magnitude2
+          default: null
         fmap_magnitude:
           type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 3: magnitude image used for anatomical reference"
           path: fmap/magnitude
+          default: null
         fmap_phasediff:
           type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times"
           path: fmap/phasediff
+          default: null
         fmap_phase1:
           type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 2: phase of first echo"
           path: fmap/phase1
+          default: null
         fmap_phase2:
           type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 2: phase of second echo"
           path: fmap/phase2
+          default: null
         fmap_fieldmap:
           type: medimage/nifti-gz-x?
           help: "Field map - BIDS Case 3: directly reconstructed field map"
           path: fmap/fieldmap
+          default: null
         fmap_epi:
           type: medimage/nifti-gz-x?
           path: fmap/epi
@@ -118,6 +126,7 @@ commands:
             Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding
             directions to estimate the distortion map corresponding to the nonuniformities
             of the B0 field
+          default: null
       outputs:
         fmriprep:
           type: generic/directory
