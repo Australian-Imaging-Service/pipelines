@@ -61,8 +61,8 @@ class BidsAppTestBlueprint:
 
 
 BIDS_APP_PARAMETERS = {
-    "fmriprep": {"json_edits": 'func/.*bold ".SliceTiming[] /= 1000.0"'},
-    "qsiprep": {"qsiprep_flags": "--output-resolution 2.5"},
+    # "fmriprep": {"json_edits": 'func/.*bold ".SliceTiming[] /= 1000.0"'},
+    # "qsiprep": {"qsiprep_flags": "--output-resolution 2.5"},
 }
 
 specs_dir = Path(__file__).parent / "specs"
