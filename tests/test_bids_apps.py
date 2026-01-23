@@ -1,9 +1,9 @@
 import json
-import itertools
 import typing as ty
 from anyio import Path
 from fileformats.medimage import DicomDir
 from pydra.utils.typing import TypeParser
+from frametree.core.cli import install_license
 from pydra2app.core.cli import make
 from pydra2app.xnat import XnatApp
 from frametree.core.utils import show_cli_trace
@@ -34,25 +34,29 @@ def test_bids_app(
 
     licenses = [["--license", name, str(path)] for name, path in bp.licenses.items()]
 
+    for lic_name, lic_path in bp.licenses.items():
+        result = cli_runner(
+            install_license,
+            [
+                name,
+                str(path),
+            ],
+        )
+
     result = cli_runner(
         make,
-        list(
-            itertools.chain(
-                [
-                    "xnat",
-                    str(bp.spec_path),
-                    "--registry",
-                    "pipelines-core-test",
-                    "--build-dir",
-                    str(build_dir),
-                    build_arg,
-                    "--for-localhost",
-                    "--use-local-packages",
-                    "--raise-errors",
-                ],
-                *licenses,
-            )
-        ),
+        [
+            "xnat",
+            str(bp.spec_path),
+            "--registry",
+            "pipelines-core-test",
+            "--build-dir",
+            str(build_dir),
+            build_arg,
+            "--for-localhost",
+            "--use-local-packages",
+            "--raise-errors",
+        ],
     )
 
     assert result.exit_code == 0, show_cli_trace(result)
