@@ -18,18 +18,19 @@
 from logging import getLogger
 import typing as ty
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
-from pydra import Workflow
-from .examine_metadata import examine_metadata_wf
-from .susceptibility_est import susceptibility_estimation_wf
+from pydra.compose import workflow
+from .examine_metadata import ExamineMetadata
+from .susceptibility_est import SusceptibilityEstimation
 from .eddy_current_corr import EddyCurrentCorrection
-from .qc import qc_wf
-from .volume_recombination import volume_recombination_wf
+from .qc import Qc
+from .volume_recombination import VolumeRecombination
 
 
 logger = getLogger(__name__)
 
 
-def dwipreproc(
+@workflow.define(outputs=["output", "qc_dir"])
+def DwiPreproc(
     # How am I estimating my susceptility field?
     # - I'm not ("rpe-none")
     # - I have a pair of b=0 images with reversed phase encoding,
@@ -95,6 +96,8 @@ def dwipreproc(
     #   or is it already on the same grid, in which case the requisite concatenation
     #   operations can be performed directly?
     #   ("True" only makes sense for a subset of the options above)
+    input: Mif,
+    se_epi: Mif,
     field_estimation_data_formation_strategy: str,
     requires_regrid: bool,
     have_se_epi: bool,
@@ -103,12 +106,12 @@ def dwipreproc(
     eddy_qc_all: bool = False,  # whether to include large eddy qc files in outputs
     slice_to_volume: bool = True,  # whether to include slice-to-volume registration
     bzero_threshold: float = 10.0,
-    volume_pairs: ty.List[ty.Tuple[int, int]] = None,
+    volume_pairs: ty.List[ty.Tuple[int, int]] | None = None,
     #
     # Am I going to perform explicit volume recombination?
     # - Yes, because my data support it ("rpe-all")
     # - No
-):
+) -> tuple[Mif, str]:
     """
     Perform diffusion image pre-processing using FSL\'s eddy tool; including inhomogeneity
     distortion correction using FSL\'s topup tool if possible
@@ -254,64 +257,50 @@ def dwipreproc(
     if volume_pairs is None:
         volume_pairs = []
 
-    wf = Workflow(
-        name="dwipreproc",
-        input_spec={
-            "input": Mif,
-            "se_epi": Mif,
-        },
-    )
-
     # Deal with slice timing information for eddy slice-to-volume correction
-    wf.add(
-        examine_metadata_wf(
+    stragy_identification = workflow.add(
+        ExamineMetadata(
             slice_to_volume=slice_to_volume,
             bzero_threshold=bzero_threshold,
-        )(input=wf.lzin.input, name="stragy_identification")
-    )
-
-    wf.add(
-        susceptibility_estimation_wf(have_se_epi=have_se_epi)(
-            input=wf.lzin.input,
-            se_epi=wf.import_seepi.lzout.output,
-            dwi_first_bzero_index=wf.examine_metadata_wf.lzout.dwi_first_bzero_index,
-            name="susceptibility_estimation_wf",
+            input=input,
         )
     )
 
-    wf.add(
+    import_seepi = workflow.add()
+
+    susceptibility_estimation = workflow.add(
+        SusceptibilityEstimation(
+            have_se_epi=have_se_epi,
+            input=input,
+            se_epi=import_seepi.output,
+            dwi_first_bzero_index=stragy_identification.dwi_first_bzero_index,
+        )
+    )
+
+    eddy_current_correction = workflow.add(
         EddyCurrentCorrection(
             have_topup=have_topup,
             slice_to_volume=slice_to_volume,
             dwi_has_pe_contrast=dwi_has_pe_contrast,
             eddy_qc_all=eddy_qc_all,
-        )(
-            input=wf.lzin.input,
-            topup_fieldcoeff=wf.susceptibility_estimation_wf.lzout.topup_fieldcoeff,
-            slice_timings=wf.stragy_identification.lzout.slice_timings,
-            name="EddyCurrentCorrection",
+            input=input,
+            topup_fieldcoeff=susceptibility_estimation.topup_fieldcoeff,
+            slice_timings=stragy_identification.slice_timings,
         )
     )
 
-    wf.add(
-        qc_wf(eddy_qc_all=eddy_qc_all)(
-            input=wf.lzin.input,
-            name="qc_wf",
+    qc = workflow.add(
+        Qc(
+            eddy_qc_all=eddy_qc_all,
+            input=input,
         )
     )
 
-    wf.add(
-        volume_recombination_wf(
+    volume_recombination = workflow.add(
+        VolumeRecombination(
             volume_pairs=volume_pairs,
-        )(
-            input=wf.EddyCurrentCorrection.lzout.output,
-            name="volume_recombination_wf",
+            input=eddy_current_correction.output,
         )
     )
 
-    wf.set_output(
-        [
-            ("output", wf.volume_recombination_wf.lzout.output),
-            ("qc_dir", wf.qc_wf.lzout.qc_dir),
-        ]
-    )
+    return (volume_recombination.output, qc.qc_dir)
