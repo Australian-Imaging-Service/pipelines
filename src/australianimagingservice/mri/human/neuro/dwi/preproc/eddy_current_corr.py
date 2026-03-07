@@ -1,19 +1,20 @@
-import pydra.mark
 import typing as ty
 import logging
 import itertools
-from fileformats.medimage_mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from fileformats.medimage import Bvec, Bval
-from pydra.tasks.mrtrix3.v3_0 import (
-    mrinfo,
-    dirstat,
-    mrconvert,
-    mrcat,
-    dwi2mask,
-    maskfilter,
-    mrgrid,
+
+from pydra.compose import python, workflow
+from pydra.tasks.mrtrix3.v3_1 import (
+    MrInfo,
+    DirStat,
+    MrConvert,
+    MrCat,
+    Dwi2Mask_Ants,
+    MaskFilter,
+    MrGrid,
 )
-from pydra.tasks.fsl.v6_0 import ApplyTOPUP, Eddy
+from pydra.tasks.fsl.v6 import ApplyTOPUP, Eddy
 from fileformats.datascience import TextVector, TextArray
 from .utils import calculate_mrgrid_spatial_padding
 
@@ -23,7 +24,14 @@ logger = logging.getLogger(__name__)
 EDDY_VERSIONS = ["openmp", "cuda"]
 
 
-def eddy_current_corr_wf(
+@workflow.define
+def EddyCurrentCorrection(
+    in_file: Mif,
+    topup_fieldcoeff: TextVector,
+    dwi_first_bzero_index: int,
+    slice_encoding_direction: TextVector,
+    slice_timings: TextArray,
+    eddy_use_slm: bool,
     have_topup: bool,
     slice_to_volume: bool,
     dwi_has_pe_contrast: bool,
@@ -66,25 +74,12 @@ def eddy_current_corr_wf(
                 "eddy_cnr_maps.nii.gz",
                 "eddy_residuals.nii.gz",
             ]
-        )        
+        )
 
-    wf = pydra.Workflow(
-        name="eddy_current_corr_wf",
-        input_spec=[
-            "input",
-            "topup_fieldcoeff",
-            "dwi_first_bzero_index",
-            "slice_encoding_direction",
-            "slice_timings",
-            "eddy_use_slm",
-        ],
-    )
-
-    wf.add(
-        mrinfo(
-            input=wf.lzin.input,
+    generate_applytopup_textfiles = workflow.add(
+        MrInfo(
+            input=in_file,
             export_pe_eddy=True,
-            name="generate_applytopup_textfiles",
         )
     )
 
@@ -147,7 +142,7 @@ def eddy_current_corr_wf(
             }
         )
         def load_topup_pe_info(
-            export_pe_eddy: ty.Tuple[TextArray, TextVector]
+            export_pe_eddy: ty.Tuple[TextArray, TextVector],
         ) -> ty.Tuple[
             ty.List[ty.List[float]], ty.List[int], ty.List[ty.List[int]], ty.List[int]
         ]:
@@ -165,7 +160,7 @@ def eddy_current_corr_wf(
                 list(range(len(volumegroups))),
             )
 
-        wf.add(
+        workflow.add(
             load_topup_pe_info(
                 topup_config=wf.generate_applytopup_textfiles.lzout.export_pe_eddy,
                 name="load_topup_pe_info",
@@ -190,11 +185,11 @@ def eddy_current_corr_wf(
         def coord_arg(group: ty.List[int]) -> ty.Tuple[int, str]:
             return (3, ",".join([str(value) for value in group]))
 
-        vg_wf.add(
+        vg_workflow.add(
             coord_arg(group=vg_wf.lzin.volumegroup, name="coord_arg"),
         )
 
-        vg_wf.add(
+        vg_workflow.add(
             mrconvert(
                 input=vg_wf.lzin.input,
                 coord=vg_wf.coord_arg.lzout.out,
@@ -203,7 +198,7 @@ def eddy_current_corr_wf(
                 name="extract_volumes_for_applytopup_group",
             )
         )
-        vg_wf.add(
+        vg_workflow.add(
             ApplyTOPUP(
                 in_files=vg_wf.extract_volumes_for_applytopup_group.lzout.output,
                 encoding_file=wf.load_topup_pe_info.lzout.config_file,
@@ -213,7 +208,7 @@ def eddy_current_corr_wf(
                 name="applytopup_group",
             )
         )
-        vg_wf.add(
+        vg_workflow.add(
             mrconvert(
                 input=vg_wf.applytopup_group.lzout.output,
                 json_import=vg_wf.extract_volumes_for_applytopup_group.lzout.json_export,
@@ -225,11 +220,11 @@ def eddy_current_corr_wf(
             [("corrected", vg_wf.post_applytopup_reimport_json.lzout.output)]
         )
 
-        wf.add(vg_wf)
+        workflow.add(vg_wf)
 
         # TODO Consider allowing mrcat to take as input a single image file
         if dwi_has_pe_contrast:
-            wf.add(
+            workflow.add(
                 mrcat(
                     inputs=wf.volumegroup_wf.lzout.corrected,
                     name="concatenate_epi_corrected_dwis",
@@ -243,7 +238,7 @@ def eddy_current_corr_wf(
                 assert len(input_list) == 1
                 return input_list[0]
 
-            wf.add(
+            workflow.add(
                 get_only_item_from_list(
                     input_list=wf.volumegroup_wf.lzout.corrected,
                     name="get_epi_corrected_dwis",
@@ -255,11 +250,11 @@ def eddy_current_corr_wf(
         dwi2mask_input = wf.lzin.input
 
     # TODO Obtain dwi2mask algorithm
-    wf.add(
+    workflow.add(
         dwi2mask(input=dwi2mask_input, algorithm=dwi2mask_algorithm, name="dwi2mask")
     )
 
-    wf.add(
+    workflow.add(
         maskfilter(
             input=wf.dwi2mask.lzout.output, operation="dilate", name="dilate_brain_mask"
         )
@@ -269,11 +264,11 @@ def eddy_current_corr_wf(
     #   we need to perform the same padding here to both the input DWI
     #   and the eddy processing mask
     if have_topup:
-        wf.add(
+        workflow.add(
             calculate_mrgrid_spatial_padding(input.lzin.input, name="dwi_padding")
         )
 
-        wf.add(
+        workflow.add(
             mrgrid(
                 input=wf.lzin.input,
                 operation="pad",
@@ -281,7 +276,7 @@ def eddy_current_corr_wf(
                 name="mrgrid_pad_dwis",
             )
         )
-        wf.add(
+        workflow.add(
             mrgrid(
                 input=wf.dilate_brain_mask.lzout.output,
                 operation="pad",
@@ -310,7 +305,7 @@ def eddy_current_corr_wf(
             slice_str += f":{num_volumes - 1}"
         return (3, slice_str)
 
-    wf.add(
+    workflow.add(
         permvols_preddy(
             slice_to_volume=slice_to_volume,
             dwi_first_bzero_index=wf.lzin.dwi_first_bzero_index,
@@ -323,8 +318,9 @@ def eddy_current_corr_wf(
 
         @pydra.mark.task
         def save_eddy_slspec(
-            slice_timings: ty.List[float], slice_encoding_direction: ty.List[int],
-            dwi_padding: ty.List[ty.Tuple[int, str]]
+            slice_timings: ty.List[float],
+            slice_encoding_direction: ty.List[int],
+            dwi_padding: ty.List[ty.Tuple[int, str]],
         ) -> str:
             # Slice timing vector must be of same length as number of slices
             # For padded slices, pretend they were acquired at time 0
@@ -346,7 +342,7 @@ def eddy_current_corr_wf(
             slice_groups_file.save(slice_groups)
             return slice_groups_file
 
-        wf.add(
+        workflow.add(
             save_eddy_slspec(
                 slice_timings=wf.lzin.slice_timings,
                 slice_encoding_direction=wf.lzin.slice_encoding_direction,
@@ -356,9 +352,9 @@ def eddy_current_corr_wf(
         )
 
     # TODO Find out if it is recommended that we use the second-level model in eddy
-    wf.add(mrinfo(image_=wf.lzin.input, shell_bvalues=True, name="mrinfo"))
+    workflow.add(mrinfo(image_=wf.lzin.input, shell_bvalues=True, name="mrinfo"))
 
-    wf.add(dirstat(image_=wf.lzin.input, output="asym", name="dirstat"))
+    workflow.add(dirstat(image_=wf.lzin.input, output="asym", name="dirstat"))
 
     @pydra.mark.task
     def eddy_select_slm(mrinfo_shell_bvalues_out: str, dirstat_asym_out: str) -> str:
@@ -392,7 +388,7 @@ def eddy_current_corr_wf(
                 )
         return slm
 
-    wf.add(
+    workflow.add(
         eddy_select_slm(
             mrinfo_shell_bvalues_out=wf.mrinfo_shell_bvalues_out.lzout.stdout,
             dirstat_asym_out=wf.dirstat_asym_out.lzout.stdout,
@@ -401,7 +397,7 @@ def eddy_current_corr_wf(
     )
 
     # TODO Convert image data in preparation for eddy
-    wf.add(
+    workflow.add(
         mrconvert(
             input=dwi_mrconvert_in,
             datatype="float32",
@@ -412,7 +408,7 @@ def eddy_current_corr_wf(
             name="convert_dwi_for_eddy",
         )
     )
-    wf.add(
+    workflow.add(
         mrconvert(
             input=mask_mrconvert_in,
             datatype="float32",
@@ -438,7 +434,7 @@ def eddy_current_corr_wf(
     #   is to increase the stringency of the thresholding by which outlier slices are detected,
     #   making it more likely for there to be at least one volume with precisely zero outliers.
 
-    wf.add(
+    workflow.add(
         Eddy(
             executable=f"eddy_{eddy_version}",
             in_file=wf.convert_dwi_for_eddy.lzout.output,
@@ -464,23 +460,21 @@ def eddy_current_corr_wf(
             }
         }
     )
-    def split_fsl_grads(
-        fslgrad: ty.Tuple[Bvec, Bval]
-    ) -> ty.Tuple[Bvec, Bval]:
+    def split_fsl_grads(fslgrad: ty.Tuple[Bvec, Bval]) -> ty.Tuple[Bvec, Bval]:
         return fslgrad
 
     @pydra.mark.task
     def combine_fsl_grads(bvecs: Bvec, bvals: Bval) -> ty.Tuple[Bvec, Bval]:
         return (bvecs, bvals)
 
-    wf.add(
+    workflow.add(
         split_fsl_grads(
             fslgrad=wf.convert_dwi_for_eddy.lzout.export_grad_fsl,
             name="split_fsl_grads",
         )
     )
 
-    wf.add(
+    workflow.add(
         combine_fsl_grads(
             bvecs=wf.eddy.lzout.out_rotated_bvecs,
             bvals=wf.split_fsl_grads.lzout.bvals,
@@ -488,7 +482,7 @@ def eddy_current_corr_wf(
         )
     )
 
-    wf.add(
+    workflow.add(
         mrconvert(
             input=wf.eddy.lzout.out_corrected,
             output="output.mif",
@@ -504,7 +498,7 @@ def eddy_current_corr_wf(
 
     if have_topup:
 
-        wf.add(
+        workflow.add(
             mrgrid(
                 input=wf.unpermute_vols_after_eddy.lzout.out_corrected,
                 operation="crop",
@@ -516,8 +510,6 @@ def eddy_current_corr_wf(
 
     # Include any requisite reversal of volume permutation
 
-    wf.set_output(
-        [("output", out_node)]
-    )
+    wf.set_output([("output", out_node)])
 
     return wf

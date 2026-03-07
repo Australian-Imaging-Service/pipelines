@@ -21,7 +21,7 @@ from fileformats.medimage_mrtrix3 import ImageFormat as Mif
 from pydra import Workflow
 from .examine_metadata import examine_metadata_wf
 from .susceptibility_est import susceptibility_estimation_wf
-from .eddy_current_corr import eddy_current_corr_wf
+from .eddy_current_corr import EddyCurrentCorrection
 from .qc import qc_wf
 from .volume_recombination import volume_recombination_wf
 
@@ -280,7 +280,7 @@ def dwipreproc(
     )
 
     wf.add(
-        eddy_current_corr_wf(
+        EddyCurrentCorrection(
             have_topup=have_topup,
             slice_to_volume=slice_to_volume,
             dwi_has_pe_contrast=dwi_has_pe_contrast,
@@ -289,7 +289,7 @@ def dwipreproc(
             input=wf.lzin.input,
             topup_fieldcoeff=wf.susceptibility_estimation_wf.lzout.topup_fieldcoeff,
             slice_timings=wf.stragy_identification.lzout.slice_timings,
-            name="eddy_current_corr_wf",
+            name="EddyCurrentCorrection",
         )
     )
 
@@ -304,7 +304,7 @@ def dwipreproc(
         volume_recombination_wf(
             volume_pairs=volume_pairs,
         )(
-            input=wf.eddy_current_corr_wf.lzout.output,
+            input=wf.EddyCurrentCorrection.lzout.output,
             name="volume_recombination_wf",
         )
     )
