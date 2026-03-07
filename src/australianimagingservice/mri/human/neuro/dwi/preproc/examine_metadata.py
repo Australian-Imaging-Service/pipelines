@@ -1,104 +1,71 @@
 import logging
 import typing as ty
 import attrs
-import pydra.mark
+from pydra.compose import workflow, python
 from .utils import extract_pe_scheme, axis2dir
 from fileformats.medimage_mrtrix3 import ImageFormat as Mif
-from pydra.tasks.mrtrix3 import mrinfo
+from pydra.tasks.mrtrix3.v3_1 import MrInfo
 
 
 logger = logging.getLogger(__name__)
 
 
-def examine_metadata_wf(slice_to_volume: bool, bzero_threshold: float = 10.0):
-    """Identify the strategy for DWI processing
+@workflow.define(
+    outputs=[
+        "num_encodings",
+        "slice_timings",
+        "se_dims_match",
+        "index_of_first_bzero",
+        "volume_pairs",
+    ]
+)
+def examine_metadata_wf(
+    input: Mif, se_epi: Mif, slice_to_volume: bool, bzero_threshold: float = 10.0
+) -> tuple[int, ty.List[float], bool, int, ty.List[ty.Tuple[int, int]]]:
 
-    Parameters
-    ----------
-
-    Returns
-    -------
-    wf : pydra.Workflow
-        Workflow object
-    """
-
-    wf = pydra.Workflow(
-        name="strategy_identification_wf", input_spec=["input", "se_epi"]
-    )
-
-    wf.add(
-        examine_image_dims(
-            in_image=wf.lzin.input, se_epi=wf.lzin.se_epi, name="examine_image_dims"
-        )
-    )
+    examine_image_dims = workflow.add(ExamineImageDims(in_image=input, se_epi=se_epi))
 
     if slice_to_volume:
-        wf.add(
-            examine_slice_encoding(in_image=wf.lzin.input, name="examine_slice_timing")
-        )
+        examine_slice_timing = workflow.add(ExamineSliceEncoding(in_image=input))
 
-    wf.add(
-        mrinfo(image_=wf.lzin.input, shell_bvalues=True, name="mrinfo_shell_bvalues")
-    )
-    wf.add(
-        mrinfo(image_=wf.lzin.input, shell_indices=True, name="mrinfo_shell_indices")
-    )
-    wf.add(
-        parse_mrinfo_output(
-            mrinfo_shell_bvalues_out=wf.mrinfo_shell_bvalues_out.lzout.stdout,
-            mrinfo_shell_indices_out=wf.mrinfo_shell_indices_out.lzout.stdout,
-            name="parse_mrinfo_output",
+    mrinfo_shell_bvalues = workflow.add(MrInfo(image_=input, shell_bvalues=True))
+    mrinfo_shell_indices = workflow.add(MrInfo(image_=input, shell_indices=True))
+    parse_mrinfo_output = workflow.add(
+        ParseMrinfoOutput(
+            mrinfo_shell_bvalues_out=mrinfo_shell_bvalues.stdout,
+            mrinfo_shell_indices_out=mrinfo_shell_indices.stdout,
         )
     )
 
-    wf.add(
-        find_first_bzero(
-            in_image=wf.lzin.input,
+    match_rpe_pairs = workflow.add(
+        FindFirstBzero(
+            in_image=input,
             bzero_threshold=bzero_threshold,
-            shell_bvalues=wf.parse_mrinfo_output.lzout.shell_bvalues,
-            shell_indices=wf.parse_mrinfo_output.lzout.shell_indices,
-            name="match_rpe_pairs",
+            shell_bvalues=parse_mrinfo_output.shell_bvalues,
+            shell_indices=parse_mrinfo_output.shell_indices,
         )
     )
-    wf.add(
-        mrinfo(image_=wf.lzin.input, export_pe_table=True, name="get_pe_scheme")
-    )
-    wf.add(
-        determine_volume_pairs(
-            in_image=wf.lzin.input,
-            pe_scheme=wf.get_pe_scheme.lzout.export_pe_table,
+    get_pe_scheme = workflow.add(mrinfo(image_=input, export_pe_table=True))
+    determine_volume_pairs = workflow.add(
+        DetermineVolumePairs(
+            in_image=input,
+            pe_scheme=get_pe_scheme.export_pe_table,
             bzero_threshold=bzero_threshold,
-            name="determine_volume_pairs",
         )
     )
 
-    wf.set_output(
-        [
-            ("num_encodings", wf.examine_image_dims.lzout.num_encodings),
-            ("slice_timings", wf.examine_slice_encoding.lzout.slice_timings),
-            ("se_dims_match", wf.num_encodings.lzout.se_dims_match),
-            (
-                "index_of_first_bzero",
-                wf.examine_diffusion_scheme.lzout.index_of_first_bzero,
-            ),
-            ("volume_pairs", wf.determine_volume_pairs.lzout.out),
-        ],
+    return (
+        examine_image_dims.num_encodings,
+        examine_slice_encoding.slice_timings,
+        num_encodings.se_dims_match,
+        examine_diffusion_scheme.index_of_first_bzero,
+        determine_volume_pairs.out,
     )
 
-    return wf
 
-
-@pydra.mark.task
-@pydra.mark.annotate(
-    {
-        "return": {
-            "shell_bvalues": ty.List[float],
-            "shell_indices": ty.List[ty.List[int]],
-        }
-    }
-)
-def parse_mrinfo_output(
-    mrinfo_shell_bvalues_out: str, mrinfo_shell_indices_out
+@python.define(outputs=["shell_bvalues", "shell_indices"])
+def ParseMrinfoOutput(
+    mrinfo_shell_bvalues_out: str, mrinfo_shell_indices_out: str
 ) -> ty.Tuple[ty.List[float], ty.List[ty.List[int]]]:
     """Extract shell bvalues from mrinfo output"""
     shell_bvalues = [float(value) for value in mrinfo_shell_bvalues_out.split()]
@@ -109,18 +76,15 @@ def parse_mrinfo_output(
 
 
 # Get information on the input images, and check their validity
-@pydra.mark.task
-@pydra.mark.annotate(
-    {
-        "return": {
-            "num_encodings": int,
-            "num_slices": int,
-            "pe_scheme": ty.List[ty.List[float]],
-            "se_dims_match": bool,
-        }
-    }
+@python.define(
+    outputs=[
+        "num_encodings",
+        "num_slices",
+        "pe_scheme",
+        "se_dims_match",
+    ]
 )
-def examine_image_dims(
+def ExamineImageDims(
     in_image: Mif, se_epi: Mif
 ) -> ty.Tuple[int, int, bool, ty.List[ty.List[float]]]:
     if not len(in_image.dims()) == 4:
@@ -153,11 +117,10 @@ def examine_image_dims(
     return num_volumes, num_slices, dims_match, se_epi_pe_scheme
 
 
-@pydra.mark.task
-@pydra.mark.annotate(
-    {"return": {"axis": int, "direction": ty.List[int], "timings": ty.List[float]}}
-)
-def examine_slice_encoding(in_image: Mif) -> ty.Tuple[int, ty.List[float]]:
+@python.define(["axis", "direction", "timings"])
+def ExamineSliceEncoding(
+    in_image: Mif,
+) -> ty.Tuple[int, ty.List[float], ty.List[float]]:
     axis = 2  # default if can't be found in header
     if "SliceEncodingDirection" in in_image.metadata:
         direction = in_image.metadata["SliceEncodingDirection"]
@@ -207,9 +170,8 @@ def examine_slice_encoding(in_image: Mif) -> ty.Tuple[int, ty.List[float]]:
     return axis, direction, timings
 
 
-@pydra.mark.task
-@pydra.mark.annotate({"return": {"index_of_first_bzero": int}})
-def find_first_bzero(
+@python.define(outputs=["index_of_first_bzero"])
+def FindFirstBzero(
     in_image: Mif,
     bzero_threshold: float,
     shell_bvalues: ty.List[float],  # FIXME: Rob, these aren't being used
@@ -233,9 +195,8 @@ def find_first_bzero(
     return index_of_first_bzero
 
 
-@pydra.mark.task
-@pydra.mark.annotate({"return": {"index_of_first_bzero": int}})
-def determine_volume_pairs(
+@python.define(outputs=["index_of_first_bzero"])
+def DetermineVolumePairs(
     in_image: Mif,
     bzero_threshold: float,
     pe_scheme: ty.List[ty.List[float]],  # FIXME: Rob, transition to use Eddy PE table
@@ -304,8 +265,7 @@ def determine_volume_pairs(
                     ):  # Also as yet unpaired
                         # Here, need to check both gradient matching and reversed phase-encode direction
                         if not any(
-                            grad[index1][i] + pe_scheme[index2][i]
-                            for i in range(0, 3)
+                            grad[index1][i] + pe_scheme[index2][i] for i in range(0, 3)
                         ) and grads_match(index1, index2):
                             volume_matchings[index1] = index2
                             volume_matchings[index2] = index1
