@@ -1,15 +1,18 @@
 import typing as ty
 from logging import getLogger
-import pydra.mark
-from pydra.tasks.mrtrix3.v3_2 import DwiRecon
+from fileformats.vendor.mrtrix3 import ImageFormat as Mif
+from pydra.compose import workflow
+from pydra.tasks.mrtrix3.v3_1 import DwiRecon
 
 
 logger = getLogger(__name__)
 
 
-def volume_recombination_wf(
-    volume_pairs: ty.List[ty.Tuple[int, int]] = None,
-):
+@workflow.define(outputs=["output"])
+def VolumeRecombination(
+    in_file: Mif,
+    volume_pairs: ty.List[ty.Tuple[int, int]] | None = None,
+) -> Mif:
     """Identify the strategy for DWI processing
 
     Parameters
@@ -21,20 +24,11 @@ def volume_recombination_wf(
         Workflow object
     """
 
-    wf = pydra.Workflow(name="qc_wf", input_spec=["input", "volume_pairs"])
-
-    wf.add(
+    dwi_recon = workflow.add(
         DwiRecon(
-            in_file=wf.lzin.input,
-            volume_pairs=wf.lzin.volume_pairs,
-            name="dwi_recon",
+            in_file=in_file,
+            volume_pairs=volume_pairs,
         )
     )
 
-    wf.set_output(
-        [
-            ("output", wf.dwi_recon.lzout.out_file),
-        ],
-    )
-
-    return wf
+    return dwi_recon.out_file

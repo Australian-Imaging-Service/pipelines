@@ -1,10 +1,10 @@
-import pydra.mark
+from pydra.compose import python
 import attrs
 import typing as ty
-from fileformats.medimage_mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3 import ImageFormat as Mif
 
 
-@pydra.mark.task
+@python.define
 def requires_regrid_switch(in_image: Mif, se_epi: Mif) -> bool:
     if se_epi is not attrs.NOTHING:
         dims_match = (
@@ -16,7 +16,7 @@ def requires_regrid_switch(in_image: Mif, se_epi: Mif) -> bool:
     return not dims_match
 
 
-@pydra.mark.task
+@python.define
 def field_estimation_data_formation_strategy_switch(
     in_image: Mif, se_epi: ty.Optional[Mif]
 ) -> str:

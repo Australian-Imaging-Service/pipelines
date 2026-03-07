@@ -1,12 +1,9 @@
 import logging
-from pathlib import Path
-import pydra.mark
-from pydra.engine.task import ShellCommandTask
-from pydra.engine.specs import SpecInfo, ShellSpec, ShellOutSpec
-from fileformats.medimage_mrtrix3 import ImageFormat as Mif
-from pydra.tasks.mrtrix3 import mrtransform, mrcat, mrconvert, dwiextract, mrgrid
-from pydra.tasks.fsl import TOPUP
-from .utils import calculate_mrgrid_spatial_padding
+from pydra.compose import workflow, python, shell
+from fileformats.vendor.mrtrix3 import ImageFormat as Mif
+from pydra.tasks.mrtrix3.v3_1 import MrTransform, MrCat, MrConvert, DwiExtract, MrGrid
+from pydra.tasks.fsl.v6 import TOPUP
+from .utils import CalculateMrgridSpatialPadding
 
 
 logger = logging.getLogger(__name__)
@@ -52,7 +49,11 @@ TOPUP_CONFIG = {
 }
 
 
-def susceptibility_estimation_wf(
+@workflow.define(outputs=["susceptibility_field_image", "topup_fieldcoeff"])
+def SusceptibilityEstimation(
+    in_file: Mif,
+    dwi_first_bzero_index: int,
+    se_epi: Mif,
     field_estimation_data_formation_strategy: str,
     requires_regrid: bool,
 ):
@@ -68,155 +69,102 @@ def susceptibility_estimation_wf(
     """
     assert field_estimation_data_formation_strategy != "none"
 
-    wf = pydra.Workflow(
-        name="susceptibility_estimation_wf",
-        input_spec=["input", "dwi_first_bzero_index", "se_epi"],
-    )
-
     if requires_regrid:
-        wf.add(
-            mrtransform(
-                input=wf.lzin.se_epi,
-                tempate=wf.lzin.input,
+        regrid_seepi_to_dwi_transform = workflow.add(
+            MrTransform(
+                input=se_epi,
+                tempate=in_file,
                 reorient_fod="no",
                 interp="sinc",
-                name="regrid_seepi_to_dwi_transform",
             )
         )
 
-        regrid_seepi_to_dwi_input_spec = SpecInfo(
-            name="Input",
-            fields=[
-                (
-                    "input",
-                    Mif,
-                    {
-                        "help_string": "input image",
-                        "argstr": "",
-                        "position": 0,
-                        "mandatory": True,
-                    },
-                ),
-                (
-                    "operand",
-                    float,
-                    {
-                        "help_string": "operand",
-                        "argstr": "",
-                        "position": 1,
-                        "mandatory": True,
-                    },
-                ),
-                (
-                    "operator",
-                    str,
-                    {
-                        "help_string": "the operation to apply",
-                        "argstr": "-{operator}",
-                        "position": 2,
-                        "mandatory": True,
-                    },
-                ),
-                (
-                    "output",
-                    Path,
-                    {
-                        "help_string": "the operation to apply",
-                        "argstr": "",
-                        "position": -1,
-                        "output_file_template": "output.mif",
-                        "mandatory": True,
-                    },
-                ),
-            ],
-            bases=(ShellSpec,),
-        )
+        @shell.define
+        class MrCalcRegrid(shell.Task):
 
-        regrid_seepi_to_dwi_output_spec = SpecInfo(
-            name="Output",
-            fields=[
-                (
-                    "output",
-                    Mif,
-                    {
-                        "help_string": "the output file",
-                        "argstr": "--tval",
-                        "position": -1,
-                        "mandatory": True,
-                    },
-                ),
-            ],
-            bases=(ShellOutSpec,),
-        )
+            executable = "mrcalc"
+            input: Mif = shell.arg(
+                help="input image",
+                argstr="",
+                position=0,
+            )
+            operand: float = shell.arg(
+                help="operand",
+                argstr="",
+                position=1,
+            )
+            operator: str = shell.arg(
+                help="the operation to apply",
+                argstr="-{operator}",
+                position=2,
+            )
 
-        wf.add(
-            ShellCommandTask(
-                name="regrid_seepi_to_dwi_nonnegative",
-                executable="mrcalc",
-                input_spec=regrid_seepi_to_dwi_input_spec,
-                output_spec=regrid_seepi_to_dwi_output_spec,
-                input=wf.regrid_seepi_to_dwi_transform.lzout.output,
+            class Outputs(shell.Outputs):
+                output: Mif = shell.outarg(
+                    help="the output file",
+                    argstr="--tval",
+                    position=-1,
+                    path_template="output.mif",
+                )
+
+        regrid_seepi_to_dwi_nonnegative = workflow.add(
+            MrCalcRegrid(
+                input=regrid_seepi_to_dwi_transform.output,
                 operand=0.0,
                 operator="max",
             )
         )
-        se_epi_for_concatenation = wf.regrid_seepi_to_dwi_nonnegative.lzout.output
+        se_epi_for_concatenation = regrid_seepi_to_dwi_nonnegative.output
     else:
-        se_epi_for_concatenation = wf.lzin.se_epi
+        se_epi_for_concatenation = se_epi
 
-    @pydra.mark.task
-    def merge_list(in_1, in_2) -> list:
+    @python.define
+    def MergeList(in_1, in_2) -> list:
         return [in_1, in_2]
 
     # Done regridding if necessary
     field_estimation_input = None
     if field_estimation_data_formation_strategy == "se_epi_standalone":
         assert not requires_regrid
-        field_estimation_input = wf.lzin.se_epi
+        field_estimation_input = se_epi
 
     elif field_estimation_data_formation_strategy == "se_epi_concat_first_bzero":
-        wf.add(
-            mrconvert(
-                input=wf.lzin.input,
-                coord=(3, wf.lzin.dwi_first_bzero_index),
-                name="dwi_extract_first_bzero",
+        dwi_extract_first_bzero = workflow.add(
+            MrConvert(
+                input=in_file,
+                coord=(3, dwi_first_bzero_index),
             )
         )
 
-        wf.add(
-            merge_list(
-                in_1=wf.dwi_extract_first_bzero.lzout.out,
+        merge_bzero_se_epi = workflow.add(
+            MergeList(
+                in_1=dwi_extract_first_bzero.out,
                 in_2=se_epi_for_concatenation,
-                name="merge_bzero_se_epi",
             )
         )
 
-        wf.add(
-            mrcat(
-                inputs=wf.merge_bzero_se_epi.lzout.out,
+        concat_bzero_se_epi = workflow.add(
+            MrCat(
+                inputs=merge_bzero_se_epi.out,
                 axis=3,
-                name="concat_bzero_se_epi",
             )
         )
-        field_estimation_input = wf.concat_bzero_se_epi.lzout.out
+        field_estimation_input = concat_bzero_se_epi.out
 
     elif field_estimation_data_formation_strategy == "se_epi_concat_all_bzeros":
-        wf.add(dwiextract(input=wf.lzin.input, bzero=True, name="dwi_extract_bzeros"))
-        wf.add(
-            merge_list(
-                in_1=wf.dwi_extract_bzeros.lzout.out,
+        dwi_extract_bzeros = workflow.add(DwiExtract(input=in_file, bzero=True))
+        merge_bzero_se_epi = workflow.add(
+            MergeList(
+                in_1=dwi_extract_bzeros.out,
                 in_2=se_epi_for_concatenation,
-                name="merge_bzero_se_epi",
             )
         )
-        wf.add(
-            mrcat(inputs=wf.merge_bzero_se_epi.out, axis=3, name="concat_bzero_se_epi")
-        )
-        field_estimation_input = wf.concat_bzero_se_epi.lzout.out
+        concat_bzero_se_epi = workflow.add(MrCat(inputs=merge_bzero_se_epi.out, axis=3))
+        field_estimation_input = concat_bzero_se_epi.out
 
     elif field_estimation_data_formation_strategy == "bzeros":
-        wf.add(dwiextract(input=wf.lzin.input, bzero=True, name="dwi_extract_bzeros"))
-        field_estimation_input = wf.dwi_extract_bzeros.lzout.out
+        dwi_extract_bzeros = workflow.add(DwiExtract(input=in_file, bzero=True))
+        field_estimation_input = dwi_extract_bzeros.out
 
     else:
         assert False
@@ -227,10 +175,8 @@ def susceptibility_estimation_wf(
     # For axes 0 and 1, could hytpthetically try to pad from both ends,
     #   but for simplicity let's just pad everything at the upper end
 
-    wf.add(
-        calculate_mrgrid_spatial_padding(
-            in_image=field_estimation_input, name="calculate_mrgrid_spatial_padding"
-        )
+    calculate_mrgrid_spatial_padding = workflow.add(
+        CalculateMrgridSpatialPadding(in_image=field_estimation_input)
     )
 
     # TODO Will this crash if the set of axis paddings to be applied is empty?
@@ -238,44 +184,28 @@ def susceptibility_estimation_wf(
     # TODO Slice timings will no longer be valid after padding
     # (If capability to pad via duplication is added, then this should involve
     # header concatenation, which should concatenate the timing data also)
-    wf.add(
-        mrgrid(
+    mrgrid_pad_axes = workflow.add(
+        MrGrid(
             input=field_estimation_input,
             operation="pad",
-            axis=wf.calculate_mrgrid_spatial_padding.lzout.out,
-            name="mrgrid_pad_axes",
+            axis=calculate_mrgrid_spatial_padding.out,
         )
     )
 
-    wf.add(
-        mrconvert(
+    generate_topup_inputs = workflow.add(
+        MrConvert(
             input=field_estimation_input,
             export_pe_table=True,
             strides=[1, 2, 3, 4],
-            name="generate_topup_inputs",
         )
     )
 
-    wf.add(
+    topup = workflow.add(
         TOPUP(
-            in_file=wf.generate_topup_inputs.lzout.output,
-            encoding_file=wf.generate_topup_inputs.lzout.export_pe_table,
+            in_file=generate_topup_inputs.output,
+            encoding_file=generate_topup_inputs.export_pe_table,
             **TOPUP_CONFIG,
-            name="topup",
         )
     )
 
-    wf.set_output(
-        [
-            ("susceptibility_field_image", wf.topup.lzout.out_field),
-            ("topup_fieldcoeff", wf.topup.lzout.out_fieldcoef)
-        ],
-    )
-
-    return wf
-
-
-@pydra.mark.task
-@pydra.mark.annotate({"return": {}})
-def a() -> bool:
-    pass
+    return topup.out_field, topup.out_fieldcoef

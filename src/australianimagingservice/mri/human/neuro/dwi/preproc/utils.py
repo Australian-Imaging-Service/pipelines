@@ -1,14 +1,14 @@
 from logging import getLogger
 import typing as ty
-import pydra.mark
-from fileformats.medimage_mrtrix3 import ImageIn, ImageFormat as Mif
+from pydra.compose import python
+from fileformats.vendor.mrtrix3 import ImageIn, ImageFormat as Mif
 
 
 logger = getLogger(__name__)
 
 
-@pydra.mark.task
-def calculate_mrgrid_spatial_padding(in_image: Mif) -> ty.List[ty.Tuple[int, str]]:
+@python.define
+def CalculateMrgridSpatialPadding(in_image: Mif) -> ty.List[ty.Tuple[int, str]]:
     padding = [(4 - (dim % 4)) % 4 for dim in in_image.dims()[0:3]]
     axis_args = [
         (axis_index, "0:%d" % pad_size)

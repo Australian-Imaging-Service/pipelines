@@ -2,17 +2,17 @@ from pathlib import Path
 import os
 import shutil
 from logging import getLogger
-from fileformats.medimage_mrtrix3 import ImageIn, ImageFormat as Mif
-import pydra.mark
-from pydra.tasks.mrtrix3.auto import (
-    mrconvert,   
-)
-from pydra.tasks.fsl.auto import EddyQuad
+from fileformats.vendor.mrtrix3 import ImageFormat as Mif
+from fileformats.medimage import Nifti1
+from pydra.compose import workflow, python
+from pydra.tasks.mrtrix3.v3_1 import MrConvert
+from pydra.tasks.fsl.v6 import EddyQuad
 
 logger = getLogger(__name__)
 
 
-def qc_wf():
+@workflow.define(outputs=["example"])
+def Qc(in_file: Mif):
     """Identify the strategy for DWI processing
 
     Parameters
@@ -24,32 +24,16 @@ def qc_wf():
         Workflow object
     """
 
-    wf = pydra.Workflow(
-        name="qc_wf", input_spec=["input"]
-    )
+    example = workflow.add(ExampleTask(in_image=in_file))
 
-    wf.add(
-        example_task(
-            in_image=wf.lzin.input, name="example"
-        )
-    )
-
-    wf.set_output(
-        [
-            ("example", wf.example.lzout.output),
-        ],
-    )
-
-    return wf
+    return example.output
 
 
-@pydra.mark.task
-@pydra.mark.annotate()
-def example_task():
+@python.define
+def ExampleTask(in_image: Nifti1, execute_topup: bool, eddy_mporder: int | None = None):
     eddyqc_mask = "eddy_mask.nii"
     eddyqc_fieldmap = fsl.find_image("field_map") if execute_topup else None
     eddyqc_slspec = "slspec.txt" if eddy_mporder else None
-
 
     # Check to see whether or not eddy has provided a rotated bvecs file;
     #   if it has, import this into the output image
@@ -59,7 +43,6 @@ def example_task():
             "eddy has not provided rotated bvecs file; using original gradient table. Recommend updating FSL eddy to version 5.0.9 or later."
         )
         bvecs_path = "bvecs"
-
 
     # Grab any relevant files that eddy has created, and copy them to the requested directory
     if eddyqc_path:
@@ -154,9 +137,7 @@ def example_task():
             )
         )
     except run.MRtrixCmdError as exception:
-        with open(
-            "eddy_quad_failure_output.txt", "wb"
-        ) as eddy_quad_output_file:
+        with open("eddy_quad_failure_output.txt", "wb") as eddy_quad_output_file:
             eddy_quad_output_file.write(
                 str(exception).encode("utf-8", errors="replace")
             )
@@ -170,4 +151,4 @@ def example_task():
         try:
             shutil.rmtree(eddyqc_prefix + ".qc")
         except OSError:
-            pass    
+            pass

@@ -3,7 +3,7 @@ import typing as ty
 import attrs
 from pydra.compose import workflow, python
 from .utils import extract_pe_scheme, axis2dir
-from fileformats.medimage_mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3 import ImageFormat as Mif
 from pydra.tasks.mrtrix3.v3_1 import MrInfo
 
 

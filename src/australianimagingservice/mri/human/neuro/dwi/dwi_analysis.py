@@ -30,9 +30,13 @@ from pydra.tasks.mrtrix3.v3_1 import (
 )
 from pydra.tasks.fsl.v6 import EpiReg
 from fileformats.medimage import NiftiGzXBvec, NiftiGz
-from fileformats.medimage_mrtrix3 import ImageFormat
 from pathlib import Path
-from fileformats.medimage_mrtrix3 import ImageIn, ImageOut, Tracks  # noqa: F401
+from fileformats.vendor.mrtrix3 import (
+    ImageFormat,
+    ImageIn,
+    ImageOut,
+    Tracks,
+)  # noqa: F401
 
 # Define the path and output_path variables
 output_path = "/Users/arkievdsouza/git/dwi-pipeline/working-dir/"

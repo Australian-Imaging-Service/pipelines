@@ -16,7 +16,7 @@ from pydra.tasks.mrtrix3.v3_1 import (
 )
 from pydra.tasks.fsl.v6 import ApplyTOPUP, Eddy
 from fileformats.datascience import TextVector, TextArray
-from .utils import calculate_mrgrid_spatial_padding
+from .utils import CalculateMrgridSpatialPadding
 
 
 logger = logging.getLogger(__name__)
@@ -202,7 +202,7 @@ def EddyCurrentCorrection(
 
     # TODO Obtain dwi2mask algorithm
     dwi2mask = workflow.add(
-        dwi2mask(input=dwi2mask_input, algorithm=dwi2mask_algorithm, name="")
+        Dwi2Mask(input=dwi2mask_input, algorithm=dwi2mask_algorithm, name="")
     )
 
     dilate_brain_mask = workflow.add(
@@ -213,7 +213,7 @@ def EddyCurrentCorrection(
     #   we need to perform the same padding here to both the input DWI
     #   and the eddy processing mask
     if have_topup:
-        dwi_padding = workflow.add(calculate_mrgrid_spatial_padding(input, name=""))
+        dwi_padding = workflow.add(CalculateMrgridSpatialPadding(in_file, name=""))
 
         mrgrid_pad_dwis = workflow.add(
             MrGrid(
