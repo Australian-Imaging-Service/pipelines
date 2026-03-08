@@ -1,6 +1,6 @@
 import logging
 from pydra.compose import workflow, python, shell
-from fileformats.vendor.mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from pydra.tasks.mrtrix3.v3_1 import MrTransform, MrCat, MrConvert, DwiExtract, MrGrid
 from pydra.tasks.fsl.v6 import TOPUP
 from .utils import CalculateMrgridSpatialPadding
@@ -56,11 +56,25 @@ def SusceptibilityEstimation(
     se_epi: Mif,
     field_estimation_data_formation_strategy: str,
     requires_regrid: bool,
-):
+) -> tuple[Mif, Mif]:
     """Estimate susceptibility-induced field inhomogeneity
 
     Parameters
     ----------
+    in_file : Mif
+        The input DWI image
+    dwi_first_bzero_index : int
+        The index of the first b=0 volume in the DWI image
+    se_epi : Mif
+        The SE-EPI image to use for field estimation
+    field_estimation_data_formation_strategy : str
+        The strategy to use for forming the input to field estimation. One of:
+        - "se_epi_standalone": Use the SE-EPI image alone (after regridding if requires_regrid is True)
+        - "se_epi_concat_first_bzero": Concatenate the SE-EPI image with the first b=0 volume from the DWI image (after regridding the SE-EPI if requires_regrid is True)
+        - "se_epi_concat_all_bzeros": Concatenate the SE-EPI image with all b=0 volumes from the DWI image (after regridding the SE-EPI if requires_regrid is True)
+        - "bzeros": Use all b=0 volumes from the DWI image alone
+    requires_regrid : bool
+        Whether the SE-EPI image requires regridding to match the DWI image. If True, the SE-EPI image will be regridded to match the DWI image using
 
     Returns
     -------

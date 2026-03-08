@@ -17,7 +17,7 @@
 
 from logging import getLogger
 import typing as ty
-from fileformats.vendor.mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from pydra.compose import workflow
 from .examine_metadata import ExamineMetadata
 from .susceptibility_est import SusceptibilityEstimation

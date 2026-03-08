@@ -3,7 +3,7 @@ import typing as ty
 import attrs
 from pydra.compose import workflow, python
 from .utils import extract_pe_scheme, axis2dir
-from fileformats.vendor.mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from pydra.tasks.mrtrix3.v3_1 import MrInfo
 
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
         "volume_pairs",
     ]
 )
-def examine_metadata_wf(
+def ExamineMetadata(
     input: Mif, se_epi: Mif, slice_to_volume: bool, bzero_threshold: float = 10.0
 ) -> tuple[int, ty.List[float], bool, int, ty.List[ty.Tuple[int, int]]]:
 
@@ -117,7 +117,7 @@ def ExamineImageDims(
     return num_volumes, num_slices, dims_match, se_epi_pe_scheme
 
 
-@python.define(["axis", "direction", "timings"])
+@python.define(outputs=["axis", "direction", "timings"])
 def ExamineSliceEncoding(
     in_image: Mif,
 ) -> ty.Tuple[int, ty.List[float], ty.List[float]]:

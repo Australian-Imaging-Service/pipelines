@@ -15,6 +15,7 @@ from pydra.tasks.mrtrix3.v3_1 import (
     MrGrid,
 )
 from pydra.tasks.fsl.v6 import ApplyTOPUP, Eddy
+from fileformats.generic import File
 from fileformats.datascience import TextVector, TextArray
 from .utils import CalculateMrgridSpatialPadding
 
@@ -38,11 +39,45 @@ def EddyCurrentCorrection(
     dwi2mask_algorithm: str,
     eddy_version: str = "openmp",
     eddy_qc_all: bool = False,
-):
+) -> Mif:
     """Identify the strategy for DWI processing
 
     Parameters
     ----------
+    in_file : Mif
+        The input DWI image
+    topup_fieldcoeff : TextVector
+        The text file containing the field coefficients estimated by topup, to be used in eddy
+    dwi_first_bzero_index : int
+        The index of the first b=0 volume in the input DWI; used to determine
+        the appropriate slice-to-volume correction strategy in eddy
+    slice_encoding_direction : TextVector
+        The slice encoding direction, as a vector of three integers corresponding to the x, y,
+    slice timings : TextArray
+        The slice timings, as a vector of floats corresponding to the acquisition time of each slice;
+        used to determine the appropriate slice-to-volume correction strategy in eddy
+    eddy_use_slm : bool
+        Whether to use the second-level model in eddy; if True, the appropriate model will be automatically
+        determined based on the asymmetry of the sampling of each b-value shell
+    have_topup : bool
+        Whether topup will be used in the workflow; if False, no field coefficients will be provided to eddy,
+        and no volume-wise application of topup will be performed prior to eddy
+    slice_to_volume : bool
+        Whether to use slice-to-volume correction in eddy; if True, the slice encoding direction and slice
+        timings will be used to determine the appropriate invocation of eddy
+    dwi_has_pe_contrast : bool
+        Whether the input DWI has phase encoding contrast (i.e. whether there are multiple unique phase encoding
+        lines in the data); if False, the workflow will skip the step of running applytopup separately for each
+        unique phase encoding line, and will instead run it just once
+    dwi2mask_algorithm : str
+        The algorithm to use for dwi2mask; passed as the "algorithm" argument to the Dwi2Mask_Ants task; should
+        be one of the algorithms supported by that task (e.g. "Otsu", "Huang", etc.)
+    eddy_version : str
+        The version of eddy to use; should be one of "openmp" or "cuda"
+    eddy_qc_all : bool
+        Whether to output all possible eddy QC files; if False, only the "eddy_parameters" file will be output;
+        if True, the "eddy_parameters" file will be output along with the "eddy_movement_rms",
+        "eddy_restricted_movement_rms", "eddy_post
 
     Returns
     -------
@@ -143,7 +178,30 @@ def EddyCurrentCorrection(
         ) -> ty.Tuple[
             ty.List[ty.List[float]], ty.List[int], ty.List[ty.List[int]], ty.List[int]
         ]:
-            """Load the topup field coefficients"""
+            """Load the topup field coefficients
+
+            Parameters
+            ----------
+            export_pe_eddy : tuple[TextArray, TextVector]
+                The output of the MrInfo task with export_pe_eddy=True, containing the "config
+                and "indices" files to be used in applytopup and eddy
+
+            Returns
+            -------
+            config_file : TextArray
+                The text file containing the unique phase encoding lines and total readout times
+                to be used in applytopup and eddy
+            indices_file : TextVector
+                The text file containing the index of the phase encoding line for each volume, to be
+                used in applytopup and eddy
+            volumegroups : list of list of int
+                A list of lists, where each inner list contains the volume indices corresponding to
+                each unique phase encoding line; used to run applytopup separately for each unique
+                phase encoding line
+            groupindices : list of int
+                A list of integers corresponding to the index of the phase encoding line for each
+                volume, used to run applytopup separately for each unique phase encoding line
+            """
             config = export_pe_eddy[0].load()  # TODO: need to write this function
             indices = export_pe_eddy[1].load()
             volumegroups = [

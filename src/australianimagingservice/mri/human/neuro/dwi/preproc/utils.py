@@ -1,7 +1,7 @@
 from logging import getLogger
 import typing as ty
 from pydra.compose import python
-from fileformats.vendor.mrtrix3 import ImageIn, ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageIn, ImageFormat as Mif
 
 
 logger = getLogger(__name__)

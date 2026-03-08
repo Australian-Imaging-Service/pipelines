@@ -31,7 +31,7 @@ from pydra.tasks.mrtrix3.v3_1 import (
 from pydra.tasks.fsl.v6 import EpiReg
 from fileformats.medimage import NiftiGzXBvec, NiftiGz
 from pathlib import Path
-from fileformats.vendor.mrtrix3 import (
+from fileformats.vendor.mrtrix3.medimage import (
     ImageFormat,
     ImageIn,
     ImageOut,

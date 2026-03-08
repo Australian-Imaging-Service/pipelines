@@ -1,6 +1,6 @@
 import typing as ty
 from logging import getLogger
-from fileformats.vendor.mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from pydra.compose import workflow
 from pydra.tasks.mrtrix3.v3_1 import DwiRecon
 
@@ -17,11 +17,13 @@ def VolumeRecombination(
 
     Parameters
     ----------
+    in_file: Mif
+        input file
 
     Returns
     -------
-    wf : pydra.Workflow
-        Workflow object
+    output: Mif
+        output file
     """
 
     dwi_recon = workflow.add(

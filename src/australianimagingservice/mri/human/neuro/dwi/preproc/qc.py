@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 import shutil
 from logging import getLogger
-from fileformats.vendor.mrtrix3 import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from fileformats.medimage import Nifti1
 from pydra.compose import workflow, python
 from pydra.tasks.mrtrix3.v3_1 import MrConvert
@@ -17,11 +17,13 @@ def Qc(in_file: Mif):
 
     Parameters
     ----------
+    in_file: fileformats.vendor.mrtrix3.medimage.ImageFormat
+        input file
 
     Returns
     -------
-    wf : pydra.Workflow
-        Workflow object
+    example: fileformats.vendor.mrtrix3.medimage.ImageFormat
+        output example file
     """
 
     example = workflow.add(ExampleTask(in_image=in_file))
