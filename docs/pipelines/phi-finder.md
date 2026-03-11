@@ -10,7 +10,7 @@ weight: 10
 |---|-----|
 |Name|phi-finder|
 |Title|PHI-Finder|
-|Version|0.1.8|
+|Version|0.1.9|
 |Base image|`debian:bookworm-slim`|
 |Maintainer|Pedro Faustini (pedro.faustini@mq.edu.au)|
 |Info URL|https://github.com/Australian-Imaging-Service/phi-finder|
