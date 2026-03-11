@@ -18,7 +18,7 @@ import xnat4tests
 
 debug_level = logging.WARNING
 
-logger = logging.getLogger("arcana")
+logger = logging.getLogger("ais-pipelines")
 logger.setLevel(debug_level)
 
 sch = logging.StreamHandler()
@@ -43,9 +43,6 @@ def nifti_data():
 
 @pytest.fixture
 def work_dir():
-    # work_dir = Path.home() / '.arcana-tests'
-    # work_dir.mkdir(exist_ok=True)
-    # return work_dir
     work_dir = tempfile.mkdtemp()
     yield Path(work_dir)
     # shutil.rmtree(work_dir)
