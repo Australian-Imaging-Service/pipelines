@@ -13,9 +13,9 @@ SPEC_PATH = (
     PKG_DIR
     / "specs"
     / "australian-imaging-service"
-    / "quality-control"
+    / "mri"
     / "phantoms"
-    / "gsp-spirit.yaml"
+    / "vial-signal.yaml"
 )
 
 SKIP_BUILD = False
@@ -34,7 +34,7 @@ def test_vial_signal_app(
 
     project_id = f"{run_prefix}qualitycontrolgspspirit"
 
-    test_data = test_data_dir / "specs" / "quality-control" / "phantoms" / "gsp-spirit"
+    test_data = test_data_dir / "specs" / "mri" / "phantoms" / "vial-signal"
     upload_test_dataset_to_xnat(project_id, test_data, xnat_connect)
 
     if SKIP_BUILD:
@@ -61,8 +61,8 @@ def test_vial_signal_app(
     image_spec = XnatApp.load(SPEC_PATH)
 
     command_inputs = {
-        "gsp_spirit": {
-            "in_file": "foo_bar",
+        "all_metrics": {
+            "input_image": "foo_bar",
         }
     }
 
