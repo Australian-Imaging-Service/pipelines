@@ -1,7 +1,8 @@
-from pydra.compose import python
+from pydra.compose import python, workflow
 import attrs
 import typing as ty
 from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
+from pydra.tasks.mrtrix3.v3_1 import DwiExtract, MrCat
 
 
 @python.define
@@ -16,127 +17,151 @@ def requires_regrid_switch(in_image: Mif, se_epi: Mif) -> bool:
     return not dims_match
 
 
-@python.define
-def field_estimation_data_formation_strategy_switch(
-    in_image: Mif, se_epi: ty.Optional[Mif]
-) -> str:
-    # TODO: Rob to do
+@python.define(outputs=["strategy", "se_epi"])
+def CheckContrastAndSelectSeEpi(
+    concatenated_se_epi: Mif,
+) -> ty.Tuple[str, Mif]:
+    """Return the concatenated SE-EPI if it has PE contrast, otherwise
+    raise.  The strategy string is determined here too."""
+    if "pe_scheme" not in concatenated_se_epi.metadata:
+        raise RuntimeError(
+            "No phase-encoding contrast present in SE-EPI images, even "
+            "after concatenating with b=0 images due to -align_seepi "
+            "option; cannot perform inhomogeneity field estimation"
+        )
+    return "se_epi_concat_all_bzeros", concatenated_se_epi
 
-    # Deal with the phase-encoding of the images to be fed to topup (if applicable)
-    # execute_topup = (not pe_design == "None") and not topup_file_userpath
-    overwrite_se_epi_pe_scheme = False
-    dwi_permvols_preeddy = None
-    dwi_permvols_posteddy = None  # inverse of previous
-    dwi_permvols_posteddy_slice = None
-    volume_pairs = None  # See examine_metadata:determine_volume_pairs
-    dwi_bzero_added_to_se_epi = False
-    se_epi_path = new_se_epi_path
-    se_epi_header = image.Header(se_epi_path)
 
-    # 3 possible sources of PE information: DWI header, topup image header, command-line
-    # Any pair of these may conflict, and any one could be absent
+@python.define(outputs=["strategy", "se_epi"])
+def DetermineStrategy(
+    se_epi: ty.Optional[Mif],
+    pe_design: str,
+    align_seepi: bool,
+    manual_pe_dir: ty.Optional[str],
+    manual_trt: ty.Optional[float],
+) -> ty.Tuple[str, ty.Optional[Mif]]:
+    """Pure-Python logic for all non-Header-align_seepi cases.
 
-    # Have to switch here based on phase-encoding acquisition design
-    if pe_design == "Pair":
-        # Criteria:
-        #   * If present in own header, ignore DWI header entirely -
-        #     - If also provided at command-line, look for conflict & report
-        #     - If not provided at command-line, nothing to do
-        #   * If _not_ present in own header:
-        #     - If provided at command-line, infer appropriately
-        #     - If not provided at command-line, but the DWI header has that information, infer appropriately
-        if se_epi_pe_scheme:
-            if manual_pe_dir:
-                if not scheme_dirs_match(se_epi_pe_scheme, se_epi_manual_pe_scheme):
-                    logger.warning(
-                        "User-defined phase-encoding direction design does not match what is stored in SE EPI image header; proceeding with user specification"
-                    )
-                    overwrite_se_epi_pe_scheme = True
-            if manual_trt:
-                if not scheme_times_match(se_epi_pe_scheme, se_epi_manual_pe_scheme):
-                    logger.warning(
-                        "User-defined total readout time does not match what is stored in SE EPI image header; proceeding with user specification"
-                    )
-                    overwrite_se_epi_pe_scheme = True
-            if overwrite_se_epi_pe_scheme:
-                se_epi_pe_scheme = se_epi_manual_pe_scheme
-            else:
-                se_epi_manual_pe_scheme = (
-                    None  # To guarantee that these data are never used
-                )
-        else:
-            overwrite_se_epi_pe_scheme = True
-            se_epi_pe_scheme = se_epi_manual_pe_scheme
+    Returns the strategy string and the (unchanged) SE-EPI image.
+    """
+    if pe_design == "None":
+        return "none", None
 
     elif pe_design == "All":
-        # Criteria:
-        #   * If present in own header:
-        #     - Nothing to do
-        #   * If _not_ present in own header:
-        #     - Don't have enough information to proceed
-        #     - Is this too harsh? (e.g. Have rules by which it may be inferred from the DWI header / command-line)
-        if not se_epi_pe_scheme:
+        # TODO: Rob to do — implement PE-scheme conflict checking for
+        #   the "All" case (se_epi must carry its own PE info)
+        if se_epi is None:
             raise RuntimeError(
-                "If explicitly including SE EPI images when using -rpe_all option, they must come with their own associated phase-encoding information in the image header"
+                "If explicitly including SE EPI images when using "
+                "-rpe_all option, they must come with their own "
+                "associated phase-encoding information in the image header"
             )
+        return "bzeros", se_epi
+
+    elif pe_design == "Pair":
+        # TODO: Rob to do — implement PE-scheme conflict checking
+        #   (manual_pe_dir / manual_trt vs. header values)
+        if se_epi is None:
+            raise RuntimeError(
+                "SE-EPI image must be provided for pe_design='Pair'"
+            )
+        if align_seepi:
+            return "se_epi_concat_first_bzero", se_epi
+        else:
+            return "se_epi_standalone", se_epi
 
     elif pe_design == "Header":
-        # Criteria:
-        #   * If present in own header:
-        #       Nothing to do (-pe_dir option is mutually exclusive)
-        #   * If _not_ present in own header:
-        #       Cannot proceed
-        if not se_epi_pe_scheme:
+        # align_seepi=True with Header is handled by the workflow branch
+        # (DwiExtract + MrCat + CheckContrastAndSelectSeEpi), so this
+        # function only sees the non-align_seepi sub-cases.
+        if se_epi is None:
+            return "bzeros", None
+        if "pe_scheme" not in se_epi.metadata:
             raise RuntimeError(
-                "No phase-encoding information present in SE-EPI image header"
+                "No phase-encoding contrast present in SE-EPI images; "
+                "cannot perform inhomogeneity field estimation"
             )
-        # If there is no phase encoding contrast within the SE-EPI series,
-        #   try combining it with the DWI b=0 volumes, see if that produces some contrast
-        # However, this should probably only be permitted if the -align_seepi option is defined
-        se_epi_pe_scheme_has_contrast = "pe_scheme" in se_epi_header.keyval()
-        if not se_epi_pe_scheme_has_contrast:
-            if align_seepi:
-                logger.info(
-                    "No phase-encoding contrast present in SE-EPI images; will examine again after combining with DWI b=0 images"
-                )
-                new_se_epi_path = os.path.splitext(se_epi_path)[0] + "_dwibzeros.mif"
-                # Don't worry about trying to produce a balanced scheme here
-                wf.add(
-                    dwiextract(
-                        input=wf.import_dwi.lzout.output,
-                        bzero=True,
-                        name="dwi_bzeros_for_align_seepi",
-                    )
-                )
-                wf.add(
-                    mrcat(
-                        input=(
-                            wf.dwi_bzeros_for_align_seepi.lzout.output,
-                            se_epi_path,
-                        ),
-                        output=new_se_epi_path,
-                        axis=3,
-                        name="cat_dwi_bzeros_seepi_for_align_seepi",
-                    )
-                )
-                se_epi_header = image.Header(new_se_epi_path)
-                se_epi_pe_scheme_has_contrast = "pe_scheme" in se_epi_header.keyval()
-                if se_epi_pe_scheme_has_contrast:
-                    se_epi_path = new_se_epi_path
-                    se_epi_pe_scheme = phaseencoding.get_scheme(se_epi_header)
-                    dwi_bzero_added_to_se_epi = True
-                    # Delay testing appropriateness of the concatenation of these images
-                    #   (i.e. differences in contrast) to later
-                else:
-                    raise RuntimeError(
-                        "No phase-encoding contrast present in SE-EPI images, even after concatenating with b=0 images due to -align_seepi option; "
-                        "cannot perform inhomogeneity field estimation"
-                    )
-            else:
-                raise RuntimeError(
-                    "No phase-encoding contrast present in SE-EPI images; cannot perform inhomogeneity field estimation"
-                )
-    return strategy
+        if align_seepi:
+            return "se_epi_concat_first_bzero", se_epi
+        else:
+            return "se_epi_standalone", se_epi
+
+    else:
+        raise ValueError(f"Unknown pe_design value: {pe_design!r}")
+
+
+@workflow.define(outputs=["strategy", "se_epi"])
+def field_estimation_data_formation_strategy_switch(
+    in_image: Mif,
+    se_epi: ty.Optional[Mif],
+    pe_design: str,
+    align_seepi: bool = False,
+    manual_pe_dir: ty.Optional[str] = None,
+    manual_trt: ty.Optional[float] = None,
+) -> ty.Tuple[str, ty.Optional[Mif]]:
+    """Determine the strategy for forming the field estimation input data and
+    return a (possibly modified) SE-EPI image.
+
+    In the ``pe_design == "Header"`` case where the SE-EPI lacks phase-encoding
+    contrast, and ``align_seepi`` is set, this workflow extracts the DWI b=0
+    volumes and concatenates them with the SE-EPI before re-checking for
+    contrast.
+
+    Parameters
+    ----------
+    in_image : Mif
+        Input DWI image.
+    se_epi : Mif, optional
+        Spin-echo EPI image for field estimation.
+    pe_design : str
+        Phase-encoding acquisition design; one of ``"None"``, ``"Pair"``,
+        ``"All"``, ``"Header"``.
+    align_seepi : bool
+        Whether to align the SE-EPI with the DWI by prepending a DWI b=0
+        volume.
+    manual_pe_dir : str, optional
+        Manually specified phase-encoding direction.
+    manual_trt : float, optional
+        Manually specified total readout time (seconds).
+
+    Returns
+    -------
+    strategy : str
+        Determined field estimation data formation strategy.
+    se_epi : Mif, optional
+        SE-EPI image, potentially extended with DWI b=0 volumes.
+    """
+
+    if pe_design == "Header" and align_seepi:
+        # In this branch the SE-EPI may lack phase-encoding contrast on its
+        # own; prepend DWI b=0 volumes and re-check.
+        assert se_epi is not None, "se_epi must be provided when pe_design='Header'"
+
+        extract_bzeros = workflow.add(DwiExtract(in_file=in_image, bzero=True))
+
+        cat_bzeros_with_se_epi = workflow.add(
+            MrCat(inputs=[extract_bzeros.output, se_epi], axis=3)
+        )
+
+        check = workflow.add(
+            CheckContrastAndSelectSeEpi(
+                concatenated_se_epi=cat_bzeros_with_se_epi.output,
+            )
+        )
+        return check.strategy, check.se_epi
+
+    else:
+
+        determine = workflow.add(
+            DetermineStrategy(
+                se_epi=se_epi,
+                pe_design=pe_design,
+                align_seepi=align_seepi,
+                manual_pe_dir=manual_pe_dir,
+                manual_trt=manual_trt,
+            )
+        )
+        return determine.strategy, determine.se_epi
 
     # # If there was any relevant padding applied, then we want to provide
     # #   the comprehensive set of files to EddyQC with that padding removed

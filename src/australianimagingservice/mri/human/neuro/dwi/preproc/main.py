@@ -106,11 +106,14 @@ def DwiPreproc(
     eddy_qc_all: bool = False,  # whether to include large eddy qc files in outputs
     slice_to_volume: bool = True,  # whether to include slice-to-volume registration
     bzero_threshold: float = 10.0,
-    volume_pairs: list[tuple[int, int]] | None = None,
-    #
+    recon_operation: ty.Optional[str] = None,
     # Am I going to perform explicit volume recombination?
-    # - Yes, because my data support it ("rpe-all")
-    # - No
+    # - "combine_pairs"    : pe_design "All" (full reversed-PE DWI acquired twice)
+    # - "combine_predicted": pe_design "Header" when combine_pairs is not viable
+    # - None               : pe_design "None" or "Pair" (eddy correction only)
+    volume_pairs: ty.Optional[ty.List[ty.Tuple[int, int]]] = None,
+    # Explicit (forward_index, reverse_index) pairs for dwirecon -pairs_in;
+    # overrides automatic pair detection when recon_operation="combine_pairs".
 ) -> tuple[Mif, str]:
     """
     Perform diffusion image pre-processing using FSL\'s eddy tool; including inhomogeneity
@@ -278,13 +281,11 @@ def DwiPreproc(
         )
     )
 
-    import_seepi = workflow.add()
-
     susceptibility_estimation = workflow.add(
         SusceptibilityEstimation(
             have_se_epi=have_se_epi,
             input=in_file,
-            se_epi=import_seepi.output,
+            se_epi=se_epi,
             dwi_first_bzero_index=stragy_identification.dwi_first_bzero_index,
         )
     )
@@ -310,8 +311,10 @@ def DwiPreproc(
 
     volume_recombination = workflow.add(
         VolumeRecombination(
+            in_file=eddy_current_correction.output,
+            operation=recon_operation,
+            field=susceptibility_estimation.susceptibility_field_image,
             volume_pairs=volume_pairs,
-            input=eddy_current_correction.output,
         )
     )
 
