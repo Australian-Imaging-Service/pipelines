@@ -3,7 +3,10 @@ import typing as ty
 import attrs
 from pydra.compose import workflow, python
 from .utils import extract_pe_scheme, axis2dir
-from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import (
+    ImageFormat as Mif,
+    ImageFormatWithDwiEncoding as MifDwi,
+)
 from pydra.tasks.mrtrix3.v3_1 import MrInfo
 
 
@@ -172,7 +175,7 @@ def ExamineSliceEncoding(
 
 @python.define(outputs=["index_of_first_bzero"])
 def FindFirstBzero(
-    in_image: Mif,
+    in_image: MifDwi,
     bzero_threshold: float,
     shell_bvalues: ty.List[float],  # FIXME: Rob, these aren't being used
     shell_indices: ty.List[ty.List[int]],
@@ -182,7 +185,7 @@ def FindFirstBzero(
     #   not only for the -align_seepi option, but also for when the -se_epi option
     #   is not provided at all, and the input to topup is extracted solely from the DWIs
     index_of_first_bzero = None
-    for i, bval in enumerate(in_image.encoding.bvals):
+    for i, bval in enumerate(in_image.b_vals):
         if bval <= bzero_threshold:
             logger.debug("Index of first b=0 image in DWIs is %s" + i)
             index_of_first_bzero = i

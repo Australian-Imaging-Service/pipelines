@@ -13,6 +13,50 @@ from pydra.tasks.fsl.v6 import EddyQuad
 logger = getLogger(__name__)
 
 
+@python.define(outputs=["bvecs"])
+def SelectBvecs(eddy_rotated_bvecs: ty.Optional[File]) -> File:
+    """Use eddy's rotated bvecs if available, otherwise fall back to the
+    original bvecs file and emit a warning."""
+    if eddy_rotated_bvecs is not None:
+        return eddy_rotated_bvecs
+    logger.warning(
+        "eddy has not provided rotated bvecs file; using original gradient "
+        "table. Recommend updating FSL eddy to version 5.0.9 or later."
+    )
+    return File("bvecs")
+
+
+@python.define(outputs=["qc_dir"])
+def GatherEddyQcAllOutputs(
+    qc_json: ty.Optional[File],
+    outlier_free_data: ty.Optional[Nifti1],
+    cnr_maps: ty.Optional[Nifti1],
+    residuals: ty.Optional[Nifti1],
+    eddy_mask: File,
+) -> str:
+    """Copy additional eddy image outputs into the eddy_quad QC directory."""
+    if qc_json is None:
+        raise RuntimeError("EddyQuad did not produce the expected qc.json output")
+    qc_dir = os.path.dirname(str(qc_json))
+    for src, name in [
+        (outlier_free_data, "eddy_outlier_free_data.nii.gz"),
+        (cnr_maps, "eddy_cnr_maps.nii.gz"),
+        (residuals, "eddy_residuals.nii.gz"),
+    ]:
+        if src is not None:
+            shutil.copy(str(src), os.path.join(qc_dir, name))
+    shutil.copy(str(eddy_mask), os.path.join(qc_dir, "eddy_mask.nii"))
+    return qc_dir
+
+
+@python.define(outputs=["qc_dir"])
+def GetEddyQuadOutputDir(qc_json: ty.Optional[File]) -> str:
+    """Return the eddy_quad output directory from the qc.json path."""
+    if qc_json is None:
+        raise RuntimeError("EddyQuad did not produce the expected qc.json output")
+    return os.path.dirname(str(qc_json))
+
+
 @workflow.define(outputs=["qc_dir"])
 def Qc(
     eddy_base_name: str,
@@ -80,18 +124,6 @@ def Qc(
         Path to the QC output directory produced by eddy_quad.
     """
 
-    @python.define(outputs=["bvecs"])
-    def SelectBvecs(eddy_rotated_bvecs: ty.Optional[File]) -> File:
-        """Use eddy's rotated bvecs if available, otherwise fall back to the
-        original bvecs file and emit a warning."""
-        if eddy_rotated_bvecs is not None:
-            return eddy_rotated_bvecs
-        logger.warning(
-            "eddy has not provided rotated bvecs file; using original gradient "
-            "table. Recommend updating FSL eddy to version 5.0.9 or later."
-        )
-        return File("bvecs")
-
     select_bvecs = workflow.add(SelectBvecs(eddy_rotated_bvecs=eddy_rotated_bvecs))
 
     eddy_quad_kwargs: ty.Dict[str, ty.Any] = {}
@@ -150,30 +182,6 @@ def Qc(
             residuals_qc = eddy_residuals
             eddy_mask_qc = eddy_mask
 
-        @python.define(outputs=["qc_dir"])
-        def GatherEddyQcAllOutputs(
-            qc_json: ty.Optional[File],
-            outlier_free_data: ty.Optional[Nifti1],
-            cnr_maps: ty.Optional[Nifti1],
-            residuals: ty.Optional[Nifti1],
-            eddy_mask: File,
-        ) -> str:
-            """Copy additional eddy image outputs into the eddy_quad QC directory."""
-            if qc_json is None:
-                raise RuntimeError(
-                    "EddyQuad did not produce the expected qc.json output"
-                )
-            qc_dir = os.path.dirname(str(qc_json))
-            for src, name in [
-                (outlier_free_data, "eddy_outlier_free_data.nii.gz"),
-                (cnr_maps, "eddy_cnr_maps.nii.gz"),
-                (residuals, "eddy_residuals.nii.gz"),
-            ]:
-                if src is not None:
-                    shutil.copy(str(src), os.path.join(qc_dir, name))
-            shutil.copy(str(eddy_mask), os.path.join(qc_dir, "eddy_mask.nii"))
-            return qc_dir
-
         gather_qc = workflow.add(
             GatherEddyQcAllOutputs(
                 qc_json=eddy_quad.qc_json,
@@ -183,18 +191,10 @@ def Qc(
                 eddy_mask=eddy_mask_qc,
             )
         )
-        return gather_qc.qc_dir
+        qc_dir = gather_qc.qc_dir
 
     else:
-
-        @python.define(outputs=["qc_dir"])
-        def GetEddyQuadOutputDir(qc_json: ty.Optional[File]) -> str:
-            """Return the eddy_quad output directory from the qc.json path."""
-            if qc_json is None:
-                raise RuntimeError(
-                    "EddyQuad did not produce the expected qc.json output"
-                )
-            return os.path.dirname(str(qc_json))
-
         get_qc_dir = workflow.add(GetEddyQuadOutputDir(qc_json=eddy_quad.qc_json))
-        return get_qc_dir.qc_dir
+        qc_dir = get_qc_dir.qc_dir
+
+    return qc_dir
