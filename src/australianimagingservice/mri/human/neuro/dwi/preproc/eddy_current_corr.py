@@ -260,7 +260,7 @@ def EddyCurrentCorrection(
 
     # TODO Obtain dwi2mask algorithm
     dwi2mask = workflow.add(
-        Dwi2Mask(input=dwi2mask_input, algorithm=dwi2mask_algorithm, name="")
+        Dwi2Mask_Ants(input=dwi2mask_input, algorithm=dwi2mask_algorithm, name="")
     )
 
     dilate_brain_mask = workflow.add(
