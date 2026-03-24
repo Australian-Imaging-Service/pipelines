@@ -1,156 +1,200 @@
-from pathlib import Path
+import typing as ty
 import os
 import shutil
 from logging import getLogger
-from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from fileformats.medimage import Nifti1
+from fileformats.generic import File
+from fileformats.text import TextFile
 from pydra.compose import workflow, python
 from pydra.tasks.mrtrix3.v3_1 import MrConvert
 from pydra.tasks.fsl.v6 import EddyQuad
 
+
 logger = getLogger(__name__)
 
 
-@workflow.define(outputs=["example"])
-def Qc(in_file: Mif):
-    """Identify the strategy for DWI processing
+@workflow.define(outputs=["qc_dir"])
+def Qc(
+    eddy_base_name: str,
+    eddy_idx_file: File,
+    eddy_param_file: TextFile,
+    bvals: File,
+    eddy_mask: Nifti1,
+    have_topup: bool,
+    eddy_qc_all: bool = False,
+    eddy_mporder: ty.Optional[int] = None,
+    eddy_rotated_bvecs: ty.Optional[File] = None,
+    eddy_outlier_free_data: ty.Optional[Nifti1] = None,
+    eddy_cnr_maps: ty.Optional[Nifti1] = None,
+    eddy_residuals: ty.Optional[Nifti1] = None,
+    topup_field: ty.Optional[File] = None,
+    slspec: ty.Optional[File] = None,
+    dwi_post_eddy_crop: ty.Optional[ty.Tuple[int, str]] = None,
+) -> str:
+    """Run eddy QC using FSL's eddy_quad and gather outputs into a QC directory.
 
     Parameters
     ----------
-    in_file: fileformats.vendor.mrtrix3.medimage.ImageFormat
-        input file
+    eddy_base_name : str
+        Basename (including path) for EDDY output files.
+    eddy_idx_file : File
+        File containing indices for all volumes into acquisition parameters.
+    eddy_param_file : File
+        File containing acquisition parameters (acqp).
+    bvals : File
+        b-values file.
+    eddy_mask : File
+        Brain mask used in eddy.
+    have_topup : bool
+        Whether topup field estimation was performed; if True, axis padding was
+        applied before eddy and image outputs need to be cropped back to their
+        original dimensions using ``dwi_post_eddy_crop``.
+    eddy_qc_all : bool
+        Whether to include all eddy image outputs (outlier-free data, CNR maps,
+        residuals, brain mask) in the QC directory.
+    eddy_mporder : int, optional
+        Slice-to-volume correction order used in eddy; if set, ``slspec`` is
+        passed to eddy_quad.
+    eddy_rotated_bvecs : File, optional
+        b-vectors rotated by eddy to account for subject motion.  When absent
+        the original b-vectors file is used and a warning is emitted.
+    eddy_outlier_free_data : Nifti1, optional
+        Eddy outlier-free image; required when ``eddy_qc_all`` is True.
+    eddy_cnr_maps : Nifti1, optional
+        Eddy CNR maps image; required when ``eddy_qc_all`` is True.
+    eddy_residuals : Nifti1, optional
+        Eddy squared-residuals image; required when ``eddy_qc_all`` is True.
+    topup_field : File, optional
+        Topup-estimated field in Hz; required when ``have_topup`` is True.
+    slspec : File, optional
+        Slice/group acquisition specification; required when ``eddy_mporder``
+        is set.
+    dwi_post_eddy_crop : tuple[int, str], optional
+        Crop parameters (axis, range string) to undo the axis padding applied
+        prior to eddy; required when ``have_topup`` is True and
+        ``eddy_qc_all`` is True.
 
     Returns
     -------
-    example: fileformats.vendor.mrtrix3.medimage.ImageFormat
-        output example file
+    qc_dir : str
+        Path to the QC output directory produced by eddy_quad.
     """
 
-    example = workflow.add(ExampleTask(in_image=in_file))
-
-    return example.output
-
-
-@python.define
-def ExampleTask(in_image: Nifti1, execute_topup: bool, eddy_mporder: int | None = None):
-    eddyqc_mask = "eddy_mask.nii"
-    eddyqc_fieldmap = fsl.find_image("field_map") if execute_topup else None
-    eddyqc_slspec = "slspec.txt" if eddy_mporder else None
-
-    # Check to see whether or not eddy has provided a rotated bvecs file;
-    #   if it has, import this into the output image
-    bvecs_path = "dwi_post_eddy.eddy_rotated_bvecs"
-    if not os.path.isfile(bvecs_path):
+    @python.define(outputs=["bvecs"])
+    def SelectBvecs(eddy_rotated_bvecs: ty.Optional[File]) -> File:
+        """Use eddy's rotated bvecs if available, otherwise fall back to the
+        original bvecs file and emit a warning."""
+        if eddy_rotated_bvecs is not None:
+            return eddy_rotated_bvecs
         logger.warning(
-            "eddy has not provided rotated bvecs file; using original gradient table. Recommend updating FSL eddy to version 5.0.9 or later."
+            "eddy has not provided rotated bvecs file; using original gradient "
+            "table. Recommend updating FSL eddy to version 5.0.9 or later."
         )
-        bvecs_path = "bvecs"
+        return File("bvecs")
 
-    # Grab any relevant files that eddy has created, and copy them to the requested directory
-    if eddyqc_path:
-        if (
-            app.FORCE_OVERWRITE
-            and os.path.exists(eddyqc_path)
-            and not os.path.isdir(eddyqc_path)
-        ):
-            run.function(os.remove, eddyqc_path)
-        if not os.path.exists(eddyqc_path):
-            run.function(os.makedirs, eddyqc_path)
-        for filename in eddy_suppl_files:
-            if os.path.exists(eddyqc_prefix + "." + filename):
-                # If this is an image, and axis padding was applied, want to undo the padding
-                if filename.endswith(".nii.gz") and dwi_post_eddy_crop:
-                    wf.add(
-                        mrconvert(
-                            input=eddyqc_prefix + "." + filename,
-                            output=os.path.join(eddyqc_path, filename),
-                            coord=dwi_post_eddy_crop,
-                            force=app.FORCE_OVERWRITE,
-                            name="export_eddy_qc_image_%s" % filename,
-                        )
-                    )
-                else:
-                    run.function(
-                        shutil.copy,
-                        eddyqc_prefix + "." + filename,
-                        os.path.join(eddyqc_path, filename),
-                    )
-        # Also grab any files generated by the eddy qc tool QUAD
-        if os.path.isdir(eddyqc_prefix + ".qc"):
-            if app.FORCE_OVERWRITE and os.path.exists(
-                os.path.join(eddyqc_path, "quad")
-            ):
-                run.function(shutil.rmtree, os.path.join(eddyqc_path, "quad"))
-            run.function(
-                shutil.copytree,
-                eddyqc_prefix + ".qc",
-                os.path.join(eddyqc_path, "quad"),
-            )
-        # Also grab the brain mask that was provided to eddy if -eddyqc_all was specified
-        if eddyqc_all:
-            if dwi_post_eddy_crop:
-                wf.add(
-                    mrconvert(
-                        input="eddy_mask.nii",
-                        output=os.path.join(eddyqc_path, "eddy_mask.nii"),
-                        coord=dwi_post_eddy_crop,
-                        force=app.FORCE_OVERWRITE,
-                        name="export_eddy_mask",
-                    )
-                )
-            else:
-                run.function(
-                    shutil.copy,
-                    "eddy_mask.nii",
-                    os.path.join(eddyqc_path, "eddy_mask.nii"),
-                )
-            app.cleanup("eddy_mask.nii")
+    select_bvecs = workflow.add(SelectBvecs(eddy_rotated_bvecs=eddy_rotated_bvecs))
 
-    keys_to_remove = [
-        "MultibandAccelerationFactor",
-        "SliceEncodingDirection",
-        "SliceTiming",
-    ]
-    # These keys are still relevant for the output data if no EPI distortion correction was performed
-    if execute_applytopup:
-        keys_to_remove.extend(
-            ["PhaseEncodingDirection", "TotalReadoutTime", "pe_scheme"]
-        )
-
-    eddyqc_kwargs = {}
-    if os.path.isfile(eddyqc_prefix + ".eddy_residuals.nii.gz"):
-        eddyqc_kwargs["bvecs"] = bvecs_path
-    if execute_topup:
-        eddyqc_kwargs["field"] = eddyqc_fieldmap
+    eddy_quad_kwargs: ty.Dict[str, ty.Any] = {}
+    if have_topup:
+        eddy_quad_kwargs["field"] = topup_field
     if eddy_mporder:
-        eddyqc_kwargs["slice_spec"] = eddyqc_slspec
-    if app.VERBOSITY > 2:
-        eddyqc_kwargs["verbose"] = True
-    try:
-        wf.add(
-            EddyQuad(
-                input=eddyqc_prefix,
-                idx_file="eddy_indices.txt",
-                param_file="eddy_config.txt",
-                bvals="bvals",
-                mask="eddyqc_mask",
-                name="eddy_quad",
-                **eddyqc_kwargs,
+        eddy_quad_kwargs["slice_spec"] = slspec
+
+    eddy_quad = workflow.add(
+        EddyQuad(
+            base_name=eddy_base_name,
+            idx_file=eddy_idx_file,
+            param_file=eddy_param_file,
+            bval_file=bvals,
+            mask_file=eddy_mask,
+            bvec_file=select_bvecs.bvecs,
+            **eddy_quad_kwargs,
+        )
+    )
+
+    if eddy_qc_all:
+        if have_topup:
+            # Undo the axis padding that was applied before eddy so that image
+            # outputs match the original image dimensions.
+            export_outlier_free = workflow.add(
+                MrConvert(
+                    in_file=eddy_outlier_free_data,
+                    coord=dwi_post_eddy_crop,
+                )
+            )
+            export_cnr_maps = workflow.add(
+                MrConvert(
+                    in_file=eddy_cnr_maps,
+                    coord=dwi_post_eddy_crop,
+                )
+            )
+            export_residuals = workflow.add(
+                MrConvert(
+                    in_file=eddy_residuals,
+                    coord=dwi_post_eddy_crop,
+                )
+            )
+            export_eddy_mask = workflow.add(
+                MrConvert(
+                    in_file=eddy_mask,
+                    coord=dwi_post_eddy_crop,
+                )
+            )
+            outlier_free_qc = export_outlier_free.output
+            cnr_maps_qc = export_cnr_maps.output
+            residuals_qc = export_residuals.output
+            eddy_mask_qc = export_eddy_mask.output
+        else:
+            outlier_free_qc = eddy_outlier_free_data
+            cnr_maps_qc = eddy_cnr_maps
+            residuals_qc = eddy_residuals
+            eddy_mask_qc = eddy_mask
+
+        @python.define(outputs=["qc_dir"])
+        def GatherEddyQcAllOutputs(
+            qc_json: ty.Optional[File],
+            outlier_free_data: ty.Optional[Nifti1],
+            cnr_maps: ty.Optional[Nifti1],
+            residuals: ty.Optional[Nifti1],
+            eddy_mask: File,
+        ) -> str:
+            """Copy additional eddy image outputs into the eddy_quad QC directory."""
+            if qc_json is None:
+                raise RuntimeError(
+                    "EddyQuad did not produce the expected qc.json output"
+                )
+            qc_dir = os.path.dirname(str(qc_json))
+            for src, name in [
+                (outlier_free_data, "eddy_outlier_free_data.nii.gz"),
+                (cnr_maps, "eddy_cnr_maps.nii.gz"),
+                (residuals, "eddy_residuals.nii.gz"),
+            ]:
+                if src is not None:
+                    shutil.copy(str(src), os.path.join(qc_dir, name))
+            shutil.copy(str(eddy_mask), os.path.join(qc_dir, "eddy_mask.nii"))
+            return qc_dir
+
+        gather_qc = workflow.add(
+            GatherEddyQcAllOutputs(
+                qc_json=eddy_quad.qc_json,
+                outlier_free_data=outlier_free_qc,
+                cnr_maps=cnr_maps_qc,
+                residuals=residuals_qc,
+                eddy_mask=eddy_mask_qc,
             )
         )
-    except run.MRtrixCmdError as exception:
-        with open("eddy_quad_failure_output.txt", "wb") as eddy_quad_output_file:
-            eddy_quad_output_file.write(
-                str(exception).encode("utf-8", errors="replace")
-            )
-        logger.debug(str(exception))
-        logger.warning(
-            "Error running automated EddyQC tool 'eddy_quad'; QC data written to \""
-            + eddyqc_path
-            + '" will be files from "eddy" only'
-        )
-        # Delete the directory if the script only made it partway through
-        try:
-            shutil.rmtree(eddyqc_prefix + ".qc")
-        except OSError:
-            pass
+        return gather_qc.qc_dir
+
+    else:
+
+        @python.define(outputs=["qc_dir"])
+        def GetEddyQuadOutputDir(qc_json: ty.Optional[File]) -> str:
+            """Return the eddy_quad output directory from the qc.json path."""
+            if qc_json is None:
+                raise RuntimeError(
+                    "EddyQuad did not produce the expected qc.json output"
+                )
+            return os.path.dirname(str(qc_json))
+
+        get_qc_dir = workflow.add(GetEddyQuadOutputDir(qc_json=eddy_quad.qc_json))
+        return get_qc_dir.qc_dir
