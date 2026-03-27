@@ -63,6 +63,7 @@ def CollateParcellations(out_dir: Path | None = None, **parcs: "Mif") -> "Direct
         "ftt_image_freesurfer",
         "vis_image_hsvs",
         "ftt_image_hsvs",
+        "fastsurfer_output",
     ]
 )
 def AllParcellations(
@@ -115,6 +116,8 @@ def AllParcellations(
             parcs[parcellation].parc_image,
         )
 
+    # Most of the outputs will be the same for each parcellation so we just
+    # pick the first one
     return (
         collate_parcs.out_dir,
         parcs["desikan"].vis_image_fsl,
@@ -123,6 +126,7 @@ def AllParcellations(
         parcs["desikan"].ftt_image_freesurfer,
         parcs["desikan"].vis_image_hsvs,
         parcs["desikan"].ftt_image_hsvs,
+        parcs["desikan"].fastsurfer_output,
     )
 
 
