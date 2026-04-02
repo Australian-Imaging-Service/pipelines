@@ -1,0 +1,20 @@
+name: Issue Management
+
+on:
+  issues:
+    types: [opened, reopened]
+
+env:
+  AIS_PROJECT_URL: ${{ secrets.AIS_PROJECT_URL }}
+
+jobs:
+  add-to-project:
+    if: contains(fromJSON('["opened", "reopened"]'), github.event.action) && env.AIS_PROJECT_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign issue to AIS project
+        uses: actions/add-to-project@v0.3.0
+        with:
+          project-url: ${{ secrets.AIS_PROJECT_URL }}
+          github-token: ${{ secrets.AIS_ADMIN_KEY }}
+

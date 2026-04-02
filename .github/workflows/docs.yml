@@ -1,0 +1,70 @@
+name: Docs
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['*']
+  pull_request:
+    branches: [main, develop]
+  repository_dispatch:
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Install python dependencies
+        run: pip install -r ./docs-requirements.txt
+
+      - name: Generate pipeline docs
+        run: pydra2app make-docs ./specs/australian-imaging-service docs/pipelines --flatten --default-axes medimage
+
+      - name: Remove /docs/pipelines/ from .gitignore
+        run: sed -i 's%^/docs/pipelines/\*$%%' .gitignore
+
+      - name: Deploy to docs branch
+        id: deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: docs
+          enable_jekyll: true
+
+  trigger-external:
+    needs: generate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        page:
+          - {repo: Australian-Imaging-Service/Australian-Imaging-Service.github.io, branch: master}
+          - {repo: Australian-Imaging-Service/web-dev, branch: master}
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.DOCS_BUILDER_APP_ID }}
+          private-key: ${{ secrets.DOCS_BUILDER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Trigger external docs rebuild
+        run: >
+          gh workflow run 'Deploy Hugo site to Pages'
+          -f hugo_update_mod="github.com/${GITHUB_REPOSITORY}@docs"
+          --ref ${{ matrix.page.branch }}
+        env:
+          GH_REPO: ${{ matrix.page.repo }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}

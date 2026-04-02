@@ -4,6 +4,8 @@ about: A Feature is a service that fulfills a stakeholder need. It should be par
   of an epic and sized to be completed within one "Program Increment" (PI)
 title: ""
 assignees: ''
+type: 'Feature'
+labels: ['S4']
 ---
 
 ### Benefit Hypothesis

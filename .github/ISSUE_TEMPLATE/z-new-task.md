@@ -1,10 +1,11 @@
 ---
-name: "New story"
-about: A Story is a short, simple description of functionality, usually part of a
-  feature
+name: "New task"
+about: A task is a short, simple description of functionality, usually part of a feature
 title: ""
 assignees: ''
 column_name: 'Backlog'
+type: 'Task'
+labels: ['S4']
 
 ---
 ### Description

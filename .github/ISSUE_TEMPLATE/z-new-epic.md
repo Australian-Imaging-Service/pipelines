@@ -5,7 +5,8 @@ about: Epic is a large piece of work, requiring more than a "Program Increment" 
   within a PI
 title: ""
 assignees: ''
-
+type: 'Epic'
+labels: ['S4']
 ---
 
 ### Description
