@@ -1,4 +1,3 @@
-import typing as ty
 import logging
 
 from pydra.compose import workflow
@@ -22,7 +21,7 @@ from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from pydra.environments.docker import Docker
 from pydra.environments.native import Native
 from pydra.tasks.fastsurfer.latest import Fastsurfer
-from .helpers import JoinTaskCatalogue, Dependency
+from .helpers import JoinTaskCatalogue
 
 # from pydra.engine.task import FunctionTask
 # from pydra.engine.specs import BaseSpec
@@ -45,6 +44,7 @@ logger = logging.getLogger(
         "ftt_image_freesurfer",
         "vis_image_hsvs",
         "ftt_image_hsvs",
+        "fastsurfer_output",
     ]
 )
 def SingleParcellation(
@@ -420,4 +420,5 @@ def SingleParcellation(
         fTTgen_task_freesurfer_out,
         fTTvis_task_hsvs_out,
         fTTgen_task_hsvs_out,
+        fastsurfer.subjects_dir_output,
     )
