@@ -1,0 +1,78 @@
+flowchart TD
+    IN1([dwi_preproc_mif])
+    IN2([FS_dir])
+    IN3([fTTvis_image_T1space])
+    IN4([fTT_image_T1space])
+    IN5([parcellation_image_T1space])
+
+    subgraph PREPROC["DWI Preprocessing"]
+        A[DwiGradcheck] --> B["MrConvert\ncorrected grad"]
+        IN1 --> A
+        IN1 --> B
+        B --> C[DwiDenoise]
+        C --> D["MrDegibbs\nunring"]
+        D --> E["Dwi2Mask_Fslbet\nbrain mask"]
+        D --> F["DwiBiascorrect_Ants\nbias correction"]
+        E --> F
+        F --> G["MrGrid\ncrop DWI"]
+        E --> G
+        E --> H["MrGrid\ncrop mask"]
+    end
+
+    subgraph FS["FreeSurfer Path Construction"]
+        IN2 --> I["JoinTask\nbuild FS paths"]
+        I --> J["MrConvert\nT1.mgz to nii"]
+        I --> K["MrConvert\nbrainmask.mgz to nii"]
+        I --> L["MrConvert\nwm.seg.mgz to nii"]
+        I --> M["MrConvert\nnormimg.mgz to nii"]
+        L --> Q["MrcalcMax\nWM binary mask"]
+    end
+
+    subgraph REG["Registration - DWI to T1 space"]
+        G --> N["DwiExtract\nb0 volumes"]
+        N --> O["MrcalcMax\nnon-negative b0"]
+        O --> P["MrMath\nmean b0"]
+        P --> R["EpiReg\nDWI to T1 reg"]
+        M --> R
+        K --> R
+        Q --> R
+        R --> S["TransformConvert\nflirt_import"]
+        P --> S
+        K --> S
+        S --> T["MrTransform\napply to DWI"]
+        G --> T
+        IN3 --> T
+        S --> U["MrTransform\napply to mask"]
+        H --> U
+        IN3 --> U
+    end
+
+    subgraph TRACT["Tractography and Connectomics"]
+        T --> V["Dwi2Response\nDhollander"]
+        U --> V
+        T --> W["Dwi2Fod\nmsmt_csd"]
+        U --> W
+        V --> W
+        W --> X["MtNormalise\nFOD normalisation"]
+        U --> X
+        X --> Y["TckGen iFOD2"]
+        IN4 --> Y
+        X --> Z[TckSift2]
+        Y --> Z
+        IN4 --> Z
+        Y --> AA[Tck2Connectome]
+        Z --> AA
+        IN5 --> AA
+        Y --> AB["TckMap TDI"]
+        Z --> AB
+        IN4 --> AB
+        Y --> AC["TckMap DEC-TDI"]
+        Z --> AC
+        IN4 --> AC
+    end
+
+    G --> OUT1([DWI_processed])
+    H --> OUT2([DWImask_processed])
+    X --> OUT3([wm_fod_norm])
+    AB --> OUT4([TDI_file])
+    AC --> OUT5([DECTDI_file])

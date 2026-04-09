@@ -30,8 +30,8 @@ from pydra.tasks.mrtrix3.v3_1 import (
 )
 from pydra.tasks.fsl.v6 import EpiReg
 from fileformats.medimage import NiftiGzXBvec, NiftiGz
-from pathlib import Path
-from fileformats.vendor.mrtrix3.medimage import (
+
+from fileformats.medimage_mrtrix3 import (
     ImageFormat,
     ImageIn,
     ImageOut,
@@ -39,8 +39,7 @@ from fileformats.vendor.mrtrix3.medimage import (
 )  # noqa: F401
 
 # Define the path and output_path variables
-output_path = "/Users/arkievdsouza/git/dwi-pipeline/working-dir/"
-
+output_path = "/Users/adso8337/Desktop/DWIpreproc_tests/Outputs/"
 
 # @pydra.mark.task
 # def run_mri_synthstrip():
@@ -78,7 +77,7 @@ def DwiPipeline(
     fTTvis_image_T1space: File,
     fTT_image_T1space: File,
     parcellation_image_T1space: File,
-) -> File:
+) -> tuple[File, File, File, File, File]:
 
     # DWIgradcheck
     DWIgradcheck_task = workflow.add(
@@ -94,7 +93,8 @@ def DwiPipeline(
         MrConvert(
             in_file=dwi_preproc_mif,
             grad=DWIgradcheck_task.export_grad_mrtrix,
-        )
+        ),
+        name="MrConvert_grad",
     )
 
     # denoise
@@ -107,7 +107,7 @@ def DwiPipeline(
     # unring
     dwi_degibbs_task = workflow.add(
         MrDegibbs(
-            in_file=dwi_denoise_task.out,
+            in_=dwi_denoise_task.out,
         )
     )
 
@@ -154,7 +154,8 @@ def DwiPipeline(
     # )
 
     dwibiasfieldcorr_task = workflow.add(
-        DwiBiascorrect_Ants(  # replace this with ANTs            in_file=dwi_degibbs_task.out,
+        DwiBiascorrect_Ants(  # replace this with ANTs
+            in_file=dwi_degibbs_task.out,
             mask=dwimask_task.out_file,
             bias="biasfield.mif.gz",
         )
@@ -172,7 +173,8 @@ def DwiPipeline(
             mask=dwimask_task.out_file,
             out_file="dwi_processed.mif.gz",
             uniform=-3,
-        )
+        ),
+        name="MrGrid_dwi",
     )
 
     # grid dwimask
@@ -184,7 +186,8 @@ def DwiPipeline(
             out_file="dwimask_procesesd.mif.gz",
             interp="nearest",
             uniform=-3,
-        )
+        ),
+        name="MrGrid_mask",
     )
 
     # # REPLACE Step8-10 with epi_reg (and transform DWI to T1 space)
@@ -198,7 +201,7 @@ def DwiPipeline(
     @python.define(
         outputs=["t1_FSpath", "t1brain_FSpath", "wmseg_FSpath", "normimg_FSpath"]
     )
-    def JoinTask(FS_dir: str, output_path: Path):
+    def JoinTask(FS_dir: str):
         t1_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
         t1brain_FSpath = os.path.join(FS_dir, "mri", "brainmask.mgz")
         wmseg_FSpath = os.path.join(FS_dir, "mri", "wm.seg.mgz")
@@ -213,28 +216,32 @@ def DwiPipeline(
         MrConvert(
             in_file=join_task.t1_FSpath,
             out_file="t1.nii.gz",
-        )
+        ),
+        name="MrConvert_t1",
     )
 
     nifti_t1brain = workflow.add(
         MrConvert(
             in_file=join_task.t1brain_FSpath,
             out_file="t1brain.nii.gz",
-        )
+        ),
+        name="MrConvert_t1brain",
     )
 
     nifti_wmseg = workflow.add(
         MrConvert(
             in_file=join_task.wmseg_FSpath,
             out_file="wmseg.nii.gz",
-        )
+        ),
+        name="MrConvert_wmseg",
     )
 
     nifti_normimg = workflow.add(
         MrConvert(
             in_file=join_task.normimg_FSpath,
             out_file="normimg.nii.gz",
-        )
+        ),
+        name="MrConvert_normimg",
     )
 
     # extract meanb0 volumes #
@@ -276,11 +283,10 @@ def DwiPipeline(
         )
 
         class Outputs(shell.Outputs):
-            output_image: ImageOut | None = shell.outarg(
+            output_image: ImageOut = shell.outarg(
                 help="path to output image",
                 path_template="mrcalc_output_image.nii.gz",
                 position=-1,
-                default=None,
             )
 
     # remove negative values from bzero volumes
@@ -290,7 +296,8 @@ def DwiPipeline(
             output_image="b0_nonneg.mif.gz",
             number=0.0,
             operand="max",
-        )
+        ),
+        name="MrcalcMax_b0",
     )
 
     # # create meanb0 image
@@ -309,7 +316,8 @@ def DwiPipeline(
             in_file=nifti_wmseg.out_file,
             number=0.0,
             operand="gt",
-        )
+        ),
+        name="MrcalcMax_wmbin",
     )
 
     # Step 9: Perform DWI->T1 registration
@@ -320,17 +328,16 @@ def DwiPipeline(
             t1_brain=nifti_t1brain.out_file,
             wmseg=mrcalc_wmbin.output_image,
             out_base="epi2struct",
-            matrix="epi2struct.mat",
         )
     )
-    # info flag
-    # # transformconvert task
+
+    # transformconvert task
     transformconvert_task = workflow.add(
         TransformConvert(
-            input=epi_reg_task.matrix,
-            operation="flirt_import",
+            input_matrix=epi_reg_task.epi2str_mat,
             flirt_in=meanb0_task.out_file,
             flirt_ref=nifti_t1brain.out_file,
+            operation="flirt_import",
             out_file="epi2struct_mrtrix.txt",
         )
     )
@@ -343,7 +350,8 @@ def DwiPipeline(
             out_file="DWI_T1space.mif.gz",
             linear=transformconvert_task.out_file,
             strides=fTTvis_image_T1space,
-        )
+        ),
+        name="MrTransform_dwi",
     )
 
     # #apply transform to DWI mask image
@@ -355,7 +363,8 @@ def DwiPipeline(
             interp="nearest",
             linear=transformconvert_task.out_file,
             strides=fTTvis_image_T1space,
-        )
+        ),
+        name="MrTransform_mask",
     )
 
     # # # # ##################################
@@ -381,27 +390,26 @@ def DwiPipeline(
             algorithm="msmt_csd",
             dwi=transformDWI_task.out_file,
             mask=transformDWImask_task.out_file,
-            response_odf_wm=EstimateResponseFcn_task.out_sfwm,
-            response_odf_gm=EstimateResponseFcn_task.out_gm,
-            response_odf_csf=EstimateResponseFcn_task.out_csf,
+            response_wm=EstimateResponseFcn_task.out_sfwm,
+            response_gm=EstimateResponseFcn_task.out_gm,
+            response_csf=EstimateResponseFcn_task.out_csf,
         )
     )
 
     # Normalise FOD
     NormFod_task = workflow.add(
         MtNormalise(
-            mask=transformDWImask_task.out_file,
             fod_wm=GenFod_task.fod_wm,
             fod_gm=GenFod_task.fod_gm,
             fod_csf=GenFod_task.fod_csf,
-            # fod_wm_norm="wmfodnorm.mif",
+            mask=transformDWImask_task.out_file,
         )
     )
 
     # Tractography
     tckgen_task = workflow.add(
         TckGen(
-            in_file=NormFod_task.fod_wm_norm,
+            source=NormFod_task.fod_wm_norm,
             # tracks="tractogram.tck",
             algorithm="ifod2",
             select=1000,
@@ -431,7 +439,7 @@ def DwiPipeline(
     ################
     connectomics_task = workflow.add(
         Tck2Connectome(
-            in_tracks=tckgen_task.tracks,
+            tracks_in=tckgen_task.tracks,
             tck_weights_in=SIF2_task.out_weights,
             nodes_in=parcellation_image_T1space,
             symmetric=True,
@@ -445,23 +453,25 @@ def DwiPipeline(
 
     TDImap_task = workflow.add(
         TckMap(
-            in_tracks=tckgen_task.tracks,
+            tracks=tckgen_task.tracks,
             tck_weights_in=SIF2_task.out_weights,
             vox=0.2,
             template=fTT_image_T1space,
             out_file="TDI.mif.gz",
-        )
+        ),
+        name="TckMap_TDI",
     )
 
     DECTDImap_task = workflow.add(
         TckMap(
-            in_tracks=tckgen_task.tracks,
+            tracks=tckgen_task.tracks,
             tck_weights_in=SIF2_task.out_weights,
             vox=0.2,
             template=fTT_image_T1space,
             dec=True,
             out_file="DECTDI.mif.gz",
-        )
+        ),
+        name="TckMap_DECTDI",
     )
 
     # # SET WF OUTPUT
@@ -482,14 +492,15 @@ def DwiPipeline(
 
 if __name__ == "__main__":
     wf = DwiPipeline(
-        dwi_preproc_mif="/Users/arkievdsouza/Downloads/p06316.mif.gz",
-        FS_dir="/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01-T1w_pos_FULLPIPE/Fastsurfer_b5d77a6efac5b7efedbd561a717bdbc6/subjects_dir/FS_outputs/",
-        fTTvis_image_T1space="/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01-T1w_pos_FULLPIPE/5TTvis_hsvs.mif.gz",
-        fTT_image_T1space="/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01-T1w_pos_FULLPIPE/5TT_hsvs.mif.gz",
-        parcellation_image_T1space="/Users/arkievdsouza/git/t1-pipeline/working-dir/T1_pipeline_v3_testing/sub-01-T1w_pos_FULLPIPE/Atlas_desikan.mif.gz",
+        dwi_preproc_mif="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/DWI.mif.gz",
+        FS_dir="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/FreeSurfer/",
+        fTTvis_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/5TTvis_msmt.mif.gz",
+        fTT_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/5TT_msmt.mif.gz",
+        parcellation_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/FreeSurfer/mri/aparc+aseg.mgz",
     )
 
-    result = wf()
+    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"
+    result = wf(cache_root=output_path)
 
 # # Step 7: Crop images to reduce storage space (but leave some padding on the sides) - pointing to wrong folder, needs fix (nonurgent)
 # # grid DWI
