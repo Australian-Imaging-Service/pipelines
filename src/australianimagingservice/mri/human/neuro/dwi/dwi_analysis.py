@@ -31,8 +31,7 @@ from fileformats.medimage_mrtrix3 import (
 )  # noqa: F401
 
 # Define the path and output_path variables
-output_path = "<output_path>"
-
+output_path = "/Users/adso8337/Desktop/DWIpreproc_tests/Outputs/"
 
 @shell.define
 class MrcalcMax(shell.Task):
@@ -102,7 +101,7 @@ def DwiPipeline(
     fTTvis_image_T1space: File,
     fTT_image_T1space: File,
     parcellation_image_T1space: File,
-) -> tuple[File, File, File, File, File, File, File, File]:
+) -> tuple[File, File, File, File, File]:
 
     # DWIgradcheck
     DWIgradcheck_task = workflow.add(
@@ -175,9 +174,9 @@ def DwiPipeline(
     )
 
     dwibiasfieldcorr_task = workflow.add(
-        DwiBiascorrect_Ants(
+        DwiBiascorrect_Ants(  # replace this with ANTs
             in_file=dwi_degibbs_task.out,
-            mask=synthstrip_task.mask_file,
+            mask=dwimask_task.out_file,
             bias="biasfield.mif.gz",
         )
     )
@@ -217,6 +216,17 @@ def DwiPipeline(
 
     # Step 8: Generate target images for registration and transformation
 
+    @python.define(
+        outputs=["t1_FSpath", "t1brain_FSpath", "wmseg_FSpath", "normimg_FSpath"]
+    )
+    def JoinTask(FS_dir: str):
+        t1_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
+        t1brain_FSpath = os.path.join(FS_dir, "mri", "brainmask.mgz")
+        wmseg_FSpath = os.path.join(FS_dir, "mri", "wm.seg.mgz")
+        normimg_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
+
+        return t1_FSpath, t1brain_FSpath, wmseg_FSpath, normimg_FSpath
+
     join_task = workflow.add(JoinTask(FS_dir=FS_dir))
 
     # need to convert .mgz to nifti for registration
@@ -236,6 +246,14 @@ def DwiPipeline(
         name="MrConvert_t1brain",
     )
 
+    nifti_wmseg = workflow.add(
+        MrConvert(
+            in_file=join_task.wmseg_FSpath,
+            out_file="wmseg.nii.gz",
+        ),
+        name="MrConvert_wmseg",
+    )
+
     nifti_normimg = workflow.add(
         MrConvert(
             in_file=join_task.normimg_FSpath,
@@ -253,6 +271,41 @@ def DwiPipeline(
             bzero=True,
         )
     )
+
+    # mrcalc spec info
+    @shell.define
+    class MrcalcMax(shell.Task):
+
+        executable = "mrcalc"
+
+        in_file: ImageIn = shell.arg(
+            help="path to input image 1",
+            argstr="{in_file}",
+            position=-4,
+        )
+        number: float = shell.arg(
+            help="minimum value",
+            argstr="{number}",
+            position=-3,
+        )
+        operand: str = shell.arg(
+            help="operand to execute",
+            position=-2,
+            argstr="-{operand}",
+        )
+        datatype: str | None = shell.arg(
+            help="datatype option",
+            argstr="-datatype {datatype}",
+            position=-5,
+            default=None,
+        )
+
+        class Outputs(shell.Outputs):
+            output_image: ImageOut = shell.outarg(
+                help="path to output image",
+                path_template="mrcalc_output_image.nii.gz",
+                position=-1,
+            )
 
     # remove negative values from bzero volumes
     mrcalc_max = workflow.add(
@@ -315,7 +368,6 @@ def DwiPipeline(
             out_file="DWI_T1space.mif.gz",
             linear=transformconvert_task.out_file,
             strides=fTTvis_image_T1space,
-            reorient_fod="no",
         ),
         name="MrTransform_dwi",
     )
@@ -329,7 +381,6 @@ def DwiPipeline(
             interp="nearest",
             linear=transformconvert_task.out_file,
             strides=fTTvis_image_T1space,
-            reorient_fod="no",
         ),
         name="MrTransform_mask",
     )
@@ -370,9 +421,6 @@ def DwiPipeline(
             fod_gm=GenFod_task.fod_gm,
             fod_csf=GenFod_task.fod_csf,
             mask=transformDWImask_task.out_file,
-            fod_wm_norm="wmfod_norm.mif.gz",
-            fod_gm_norm="gmfod_norm.mif.gz",
-            fod_csf_norm="csffod_norm.mif.gz",
         )
     )
 
@@ -410,7 +458,7 @@ def DwiPipeline(
     connectomics_task = workflow.add(
         Tck2Connectome(
             tracks_in=tckgen_task.tracks,
-            tck_weights_in=SIFT2_task.out_weights,
+            tck_weights_in=SIF2_task.out_weights,
             nodes_in=parcellation_image_T1space,
             symmetric=True,
             zero_diagonal=True,
@@ -424,8 +472,8 @@ def DwiPipeline(
     TDImap_task = workflow.add(
         TckMap(
             tracks=tckgen_task.tracks,
-            tck_weights_in=SIFT2_task.out_weights,
-            vox=1,
+            tck_weights_in=SIF2_task.out_weights,
+            vox=0.2,
             template=fTT_image_T1space,
             out_file="TDI.mif.gz",
         ),
@@ -435,8 +483,8 @@ def DwiPipeline(
     DECTDImap_task = workflow.add(
         TckMap(
             tracks=tckgen_task.tracks,
-            tck_weights_in=SIFT2_task.out_weights,
-            vox=1,
+            tck_weights_in=SIF2_task.out_weights,
+            vox=0.2,
             template=fTT_image_T1space,
             dec=True,
             out_file="DECTDI.mif.gz",
@@ -465,12 +513,37 @@ def DwiPipeline(
 
 if __name__ == "__main__":
     wf = DwiPipeline(
-        dwi_preproc_mif="<input dwi>",
-        FS_dir="<input freesurfer dir>",
-        fTTvis_image_T1space="<input fttvis image in T1 space>",
-        fTT_image_T1space="<input ftt image in T1 space>",
-        parcellation_image_T1space="<input parcellation image in T1 space>",
+        dwi_preproc_mif="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/DWI.mif.gz",
+        FS_dir="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/FreeSurfer/",
+        fTTvis_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/5TTvis_msmt.mif.gz",
+        fTT_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/5TT_msmt.mif.gz",
+        parcellation_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/FreeSurfer/mri/aparc+aseg.mgz",
     )
 
-    output_path = "<output_path>"
+    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"
     result = wf(cache_root=output_path)
+
+# # Step 7: Crop images to reduce storage space (but leave some padding on the sides) - pointing to wrong folder, needs fix (nonurgent)
+# # grid DWI
+# wf.add(
+#     mrgrid(
+#         input=dwibiasnormmask_task.output_dwi,
+#         name="crop_task_dwi",
+#         operation="crop",
+#         output="dwi_crop.mif",
+#         mask=dwibiasnormmask_task.output_mask,
+#         uniform=-3,
+#     )
+# )
+
+# #grid dwimask
+# wf.add(
+#     mrgrid(
+#         input=dwibiasnormmask_task.output_mask,
+#         name="crop_task_mask",
+#         operation="crop",
+#         output="mask_crop.mif",
+#         mask=dwibiasnormmask_task.output_mask,
+#         uniform=-3,
+#     )
+# )
