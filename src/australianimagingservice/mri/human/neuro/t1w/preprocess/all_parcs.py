@@ -85,6 +85,7 @@ def AllParcellations(
     Mif,
     Mif,
     Mif,
+    Directory,
 ]:
 
     collate_parcs = workflow.add(CollateParcellations(out_dir=None))

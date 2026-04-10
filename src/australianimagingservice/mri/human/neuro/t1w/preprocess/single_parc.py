@@ -59,7 +59,16 @@ def SingleParcellation(
     fastsurfer_batch: int = 16,
     labelsgmfirst_executable: str = "labelsgmfirst",
     fastsurfer_nthreads: int = 24,
-) -> tuple[Mif, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None, Mif | None]:
+) -> tuple[
+    Mif,
+    Mif | None,
+    Mif | None,
+    Mif | None,
+    Mif | None,
+    Mif | None,
+    Mif | None,
+    Directory,
+]:
 
     # ###################
     # # FASTSURFER TASK #
