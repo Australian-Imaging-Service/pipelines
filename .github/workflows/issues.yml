@@ -9,10 +9,10 @@ env:
 
 jobs:
   add-to-project:
-    if: contains(fromJSON('["opened", "reopened"]'), github.event.action) && env.AIS_PROJECT_URL != ''
     runs-on: ubuntu-latest
     steps:
       - name: Assign issue to AIS project
+        if: env.AIS_PROJECT_URL != ''
         uses: actions/add-to-project@v0.3.0
         with:
           project-url: ${{ secrets.AIS_PROJECT_URL }}
