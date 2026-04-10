@@ -45,6 +45,7 @@ the input requirements for FastSurfer
 |`ftt_image_freesurfer`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|N||
 |`vis_image_hsvs`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|N||
 |`ftt_image_hsvs`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|N||
+|`fastsurfer_output`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Y||
 
 #### Parameters
 |Name|Data-type(s)|Default|Description|
@@ -72,6 +73,7 @@ the input requirements for FastSurfer
 |`ftt_image_freesurfer`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|Y||
 |`vis_image_hsvs`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|Y||
 |`ftt_image_hsvs`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|Y||
+|`fastsurfer_output`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Y||
 
 #### Parameters
 |Name|Data-type(s)|Default|Description|
