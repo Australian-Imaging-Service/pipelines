@@ -33,8 +33,57 @@ from fileformats.medimage_mrtrix3 import (
 # Define the path and output_path variables
 output_path = "/Users/adso8337/Desktop/DWIpreproc_tests/Outputs/"
 
+
 @shell.define
 class MrcalcMax(shell.Task):
+
+    executable = "mrcalc"
+
+    in_file: ImageIn = shell.arg(
+        help="path to input image 1",
+        argstr="{in_file}",
+        position=-4,
+    )
+    number: float = shell.arg(
+        help="minimum value",
+        argstr="{number}",
+        position=-3,
+    )
+    operand: str = shell.arg(
+        help="operand to execute",
+        position=-2,
+        argstr="-{operand}",
+    )
+    datatype: str | None = shell.arg(
+        help="datatype option",
+        argstr="-datatype {datatype}",
+        position=-5,
+        default=None,
+    )
+
+    class Outputs(shell.Outputs):
+        output_image: ImageOut = shell.outarg(
+            help="path to output image",
+            path_template="mrcalc_output_image.nii.gz",
+            position=-1,
+        )
+
+
+@python.define(
+    outputs=["t1_FSpath", "t1brain_FSpath", "wmseg_FSpath", "normimg_FSpath"]
+)
+def JoinTask(FS_dir: str):
+    import os
+    t1_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
+    t1brain_FSpath = os.path.join(FS_dir, "mri", "brainmask.mgz")
+    wmseg_FSpath = os.path.join(FS_dir, "mri", "wm.seg.mgz")
+    normimg_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
+
+    return t1_FSpath, t1brain_FSpath, wmseg_FSpath, normimg_FSpath
+
+# @pydra.mark.task
+# def run_mri_synthstrip():
+#     import subprocess
 
     executable = "mrcalc"
 
@@ -150,41 +199,6 @@ def DwiPipeline(
     #     )
     # )
 
-    # mrcalc spec info (defined early - used for mask and later for b0)
-    @shell.define
-    class MrcalcMax(shell.Task):
-
-        executable = "mrcalc"
-
-        in_file: ImageIn = shell.arg(
-            help="path to input image 1",
-            argstr="{in_file}",
-            position=-4,
-        )
-        number: float = shell.arg(
-            help="minimum value",
-            argstr="{number}",
-            position=-3,
-        )
-        operand: str = shell.arg(
-            help="operand to execute",
-            position=-2,
-            argstr="-{operand}",
-        )
-        datatype: str | None = shell.arg(
-            help="datatype option",
-            argstr="-datatype {datatype}",
-            position=-5,
-            default=None,
-        )
-
-        class Outputs(shell.Outputs):
-            output_image: ImageOut = shell.outarg(
-                help="path to output image",
-                path_template="mrcalc_output_image.nii.gz",
-                position=-1,
-            )
-
     # Extract b0 volumes from degibbs output for mask generation
     early_b0_task = workflow.add(
         DwiExtract(
@@ -272,17 +286,6 @@ def DwiPipeline(
     # # ########################
 
     # Step 8: Generate target images for registration and transformation
-
-    @python.define(
-        outputs=["t1_FSpath", "t1brain_FSpath", "wmseg_FSpath", "normimg_FSpath"]
-    )
-    def JoinTask(FS_dir: str):
-        t1_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
-        t1brain_FSpath = os.path.join(FS_dir, "mri", "brainmask.mgz")
-        wmseg_FSpath = os.path.join(FS_dir, "mri", "wm.seg.mgz")
-        normimg_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
-
-        return t1_FSpath, t1brain_FSpath, wmseg_FSpath, normimg_FSpath
 
     join_task = workflow.add(JoinTask(FS_dir=FS_dir))
 
@@ -500,7 +503,7 @@ def DwiPipeline(
         TckMap(
             tracks=tckgen_task.tracks,
             tck_weights_in=SIF2_task.out_weights,
-            vox=0.2,
+            vox=1,
             template=fTT_image_T1space,
             out_file="TDI.mif.gz",
         ),
@@ -511,7 +514,7 @@ def DwiPipeline(
         TckMap(
             tracks=tckgen_task.tracks,
             tck_weights_in=SIF2_task.out_weights,
-            vox=0.2,
+            vox=1,
             template=fTT_image_T1space,
             dec=True,
             out_file="DECTDI.mif.gz",
