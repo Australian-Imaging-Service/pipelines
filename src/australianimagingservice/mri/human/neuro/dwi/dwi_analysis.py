@@ -3,23 +3,15 @@ from pydra.compose import python, shell, workflow
 from fileformats.generic import File
 from pydra.tasks.mrtrix3.v3_1 import (
     DwiGradcheck,
-    Dwi2Mask_Synthstrip,
     DwiDenoise,
     MrDegibbs,
-    DwiFslpreproc,
-    DwiBiasnormmask,
-    Dwi2Mask_Fslbet,
     DwiBiascorrect_Ants,
-    DwiBiascorrect_Fsl,
     TransformConvert,
     MrTransform,
     MrConvert,
     MrGrid,
     DwiExtract,
-    MrCalc,
     MrMath,
-    DwiBiasnormmask,
-    MrThreshold,
     Dwi2Response_Dhollander,
     Dwi2Fod,
     MtNormalise,
@@ -29,6 +21,7 @@ from pydra.tasks.mrtrix3.v3_1 import (
     TckMap,
 )
 from pydra.tasks.fsl.v6 import EpiReg
+from pydra.tasks.fastsurfer.mri_synthstrip import MriSynthstrip
 from fileformats.medimage import NiftiGzXBvec, NiftiGz
 
 from fileformats.medimage_mrtrix3 import (
@@ -126,32 +119,85 @@ def DwiPipeline(
     #     )
     # )
 
-    dwimask_task = workflow.add(
-        Dwi2Mask_Fslbet(
-            in_file=dwi_degibbs_task.out,  # update to be output of DWIfslpreproc
-            out_file="dwi_mask.mif.gz",
+    # mrcalc spec info (defined early - used for mask and later for b0)
+    @shell.define
+    class MrcalcMax(shell.Task):
+
+        executable = "mrcalc"
+
+        in_file: ImageIn = shell.arg(
+            help="path to input image 1",
+            argstr="{in_file}",
+            position=-4,
+        )
+        number: float = shell.arg(
+            help="minimum value",
+            argstr="{number}",
+            position=-3,
+        )
+        operand: str = shell.arg(
+            help="operand to execute",
+            position=-2,
+            argstr="-{operand}",
+        )
+        datatype: str | None = shell.arg(
+            help="datatype option",
+            argstr="-datatype {datatype}",
+            position=-5,
+            default=None,
+        )
+
+        class Outputs(shell.Outputs):
+            output_image: ImageOut = shell.outarg(
+                help="path to output image",
+                path_template="mrcalc_output_image.nii.gz",
+                position=-1,
+            )
+
+    # Extract b0 volumes from degibbs output for mask generation
+    early_b0_task = workflow.add(
+        DwiExtract(
+            in_file=dwi_degibbs_task.out,
+            out_file="early_bzero.mif.gz",
+            bzero=True,
+        ),
+        name="DwiExtract_early",
+    )
+
+    early_b0_nonneg = workflow.add(
+        MrcalcMax(
+            in_file=early_b0_task.out_file,
+            number=0.0,
+            operand="max",
+        ),
+        name="MrcalcMax_early_b0",
+    )
+
+    early_meanb0_task = workflow.add(
+        MrMath(
+            in_file=early_b0_nonneg.output_image,
+            out_file="early_meanb0.nii.gz",
+            operation="mean",
+            axis=3,
+        ),
+        name="MrMath_early_meanb0",
+    )
+
+    # Generate brain mask using mri_synthstrip on mean b0
+    synthstrip_task = workflow.add(
+        MriSynthstrip(
+            in_file=early_meanb0_task.out_file,
         )
     )
 
-    # consider moving to the top
-    # wf.add( # mri_synthstrip -i bzero.nii -m synthstrip_mask.nii works but not when used in dwi2mask synthstrip
-    #     Dwi2Mask_Synthstrip(
-    #         name="dwimask_task",
-    #         in_file=dwi_degibbs_task.out,  # update to be output of DWIfslpreproc
-    #         out_file="dwi_mask.mif.gz",
-    #         gpu=False,
-    #         nocleanup=True,
-    #     )
-    # )
-
-    # wf.add(
-    #     DwiBiascorrect_Fsl(  # replace this with ANTs
-    #         name="dwibiasfieldcorr_task",
-    #         in_file=dwi_degibbs_task.out,
-    #         mask=dwimask_task.out_file,
-    #         bias="biasfield.mif.gz",
-    #     )
-    # )
+    # Convert NIfTI mask back to MIF for MRtrix3 tools
+    dwimask_task = workflow.add(
+        MrConvert(
+            in_file=synthstrip_task.mask_file,
+            out_file="dwi_mask.mif.gz",
+        ),
+        name="MrConvert_mask",
+    )
 
     dwibiasfieldcorr_task = workflow.add(
         DwiBiascorrect_Ants(  # replace this with ANTs
@@ -254,41 +300,6 @@ def DwiPipeline(
         )
     )
 
-    # mrcalc spec info
-    @shell.define
-    class MrcalcMax(shell.Task):
-
-        executable = "mrcalc"
-
-        in_file: ImageIn = shell.arg(
-            help="path to input image 1",
-            argstr="{in_file}",
-            position=-4,
-        )
-        number: float = shell.arg(
-            help="minimum value",
-            argstr="{number}",
-            position=-3,
-        )
-        operand: str = shell.arg(
-            help="operand to execute",
-            position=-2,
-            argstr="-{operand}",
-        )
-        datatype: str | None = shell.arg(
-            help="datatype option",
-            argstr="-datatype {datatype}",
-            position=-5,
-            default=None,
-        )
-
-        class Outputs(shell.Outputs):
-            output_image: ImageOut = shell.outarg(
-                help="path to output image",
-                path_template="mrcalc_output_image.nii.gz",
-                position=-1,
-            )
-
     # remove negative values from bzero volumes
     mrcalc_max = workflow.add(
         MrcalcMax(
@@ -350,6 +361,7 @@ def DwiPipeline(
             out_file="DWI_T1space.mif.gz",
             linear=transformconvert_task.out_file,
             strides=fTTvis_image_T1space,
+            reorient_fod="no",
         ),
         name="MrTransform_dwi",
     )
@@ -363,6 +375,7 @@ def DwiPipeline(
             interp="nearest",
             linear=transformconvert_task.out_file,
             strides=fTTvis_image_T1space,
+            reorient_fod="no",
         ),
         name="MrTransform_mask",
     )
@@ -403,6 +416,9 @@ def DwiPipeline(
             fod_gm=GenFod_task.fod_gm,
             fod_csf=GenFod_task.fod_csf,
             mask=transformDWImask_task.out_file,
+            fod_wm_norm="wmfod_norm.mif.gz",
+            fod_gm_norm="gmfod_norm.mif.gz",
+            fod_csf_norm="csffod_norm.mif.gz",
         )
     )
 
@@ -412,7 +428,7 @@ def DwiPipeline(
             source=NormFod_task.fod_wm_norm,
             # tracks="tractogram.tck",
             algorithm="ifod2",
-            select=1000,
+            select=100,
             minlength=5.0,
             maxlength=350.0,
             seed_dynamic=NormFod_task.fod_wm_norm,
@@ -477,8 +493,8 @@ def DwiPipeline(
     # # SET WF OUTPUT
 
     return (
-        crop_task_dwi.out_file,
-        crop_task_mask.out_file,
+        transformDWI_task.out_file,
+        transformDWImask_task.out_file,
         NormFod_task.fod_wm_norm,
         TDImap_task.out_file,
         DECTDImap_task.out_file,
@@ -492,11 +508,11 @@ def DwiPipeline(
 
 if __name__ == "__main__":
     wf = DwiPipeline(
-        dwi_preproc_mif="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/DWI.mif.gz",
-        FS_dir="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/FreeSurfer/",
-        fTTvis_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/5TTvis_msmt.mif.gz",
-        fTT_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/5TT_msmt.mif.gz",
-        parcellation_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/test001/FreeSurfer/mri/aparc+aseg.mgz",
+        dwi_preproc_mif="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/dwi_BATMAN.mif.gz",
+        FS_dir="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/FS_outputs",
+        fTTvis_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_5TTvis_hsvs_T1space.mif.gz",
+        fTT_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/5TT_msmt.mif.gz",
+        parcellation_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_Parcellation_DK_T1space.mif.gz",
     )
 
     output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"
