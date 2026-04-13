@@ -31,7 +31,7 @@ from fileformats.medimage_mrtrix3 import (
 )  # noqa: F401
 
 # Define the path and output_path variables
-output_path = "/Users/adso8337/Desktop/DWIpreproc_tests/Outputs/"
+output_path = "<output_path>"
 
 
 @shell.define
@@ -74,6 +74,7 @@ class MrcalcMax(shell.Task):
 )
 def JoinTask(FS_dir: str):
     import os
+
     t1_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
     t1brain_FSpath = os.path.join(FS_dir, "mri", "brainmask.mgz")
     wmseg_FSpath = os.path.join(FS_dir, "mri", "wm.seg.mgz")
@@ -81,34 +82,18 @@ def JoinTask(FS_dir: str):
 
     return t1_FSpath, t1brain_FSpath, wmseg_FSpath, normimg_FSpath
 
-# @pydra.mark.task
-# def run_mri_synthstrip():
-#     import subprocess
-
-#     # Define the command to execute
-#     command = ["python", "/Users/arkievdsouza/synthstrip-docker"]
-#     # Execute the command
-#     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-#     # Check if the command executed successfully
-#     if result.returncode != 0:
-#         # Print error message if the command failed
-#         print("Error running mri_synthstrip:")
-#         print(result.stderr.decode())
-#     # Return the stdout output
-#     return result.stdout.decode()
-
 
 # Define the input_spec for the workflow
 @workflow.define(
     outputs=[
-        "DWI_processed",
-        "DWImask_processed",
+        "DWI_T1space",
+        "DWImask_T1space",
         "wm_fod_norm",
         "TDI_file",
         "DECTDI_file",
-        # "sift_mu",  # SIF2_task.out_mu
-        # "sift_weights",  # SIF2_task.out_weights
-        # "conenctome_file",  # connectomics_task.connectome_out
+        "connectome_out",  # connectomics_task.connectome_out
+        "out_mu",  # SIF2_task.out_mu
+        "out_weights",  # SIF2_task.out_weights
     ]
 )
 def DwiPipeline(
@@ -117,7 +102,7 @@ def DwiPipeline(
     fTTvis_image_T1space: File,
     fTT_image_T1space: File,
     parcellation_image_T1space: File,
-) -> tuple[File, File, File, File, File]:
+) -> tuple[File, File, File, File, File, File, File, File]:
 
     # DWIgradcheck
     DWIgradcheck_task = workflow.add(
@@ -152,19 +137,6 @@ def DwiPipeline(
     )
 
     # motion and distortion correction (eddy, topup) - placeholder
-
-    # create brainmask and mask DWI image - revisit
-    # wf.add(
-    #     DwiBiasnormmask(
-    #         name="dwibiasnormmask_task",
-    #         in_file=dwi_degibbs_task.out, # update to be output of DWIfslpreproc
-    #         output_dwi="dwi_biasnorm.mif",
-    #         output_mask="dwi_mask.mif",
-    #         mask_algo="threshold",
-    #         output_bias="bias_field.mif",
-    #         output_tissuesum="tissue_sum.mif"
-    #     )
-    # )
 
     # Extract b0 volumes from degibbs output for mask generation
     early_b0_task = workflow.add(
@@ -202,19 +174,10 @@ def DwiPipeline(
         )
     )
 
-    # Convert NIfTI mask back to MIF for MRtrix3 tools
-    dwimask_task = workflow.add(
-        MrConvert(
-            in_file=synthstrip_task.mask_file,
-            out_file="dwi_mask.mif.gz",
-        ),
-        name="MrConvert_mask",
-    )
-
     dwibiasfieldcorr_task = workflow.add(
-        DwiBiascorrect_Ants(  # replace this with ANTs
+        DwiBiascorrect_Ants(
             in_file=dwi_degibbs_task.out,
-            mask=dwimask_task.out_file,
+            mask=synthstrip_task.mask_file,
             bias="biasfield.mif.gz",
         )
     )
@@ -228,7 +191,7 @@ def DwiPipeline(
         MrGrid(
             in_file=dwibiasfieldcorr_task.out_file,
             operation="crop",
-            mask=dwimask_task.out_file,
+            mask=synthstrip_task.mask_file,
             out_file="dwi_processed.mif.gz",
             uniform=-3,
         ),
@@ -238,17 +201,15 @@ def DwiPipeline(
     # grid dwimask
     crop_task_mask = workflow.add(
         MrGrid(
-            in_file=dwimask_task.out_file,
+            in_file=synthstrip_task.mask_file,
             operation="crop",
-            mask=dwimask_task.out_file,
+            mask=synthstrip_task.mask_file,
             out_file="dwimask_procesesd.mif.gz",
             interp="nearest",
             uniform=-3,
         ),
         name="MrGrid_mask",
     )
-
-    # # REPLACE Step8-10 with epi_reg (and transform DWI to T1 space)
 
     # # ########################
     # # # REGISTRATION CONTENT #
@@ -273,14 +234,6 @@ def DwiPipeline(
             out_file="t1brain.nii.gz",
         ),
         name="MrConvert_t1brain",
-    )
-
-    nifti_wmseg = workflow.add(
-        MrConvert(
-            in_file=join_task.wmseg_FSpath,
-            out_file="wmseg.nii.gz",
-        ),
-        name="MrConvert_wmseg",
     )
 
     nifti_normimg = workflow.add(
@@ -325,7 +278,7 @@ def DwiPipeline(
     # make wm mask a binary image
     mrcalc_wmbin = workflow.add(
         MrcalcMax(
-            in_file=nifti_wmseg.out_file,
+            in_file=join_task.wmseg_FSpath,
             number=0.0,
             operand="gt",
         ),
@@ -442,7 +395,7 @@ def DwiPipeline(
     )
 
     # SIFT2
-    SIF2_task = workflow.add(
+    SIFT2_task = workflow.add(
         TckSift2(
             in_tracks=tckgen_task.tracks,
             in_fod=NormFod_task.fod_wm_norm,
@@ -457,7 +410,7 @@ def DwiPipeline(
     connectomics_task = workflow.add(
         Tck2Connectome(
             tracks_in=tckgen_task.tracks,
-            tck_weights_in=SIF2_task.out_weights,
+            tck_weights_in=SIFT2_task.out_weights,
             nodes_in=parcellation_image_T1space,
             symmetric=True,
             zero_diagonal=True,
@@ -471,7 +424,7 @@ def DwiPipeline(
     TDImap_task = workflow.add(
         TckMap(
             tracks=tckgen_task.tracks,
-            tck_weights_in=SIF2_task.out_weights,
+            tck_weights_in=SIFT2_task.out_weights,
             vox=1,
             template=fTT_image_T1space,
             out_file="TDI.mif.gz",
@@ -482,7 +435,7 @@ def DwiPipeline(
     DECTDImap_task = workflow.add(
         TckMap(
             tracks=tckgen_task.tracks,
-            tck_weights_in=SIF2_task.out_weights,
+            tck_weights_in=SIFT2_task.out_weights,
             vox=1,
             template=fTT_image_T1space,
             dec=True,
@@ -499,6 +452,9 @@ def DwiPipeline(
         NormFod_task.fod_wm_norm,
         TDImap_task.out_file,
         DECTDImap_task.out_file,
+        connectomics_task.connectome_out,
+        SIFT2_task.out_mu,
+        SIFT2_task.out_weights,
     )
 
 
@@ -509,37 +465,12 @@ def DwiPipeline(
 
 if __name__ == "__main__":
     wf = DwiPipeline(
-        dwi_preproc_mif="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/dwi_BATMAN.mif.gz",
-        FS_dir="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/FS_outputs",
-        fTTvis_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_5TTvis_hsvs_T1space.mif.gz",
-        fTT_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/5TT_msmt.mif.gz",
-        parcellation_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_Parcellation_DK_T1space.mif.gz",
+        dwi_preproc_mif="<input dwi>",
+        FS_dir="<input freesurfer dir>",
+        fTTvis_image_T1space="<input fttvis image in T1 space>",
+        fTT_image_T1space="<input ftt image in T1 space>",
+        parcellation_image_T1space="<input parcellation image in T1 space>",
     )
 
-    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"
+    output_path = "<output_path>"
     result = wf(cache_root=output_path)
-
-# # Step 7: Crop images to reduce storage space (but leave some padding on the sides) - pointing to wrong folder, needs fix (nonurgent)
-# # grid DWI
-# wf.add(
-#     mrgrid(
-#         input=dwibiasnormmask_task.output_dwi,
-#         name="crop_task_dwi",
-#         operation="crop",
-#         output="dwi_crop.mif",
-#         mask=dwibiasnormmask_task.output_mask,
-#         uniform=-3,
-#     )
-# )
-
-# #grid dwimask
-# wf.add(
-#     mrgrid(
-#         input=dwibiasnormmask_task.output_mask,
-#         name="crop_task_mask",
-#         operation="crop",
-#         output="mask_crop.mif",
-#         mask=dwibiasnormmask_task.output_mask,
-#         uniform=-3,
-#     )
-# )
