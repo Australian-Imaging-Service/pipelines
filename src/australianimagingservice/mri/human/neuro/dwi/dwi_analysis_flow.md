@@ -8,8 +8,8 @@ flowchart TD
     IN4([fTT_image_T1space])
     IN5([parcellation_image_T1space])
 
-    IN1 --> DETECT["DetectShellStructure<br/>mrinfo -shell_bvalues"]
-    DETECT --> FOD_CHOICE{single-shell?}
+    IN1 --> DETECT["detect_shell_structure(dwi_path)<br/>mrinfo -shell_bvalues<br/><i>plain Python — runs before workflow</i>"]
+    DETECT --> FOD_CHOICE{"fod_algorithm<br/>(ss3t or msmt_csd)?"}
 
     subgraph PREPROC["DWI Preprocessing"]
         A[DwiGradcheck] --> B["MrConvert<br/>corrected grad"]
@@ -60,11 +60,8 @@ flowchart TD
         T --> V["Dwi2Response<br/>Dhollander"]
         U --> V
 
-        subgraph FOD_SEL["FodSelection sub-workflow"]
-            FOD_CHOICE -- "ss3t<br/>(1 non-zero shell)" --> W1["Ss3tCsdBeta1<br/>ss3t_csd_beta1<br/>wm / gm / csf"]
-            FOD_CHOICE -- "msmt_csd<br/>(2+ non-zero shells)" --> W2["Dwi2Fod<br/>msmt_csd<br/>wm / gm / csf"]
-        end
-
+        FOD_CHOICE -- "ss3t<br/>(1 non-zero shell)" --> W1["Ss3tCsdBeta1<br/>ss3t_csd_beta1<br/>wm / gm / csf"]
+        FOD_CHOICE -- "msmt_csd<br/>(2+ non-zero shells)" --> W2["Dwi2Fod<br/>msmt_csd<br/>wm / gm / csf"]
         T --> W1
         U --> W1
         V --> W1

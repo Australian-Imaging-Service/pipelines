@@ -31,7 +31,7 @@ from fileformats.medimage_mrtrix3 import (
 )  # noqa: F401
 
 # Define the path and output_path variables
-output_path = "<output_path>"
+output_path = "output_directory"  # Set this to your desired output directory
 
 
 @shell.define
@@ -122,14 +122,17 @@ class Ss3tCsdBeta1(shell.Task):
         )
 
 
-@python.define(outputs=["fod_algorithm"])
-def DetectShellStructure(in_file: File) -> str:
-    """Run mrinfo -shell_bvalues and return 'ss3t' for single-shell data
-    (b=0 + one non-zero shell) or 'msmt_csd' for multi-shell data."""
+def detect_shell_structure(dwi_path: str) -> str:
+    """Return 'ss3t' for single-shell data (b=0 + one non-zero shell) or
+    'msmt_csd' for multi-shell data, by inspecting the DWI header with mrinfo.
+
+    Call this before constructing DwiPipeline and pass the result as
+    fod_algorithm.
+    """
     import subprocess
 
     result = subprocess.run(
-        ["mrinfo", str(in_file), "-shell_bvalues"],
+        ["mrinfo", str(dwi_path), "-shell_bvalues"],
         capture_output=True,
         text=True,
         check=True,
@@ -137,45 +140,6 @@ def DetectShellStructure(in_file: File) -> str:
     bvalues = result.stdout.strip().split()
     non_zero_shells = [b for b in bvalues if float(b) > 50]
     return "ss3t" if len(non_zero_shells) == 1 else "msmt_csd"
-
-
-@workflow.define(outputs=["wm_fod", "gm_fod", "csf_fod"])
-def FodSelection(
-    dwi: File,
-    mask: File,
-    response_wm: File,
-    response_gm: File,
-    response_csf: File,
-    fod_algorithm: str,
-) -> tuple[File, File, File]:
-    """Select and run the appropriate FOD algorithm based on shell structure.
-
-    Uses SS3T-CSD (mrtrix3_tissue) for single-shell data and MSMT-CSD for
-    multi-shell data.
-    """
-    if fod_algorithm == "ss3t":
-        task = workflow.add(
-            Ss3tCsdBeta1(
-                in_dwi=dwi,
-                response_wm=response_wm,
-                response_gm=response_gm,
-                response_csf=response_csf,
-                mask=mask,
-            )
-        )
-        return task.wm_odf, task.gm_odf, task.csf_odf
-    else:  # "msmt_csd"
-        task = workflow.add(
-            Dwi2Fod(
-                algorithm="msmt_csd",
-                dwi=dwi,
-                mask=mask,
-                response_wm=response_wm,
-                response_gm=response_gm,
-                response_csf=response_csf,
-            )
-        )
-        return task.fod_wm, task.fod_gm, task.fod_csf
 
 
 @python.define(
@@ -211,10 +175,8 @@ def DwiPipeline(
     fTTvis_image_T1space: File,
     fTT_image_T1space: File,
     parcellation_image_T1space: File,
+    fod_algorithm: str = "msmt_csd",
 ) -> tuple[File, File, File, File, File, File, File, File]:
-
-    # Detect single-shell vs multi-shell from the input DWI header
-    detect_task = workflow.add(DetectShellStructure(in_file=dwi_preproc_mif))
 
     # DWIgradcheck
     DWIgradcheck_task = workflow.add(
@@ -463,24 +425,41 @@ def DwiPipeline(
     ## SCRIPT BREAK ##
     ##################
 
-    # Generate FOD — algorithm selected automatically from shell structure
-    fod_task = workflow.add(
-        FodSelection(
-            dwi=transformDWI_task.out_file,
-            mask=transformDWImask_task.out_file,
-            response_wm=EstimateResponseFcn_task.out_sfwm,
-            response_gm=EstimateResponseFcn_task.out_gm,
-            response_csf=EstimateResponseFcn_task.out_csf,
-            fod_algorithm=detect_task.fod_algorithm,
+    # Generate FOD — algorithm determined before workflow construction
+    if fod_algorithm == "ss3t":
+        GenFod_task = workflow.add(
+            Ss3tCsdBeta1(
+                in_dwi=transformDWI_task.out_file,
+                response_wm=EstimateResponseFcn_task.out_sfwm,
+                response_gm=EstimateResponseFcn_task.out_gm,
+                response_csf=EstimateResponseFcn_task.out_csf,
+                mask=transformDWImask_task.out_file,
+            )
         )
-    )
+        wm_fod = GenFod_task.wm_odf
+        gm_fod = GenFod_task.gm_odf
+        csf_fod = GenFod_task.csf_odf
+    else:  # "msmt_csd"
+        GenFod_task = workflow.add(
+            Dwi2Fod(
+                algorithm="msmt_csd",
+                dwi=transformDWI_task.out_file,
+                mask=transformDWImask_task.out_file,
+                response_wm=EstimateResponseFcn_task.out_sfwm,
+                response_gm=EstimateResponseFcn_task.out_gm,
+                response_csf=EstimateResponseFcn_task.out_csf,
+            )
+        )
+        wm_fod = GenFod_task.fod_wm
+        gm_fod = GenFod_task.fod_gm
+        csf_fod = GenFod_task.fod_csf
 
     # Normalise FOD
     NormFod_task = workflow.add(
         MtNormalise(
-            fod_wm=fod_task.wm_fod,
-            fod_gm=fod_task.gm_fod,
-            fod_csf=fod_task.csf_fod,
+            fod_wm=wm_fod,
+            fod_gm=gm_fod,
+            fod_csf=csf_fod,
             mask=transformDWImask_task.out_file,
             fod_wm_norm="wmfod_norm.mif.gz",
             fod_gm_norm="gmfod_norm.mif.gz",
@@ -576,12 +555,14 @@ def DwiPipeline(
 
 
 if __name__ == "__main__":
+    dwi_path = "<input DWI image>"
     wf = DwiPipeline(
-        dwi_preproc_mif="<input dwi>",
-        FS_dir="<input freesurfer dir>",
-        fTTvis_image_T1space="<input fttvis image in T1 space>",
-        fTT_image_T1space="<input ftt image in T1 space>",
+        dwi_preproc_mif=dwi_path,
+        FS_dir="<input FreeSurfer directory>",
+        fTTvis_image_T1space="<input fTTvis image in T1 space>",
+        fTT_image_T1space="<input fTT image in T1 space>",
         parcellation_image_T1space="<input parcellation image in T1 space>",
+        fod_algorithm=detect_shell_structure(dwi_path),
     )
 
     output_path = "<output_path>"
