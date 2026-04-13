@@ -31,59 +31,11 @@ from fileformats.medimage_mrtrix3 import (
 )  # noqa: F401
 
 # Define the path and output_path variables
-output_path = "/Users/adso8337/Desktop/DWIpreproc_tests/Outputs/"
+output_path = "<output_path>"
 
 
 @shell.define
 class MrcalcMax(shell.Task):
-
-    executable = "mrcalc"
-
-    in_file: ImageIn = shell.arg(
-        help="path to input image 1",
-        argstr="{in_file}",
-        position=-4,
-    )
-    number: float = shell.arg(
-        help="minimum value",
-        argstr="{number}",
-        position=-3,
-    )
-    operand: str = shell.arg(
-        help="operand to execute",
-        position=-2,
-        argstr="-{operand}",
-    )
-    datatype: str | None = shell.arg(
-        help="datatype option",
-        argstr="-datatype {datatype}",
-        position=-5,
-        default=None,
-    )
-
-    class Outputs(shell.Outputs):
-        output_image: ImageOut = shell.outarg(
-            help="path to output image",
-            path_template="mrcalc_output_image.nii.gz",
-            position=-1,
-        )
-
-
-@python.define(
-    outputs=["t1_FSpath", "t1brain_FSpath", "wmseg_FSpath", "normimg_FSpath"]
-)
-def JoinTask(FS_dir: str):
-    import os
-    t1_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
-    t1brain_FSpath = os.path.join(FS_dir, "mri", "brainmask.mgz")
-    wmseg_FSpath = os.path.join(FS_dir, "mri", "wm.seg.mgz")
-    normimg_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
-
-    return t1_FSpath, t1brain_FSpath, wmseg_FSpath, normimg_FSpath
-
-# @pydra.mark.task
-# def run_mri_synthstrip():
-#     import subprocess
 
     executable = "mrcalc"
 
@@ -150,7 +102,7 @@ def DwiPipeline(
     fTTvis_image_T1space: File,
     fTT_image_T1space: File,
     parcellation_image_T1space: File,
-) -> tuple[File, File, File, File, File]:
+) -> tuple[File, File, File, File, File, File, File, File]:
 
     # DWIgradcheck
     DWIgradcheck_task = workflow.add(
@@ -185,19 +137,6 @@ def DwiPipeline(
     )
 
     # motion and distortion correction (eddy, topup) - placeholder
-
-    # create brainmask and mask DWI image - revisit
-    # wf.add(
-    #     DwiBiasnormmask(
-    #         name="dwibiasnormmask_task",
-    #         in_file=dwi_degibbs_task.out, # update to be output of DWIfslpreproc
-    #         output_dwi="dwi_biasnorm.mif",
-    #         output_mask="dwi_mask.mif",
-    #         mask_algo="threshold",
-    #         output_bias="bias_field.mif",
-    #         output_tissuesum="tissue_sum.mif"
-    #     )
-    # )
 
     # Extract b0 volumes from degibbs output for mask generation
     early_b0_task = workflow.add(
@@ -235,19 +174,10 @@ def DwiPipeline(
         )
     )
 
-    # Convert NIfTI mask back to MIF for MRtrix3 tools
-    dwimask_task = workflow.add(
-        MrConvert(
-            in_file=synthstrip_task.mask_file,
-            out_file="dwi_mask.mif.gz",
-        ),
-        name="MrConvert_mask",
-    )
-
     dwibiasfieldcorr_task = workflow.add(
-        DwiBiascorrect_Ants(  # replace this with ANTs
+        DwiBiascorrect_Ants(
             in_file=dwi_degibbs_task.out,
-            mask=dwimask_task.out_file,
+            mask=synthstrip_task.mask_file,
             bias="biasfield.mif.gz",
         )
     )
@@ -304,14 +234,6 @@ def DwiPipeline(
             out_file="t1brain.nii.gz",
         ),
         name="MrConvert_t1brain",
-    )
-
-    nifti_wmseg = workflow.add(
-        MrConvert(
-            in_file=join_task.wmseg_FSpath,
-            out_file="wmseg.nii.gz",
-        ),
-        name="MrConvert_wmseg",
     )
 
     nifti_normimg = workflow.add(
@@ -488,7 +410,7 @@ def DwiPipeline(
     connectomics_task = workflow.add(
         Tck2Connectome(
             tracks_in=tckgen_task.tracks,
-            tck_weights_in=SIF2_task.out_weights,
+            tck_weights_in=SIFT2_task.out_weights,
             nodes_in=parcellation_image_T1space,
             symmetric=True,
             zero_diagonal=True,
@@ -502,7 +424,7 @@ def DwiPipeline(
     TDImap_task = workflow.add(
         TckMap(
             tracks=tckgen_task.tracks,
-            tck_weights_in=SIF2_task.out_weights,
+            tck_weights_in=SIFT2_task.out_weights,
             vox=1,
             template=fTT_image_T1space,
             out_file="TDI.mif.gz",
@@ -513,7 +435,7 @@ def DwiPipeline(
     DECTDImap_task = workflow.add(
         TckMap(
             tracks=tckgen_task.tracks,
-            tck_weights_in=SIF2_task.out_weights,
+            tck_weights_in=SIFT2_task.out_weights,
             vox=1,
             template=fTT_image_T1space,
             dec=True,
@@ -543,37 +465,12 @@ def DwiPipeline(
 
 if __name__ == "__main__":
     wf = DwiPipeline(
-        dwi_preproc_mif="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/dwi_BATMAN.mif.gz",
-        FS_dir="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/FS_outputs",
-        fTTvis_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_5TTvis_hsvs_T1space.mif.gz",
-        fTT_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/5TT_msmt.mif.gz",
-        parcellation_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_Parcellation_DK_T1space.mif.gz",
+        dwi_preproc_mif="<input dwi>",
+        FS_dir="<input freesurfer dir>",
+        fTTvis_image_T1space="<input fttvis image in T1 space>",
+        fTT_image_T1space="<input ftt image in T1 space>",
+        parcellation_image_T1space="<input parcellation image in T1 space>",
     )
 
-    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"
+    output_path = "<output_path>"
     result = wf(cache_root=output_path)
-
-# # Step 7: Crop images to reduce storage space (but leave some padding on the sides) - pointing to wrong folder, needs fix (nonurgent)
-# # grid DWI
-# wf.add(
-#     mrgrid(
-#         input=dwibiasnormmask_task.output_dwi,
-#         name="crop_task_dwi",
-#         operation="crop",
-#         output="dwi_crop.mif",
-#         mask=dwibiasnormmask_task.output_mask,
-#         uniform=-3,
-#     )
-# )
-
-# #grid dwimask
-# wf.add(
-#     mrgrid(
-#         input=dwibiasnormmask_task.output_mask,
-#         name="crop_task_mask",
-#         operation="crop",
-#         output="mask_crop.mif",
-#         mask=dwibiasnormmask_task.output_mask,
-#         uniform=-3,
-#     )
-# )
