@@ -8,6 +8,9 @@ flowchart TD
     IN4([fTT_image_T1space])
     IN5([parcellation_image_T1space])
 
+    IN1 --> DETECT["DetectShellStructure<br/>mrinfo -shell_bvalues"]
+    DETECT --> FOD_CHOICE{single-shell?}
+
     subgraph PREPROC["DWI Preprocessing"]
         A[DwiGradcheck] --> B["MrConvert<br/>corrected grad"]
         IN1 --> A
@@ -56,10 +59,21 @@ flowchart TD
     subgraph TRACT["Tractography and Connectomics"]
         T --> V["Dwi2Response<br/>Dhollander"]
         U --> V
-        T --> W["Dwi2Fod<br/>msmt_csd<br/>wm / gm / csf"]
-        U --> W
-        V --> W
-        W --> X["MtNormalise<br/>FOD normalisation"]
+
+        subgraph FOD_SEL["FodSelection sub-workflow"]
+            FOD_CHOICE -- "ss3t<br/>(1 non-zero shell)" --> W1["Ss3tCsdBeta1<br/>ss3t_csd_beta1<br/>wm / gm / csf"]
+            FOD_CHOICE -- "msmt_csd<br/>(2+ non-zero shells)" --> W2["Dwi2Fod<br/>msmt_csd<br/>wm / gm / csf"]
+        end
+
+        T --> W1
+        U --> W1
+        V --> W1
+        T --> W2
+        U --> W2
+        V --> W2
+
+        W1 --> X["MtNormalise<br/>FOD normalisation"]
+        W2 --> X
         U --> X
         X --> Y["TckGen<br/>iFOD2"]
         IN4 --> Y

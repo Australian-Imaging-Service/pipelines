@@ -69,6 +69,115 @@ class MrcalcMax(shell.Task):
         )
 
 
+@shell.define
+class Ss3tCsdBeta1(shell.Task):
+    """Single-shell 3-tissue CSD from mrtrix3_tissue fork."""
+
+    executable = "ss3t_csd_beta1"
+
+    in_dwi: ImageIn = shell.arg(
+        help="input DWI image",
+        argstr="{in_dwi}",
+        position=1,
+    )
+    response_wm: File = shell.arg(
+        help="WM response function text file",
+        argstr="{response_wm}",
+        position=2,
+    )
+    response_gm: File = shell.arg(
+        help="GM response function text file",
+        argstr="{response_gm}",
+        position=4,
+    )
+    response_csf: File = shell.arg(
+        help="CSF response function text file",
+        argstr="{response_csf}",
+        position=6,
+    )
+    mask: ImageIn | None = shell.arg(
+        help="brain mask",
+        argstr="-mask {mask}",
+        default=None,
+    )
+
+    class Outputs(shell.Outputs):
+        wm_odf: ImageOut = shell.outarg(
+            help="output WM FOD image",
+            argstr="{wm_odf}",
+            path_template="wm_fod.mif.gz",
+            position=3,
+        )
+        gm_odf: ImageOut = shell.outarg(
+            help="output GM FOD image",
+            argstr="{gm_odf}",
+            path_template="gm_fod.mif.gz",
+            position=5,
+        )
+        csf_odf: ImageOut = shell.outarg(
+            help="output CSF FOD image",
+            argstr="{csf_odf}",
+            path_template="csf_fod.mif.gz",
+            position=7,
+        )
+
+
+@python.define(outputs=["fod_algorithm"])
+def DetectShellStructure(in_file: File) -> str:
+    """Run mrinfo -shell_bvalues and return 'ss3t' for single-shell data
+    (b=0 + one non-zero shell) or 'msmt_csd' for multi-shell data."""
+    import subprocess
+
+    result = subprocess.run(
+        ["mrinfo", str(in_file), "-shell_bvalues"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    bvalues = result.stdout.strip().split()
+    non_zero_shells = [b for b in bvalues if float(b) > 50]
+    return "ss3t" if len(non_zero_shells) == 1 else "msmt_csd"
+
+
+@workflow.define(outputs=["wm_fod", "gm_fod", "csf_fod"])
+def FodSelection(
+    dwi: File,
+    mask: File,
+    response_wm: File,
+    response_gm: File,
+    response_csf: File,
+    fod_algorithm: str,
+) -> tuple[File, File, File]:
+    """Select and run the appropriate FOD algorithm based on shell structure.
+
+    Uses SS3T-CSD (mrtrix3_tissue) for single-shell data and MSMT-CSD for
+    multi-shell data.
+    """
+    if fod_algorithm == "ss3t":
+        task = workflow.add(
+            Ss3tCsdBeta1(
+                in_dwi=dwi,
+                response_wm=response_wm,
+                response_gm=response_gm,
+                response_csf=response_csf,
+                mask=mask,
+            )
+        )
+        return task.wm_odf, task.gm_odf, task.csf_odf
+    else:  # "msmt_csd"
+        task = workflow.add(
+            Dwi2Fod(
+                algorithm="msmt_csd",
+                dwi=dwi,
+                mask=mask,
+                response_wm=response_wm,
+                response_gm=response_gm,
+                response_csf=response_csf,
+            )
+        )
+        return task.fod_wm, task.fod_gm, task.fod_csf
+
+
 @python.define(
     outputs=["t1_FSpath", "t1brain_FSpath", "wmseg_FSpath", "normimg_FSpath"]
 )
@@ -103,6 +212,9 @@ def DwiPipeline(
     fTT_image_T1space: File,
     parcellation_image_T1space: File,
 ) -> tuple[File, File, File, File, File, File, File, File]:
+
+    # Detect single-shell vs multi-shell from the input DWI header
+    detect_task = workflow.add(DetectShellStructure(in_file=dwi_preproc_mif))
 
     # DWIgradcheck
     DWIgradcheck_task = workflow.add(
@@ -351,24 +463,24 @@ def DwiPipeline(
     ## SCRIPT BREAK ##
     ##################
 
-    # Generate FOD (Consider switching from subject-response to group-average-response)
-    GenFod_task = workflow.add(
-        Dwi2Fod(
-            algorithm="msmt_csd",
+    # Generate FOD — algorithm selected automatically from shell structure
+    fod_task = workflow.add(
+        FodSelection(
             dwi=transformDWI_task.out_file,
             mask=transformDWImask_task.out_file,
             response_wm=EstimateResponseFcn_task.out_sfwm,
             response_gm=EstimateResponseFcn_task.out_gm,
             response_csf=EstimateResponseFcn_task.out_csf,
+            fod_algorithm=detect_task.fod_algorithm,
         )
     )
 
     # Normalise FOD
     NormFod_task = workflow.add(
         MtNormalise(
-            fod_wm=GenFod_task.fod_wm,
-            fod_gm=GenFod_task.fod_gm,
-            fod_csf=GenFod_task.fod_csf,
+            fod_wm=fod_task.wm_fod,
+            fod_gm=fod_task.gm_fod,
+            fod_csf=fod_task.csf_fod,
             mask=transformDWImask_task.out_file,
             fod_wm_norm="wmfod_norm.mif.gz",
             fod_gm_norm="gmfod_norm.mif.gz",
