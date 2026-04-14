@@ -31,7 +31,7 @@ from fileformats.medimage_mrtrix3 import (
 )  # noqa: F401
 
 # Define the path and output_path variables
-output_path = "output_directory"  # Set this to your desired output directory
+output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"  # Set this to your desired output directory
 
 
 @shell.define
@@ -123,9 +123,9 @@ class Ss3tCsdBeta1(shell.Task):
 
 
 @python.define(outputs=["half_voxel"])
-def ComputeHalfVoxelSize(in_file: File) -> str:
+def ComputeHalfVoxelSize(in_file: File) -> list[float]:
     """Run mrinfo -spacing and return spatial voxel dimensions halved,
-    as a comma-separated string suitable for mrgrid -voxel."""
+    as a list of floats suitable for MrGrid voxel parameter."""
     import subprocess
 
     result = subprocess.run(
@@ -134,8 +134,7 @@ def ComputeHalfVoxelSize(in_file: File) -> str:
         text=True,
         check=True,
     )
-    vox = [float(v) / 2 for v in result.stdout.strip().split()[:3]]
-    return ",".join(f"{v:.4f}" for v in vox)
+    return [float(v) / 2 for v in result.stdout.strip().split()[:3]]
 
 
 @python.define(outputs=["grad_warning"])
@@ -722,15 +721,17 @@ def DwiPipeline(
 
 
 if __name__ == "__main__":
-    dwi_path = "<input DWI image>"
+    dwi_path = (
+        "/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/dwi_BATMAN.mif.gz"
+    )
     wf = DwiPipeline(
         dwi_preproc_mif=dwi_path,
-        FS_dir="<input FreeSurfer directory>",
-        fTTvis_image_T1space="<input fTTvis image in T1 space>",
-        fTT_image_T1space="<input fTT image in T1 space>",
-        parcellation_image_T1space="<input parcellation image in T1 space>",
         fod_algorithm=detect_shell_structure(dwi_path),
+        FS_dir="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/FS_outputs",
+        fTTvis_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_5TTvis_hsvs_T1space.mif.gz",
+        fTT_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/5TT_msmt.mif.gz",
+        parcellation_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_Parcellation_DK_T1space.mif.gz",
     )
 
-    output_path = "<output_path>"
+    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"
     result = wf(cache_root=output_path)
