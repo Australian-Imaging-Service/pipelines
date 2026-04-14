@@ -172,19 +172,74 @@ def CheckGradientCorrection(in_file: File, corrected_grad_file: File) -> str:
 
 @python.define(outputs=["log_file"])
 def WriteExecutionLog(
+    start_time: str,
+    cache_root: str,
+    DWI_T1space: File,
+    DWImask_T1space: File,
     wm_fod_norm: File,
     gm_fod_norm: File,
     csf_fod_norm: File,
+    TDI_file: File,
+    DECTDI_file: File,
     connectome: File,
+    out_mu: File,
+    out_weights: File,
     fod_algorithm: str,
     grad_warning: str,
 ) -> str:
-    """Write a plain-text execution log summarising pipeline steps and warnings."""
+    """Write a plain-text execution log summarising pipeline steps, all outputs,
+    timing, resource usage, and any warnings from shell tasks."""
     import datetime
     import os
+    import pickle
+    import platform
+    import resource
+    from pathlib import Path
 
-    log_path = "pipeline_execution_log.txt"
-    now = datetime.datetime.now().isoformat(timespec="seconds")
+    end_dt = datetime.datetime.now()
+    start_dt = datetime.datetime.fromisoformat(start_time)
+    elapsed = end_dt - start_dt
+    elapsed_str = str(elapsed).split(".")[0]  # drop microseconds
+
+    # Resource usage (children = all shell subprocesses spawned by pydra)
+    usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+    # macOS: ru_maxrss in bytes; Linux: in KB
+    rss_bytes = usage.ru_maxrss
+    if platform.system() != "Darwin":
+        rss_bytes *= 1024
+    peak_ram_gb = rss_bytes / (1024 ** 3)
+    cpu_user_s = usage.ru_utime
+    cpu_sys_s = usage.ru_stime
+    cpu_total_s = cpu_user_s + cpu_sys_s
+
+    # Collect warnings from all shell task result pickles in the cache
+    task_warnings = []
+    # Always include the gradient correction check
+    task_warnings.append(f"DwiGradcheck: {grad_warning}")
+
+    cache_path = Path(cache_root)
+    for result_file in sorted(cache_path.glob("shell-*/_result.pklz")):
+        try:
+            with open(result_file, "rb") as f:
+                r = pickle.load(f)
+            if r.outputs and hasattr(r.outputs, "stderr"):
+                stderr = r.outputs.stderr or ""
+                # Extract lines that look like warnings (case-insensitive)
+                warn_lines = [
+                    ln.strip()
+                    for ln in stderr.splitlines()
+                    if any(
+                        kw in ln.lower()
+                        for kw in ("warn", "error", "caution", "note:", "failed")
+                    )
+                ]
+                if warn_lines:
+                    task_name = type(r.outputs).__name__.replace("Outputs", "")
+                    task_warnings.append(
+                        f"{task_name}: " + " | ".join(warn_lines)
+                    )
+        except Exception:
+            pass
 
     fod_step = (
         "Ss3tCsdBeta1 (ss3t_csd_beta1) — single-shell 3-tissue CSD"
@@ -193,14 +248,21 @@ def WriteExecutionLog(
     )
 
     lines = [
+        "=" * 60,
         "DWI Analysis Pipeline — Execution Log",
-        f"Generated: {now}",
+        "=" * 60,
+        f"Start time:    {start_dt.isoformat(timespec='seconds')}",
+        f"End time:      {end_dt.isoformat(timespec='seconds')}",
+        f"Elapsed:       {elapsed_str}",
         "",
-        f"FOD algorithm selected: {fod_algorithm}",
+        f"Peak RAM:      {peak_ram_gb:.2f} GB",
+        f"CPU time:      {cpu_total_s:.1f} s  "
+        f"(user {cpu_user_s:.1f} s + sys {cpu_sys_s:.1f} s)",
+        "",
+        f"FOD algorithm: {fod_algorithm}",
         "",
         "Steps executed:",
         "  1.  DwiGradcheck — verify/correct gradient orientations",
-        f"      {grad_warning}",
         "  2.  MrConvert — reimport DWI with corrected gradients",
         "  3.  DwiDenoise — MP-PCA denoising",
         "  4.  MrDegibbs — Gibbs ringing removal",
@@ -224,16 +286,29 @@ def WriteExecutionLog(
         " 22.  TckMap (DEC-TDI) — directionally-encoded colour TDI",
         "",
         "Outputs:",
+        f"  DWI (T1 space):       {DWI_T1space}",
+        f"  DWI mask (T1 space):  {DWImask_T1space}",
         f"  WM FOD (normalised):  {wm_fod_norm}",
         f"  GM FOD (normalised):  {gm_fod_norm}",
         f"  CSF FOD (normalised): {csf_fod_norm}",
+        f"  TDI map:              {TDI_file}",
+        f"  DEC-TDI map:          {DECTDI_file}",
         f"  Connectome:           {connectome}",
+        f"  SIFT2 mu:             {out_mu}",
+        f"  SIFT2 weights:        {out_weights}",
+        "",
+        "Warnings / messages:",
     ]
+    for w in task_warnings:
+        lines.append(f"  {w}")
+    if not task_warnings:
+        lines.append("  None")
 
+    log_path = os.path.join(cache_root, "pipeline_execution_log.txt")
     with open(log_path, "w") as fh:
         fh.write("\n".join(lines) + "\n")
 
-    return os.path.abspath(log_path)
+    return log_path
 
 
 def detect_shell_structure(dwi_path: str) -> str:
@@ -293,6 +368,8 @@ def DwiPipeline(
     fTT_image_T1space: File,
     parcellation_image_T1space: File,
     fod_algorithm: str = "msmt_csd",
+    start_time: str = "",
+    cache_root: str = "",
 ) -> tuple[File, File, File, File, File, File, File, File, File, File, str]:
 
     # DWIgradcheck
@@ -689,10 +766,18 @@ def DwiPipeline(
     # Write execution log
     log_task = workflow.add(
         WriteExecutionLog(
+            start_time=start_time,
+            cache_root=cache_root,
+            DWI_T1space=transformDWI_task.out_file,
+            DWImask_T1space=transformDWImask_task.out_file,
             wm_fod_norm=NormFod_task.fod_wm_norm,
             gm_fod_norm=NormFod_task.fod_gm_norm,
             csf_fod_norm=NormFod_task.fod_csf_norm,
+            TDI_file=TDImap_task.out_file,
+            DECTDI_file=DECTDImap_task.out_file,
             connectome=connectomics_task.connectome_out,
+            out_mu=SIFT2_task.out_mu,
+            out_weights=SIFT2_task.out_weights,
             fod_algorithm=fod_algorithm,
             grad_warning=grad_check_task.grad_warning,
         )
@@ -721,9 +806,12 @@ def DwiPipeline(
 
 
 if __name__ == "__main__":
+    import datetime
+
     dwi_path = (
         "/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/dwi_BATMAN.mif.gz"
     )
+    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"
     wf = DwiPipeline(
         dwi_preproc_mif=dwi_path,
         fod_algorithm=detect_shell_structure(dwi_path),
@@ -731,7 +819,7 @@ if __name__ == "__main__":
         fTTvis_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_5TTvis_hsvs_T1space.mif.gz",
         fTT_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/5TT_msmt.mif.gz",
         parcellation_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_Parcellation_DK_T1space.mif.gz",
+        start_time=datetime.datetime.now().isoformat(timespec="seconds"),
+        cache_root=output_path,
     )
-
-    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"
-    result = wf(cache_root=output_path)
+    result = wf(cache_root=output_path, rerun=True)
