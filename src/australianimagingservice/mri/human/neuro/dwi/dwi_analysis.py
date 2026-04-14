@@ -207,7 +207,7 @@ def WriteExecutionLog(
     rss_bytes = usage.ru_maxrss
     if platform.system() != "Darwin":
         rss_bytes *= 1024
-    peak_ram_gb = rss_bytes / (1024 ** 3)
+    peak_ram_gb = rss_bytes / (1024**3)
     cpu_user_s = usage.ru_utime
     cpu_sys_s = usage.ru_stime
     cpu_total_s = cpu_user_s + cpu_sys_s
@@ -235,9 +235,7 @@ def WriteExecutionLog(
                 ]
                 if warn_lines:
                     task_name = type(r.outputs).__name__.replace("Outputs", "")
-                    task_warnings.append(
-                        f"{task_name}: " + " | ".join(warn_lines)
-                    )
+                    task_warnings.append(f"{task_name}: " + " | ".join(warn_lines))
         except Exception:
             pass
 
