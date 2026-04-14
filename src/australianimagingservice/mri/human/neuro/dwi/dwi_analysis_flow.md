@@ -12,8 +12,10 @@ flowchart TD
     DETECT --> FOD_CHOICE{"fod_algorithm<br/>(ss3t or msmt_csd)?"}
 
     subgraph PREPROC["DWI Preprocessing"]
-        A[DwiGradcheck] --> B["MrConvert<br/>corrected grad"]
+        A[DwiGradcheck] --> GRADCHECK["CheckGradientCorrection<br/>warn if bvecs corrected"]
         IN1 --> A
+        IN1 --> GRADCHECK
+        A --> B["MrConvert<br/>corrected grad"]
         IN1 --> B
         B --> C[DwiDenoise]
         C --> D["MrDegibbs<br/>unring"]
@@ -25,9 +27,17 @@ flowchart TD
 
         D --> F["DwiBiascorrect_Ants<br/>bias correction"]
         E4 --> F
-        F --> G["MrGrid<br/>crop DWI"]
-        E4 --> G
-        E4 --> H["MrGrid<br/>crop mask"]
+
+        F --> HALFVOX["ComputeHalfVoxelSize<br/>mrinfo -spacing ÷ 2"]
+
+        F --> RD["MrGrid regrid DWI<br/>to half voxel size"]
+        HALFVOX --> RD
+        E4 --> RM["MrGrid regrid mask<br/>to half voxel size"]
+        HALFVOX --> RM
+
+        RD --> G["MrGrid crop DWI"]
+        RM --> G
+        RM --> H["MrGrid crop mask"]
     end
 
     subgraph FS["FreeSurfer Path Construction"]
@@ -88,12 +98,19 @@ flowchart TD
         IN4 --> AC
     end
 
+    X --> LOG["WriteExecutionLog<br/>steps + warnings"]
+    AA --> LOG
+    GRADCHECK --> LOG
+
     T --> OUT1([DWI_T1space<br/>.mif.gz])
     U --> OUT2([DWImask_T1space<br/>.mif.gz])
     X --> OUT3([wm_fod_norm<br/>.mif.gz])
+    X --> OUT3b([gm_fod_norm<br/>.mif.gz])
+    X --> OUT3c([csf_fod_norm<br/>.mif.gz])
     AB --> OUT4([TDI_file])
     AC --> OUT5([DECTDI_file])
     AA --> OUT6([connectome_out])
     Z --> OUT7([out_mu])
     Z --> OUT8([out_weights])
+    LOG --> OUT9([execution_log<br/>.txt])
 ```

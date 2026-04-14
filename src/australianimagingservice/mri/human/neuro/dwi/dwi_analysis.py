@@ -122,6 +122,121 @@ class Ss3tCsdBeta1(shell.Task):
         )
 
 
+@python.define(outputs=["half_voxel"])
+def ComputeHalfVoxelSize(in_file: File) -> str:
+    """Run mrinfo -spacing and return spatial voxel dimensions halved,
+    as a comma-separated string suitable for mrgrid -voxel."""
+    import subprocess
+
+    result = subprocess.run(
+        ["mrinfo", str(in_file), "-spacing"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    vox = [float(v) / 2 for v in result.stdout.strip().split()[:3]]
+    return ",".join(f"{v:.4f}" for v in vox)
+
+
+@python.define(outputs=["grad_warning"])
+def CheckGradientCorrection(in_file: File, corrected_grad_file: File) -> str:
+    """Compare original DWI gradients with the DwiGradcheck-corrected export.
+    Returns a warning string if corrections were applied."""
+    import subprocess
+    import numpy as np
+
+    orig = subprocess.run(
+        ["mrinfo", str(in_file), "-dwgrad"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    orig_grads = np.array(
+        [[float(v) for v in row.split()] for row in orig.splitlines()]
+    )
+
+    with open(str(corrected_grad_file)) as fh:
+        corr_lines = [
+            ln
+            for ln in fh.read().splitlines()
+            if ln.strip() and not ln.strip().startswith("#")
+        ]
+    corr_grads = np.array([[float(v) for v in row.split()] for row in corr_lines])
+
+    if not np.allclose(orig_grads[:, :3], corr_grads[:, :3], atol=1e-4):
+        return (
+            "WARNING: DwiGradcheck corrected gradient orientations. "
+            "Verify tractography outputs carefully."
+        )
+    return "DwiGradcheck: gradient orientations verified, no correction applied."
+
+
+@python.define(outputs=["log_file"])
+def WriteExecutionLog(
+    wm_fod_norm: File,
+    gm_fod_norm: File,
+    csf_fod_norm: File,
+    connectome: File,
+    fod_algorithm: str,
+    grad_warning: str,
+) -> str:
+    """Write a plain-text execution log summarising pipeline steps and warnings."""
+    import datetime
+    import os
+
+    log_path = "pipeline_execution_log.txt"
+    now = datetime.datetime.now().isoformat(timespec="seconds")
+
+    fod_step = (
+        "Ss3tCsdBeta1 (ss3t_csd_beta1) — single-shell 3-tissue CSD"
+        if fod_algorithm == "ss3t"
+        else "Dwi2Fod (msmt_csd) — multi-shell multi-tissue CSD"
+    )
+
+    lines = [
+        "DWI Analysis Pipeline — Execution Log",
+        f"Generated: {now}",
+        "",
+        f"FOD algorithm selected: {fod_algorithm}",
+        "",
+        "Steps executed:",
+        "  1.  DwiGradcheck — verify/correct gradient orientations",
+        f"      {grad_warning}",
+        "  2.  MrConvert — reimport DWI with corrected gradients",
+        "  3.  DwiDenoise — MP-PCA denoising",
+        "  4.  MrDegibbs — Gibbs ringing removal",
+        "  5.  DwiExtract / MrcalcMax / MrMath — early mean b0 for masking",
+        "  6.  MriSynthstrip — brain mask from early mean b0",
+        "  7.  DwiBiascorrect_Ants — ANTs bias field correction",
+        "  8.  MrGrid (regrid) — halve voxel size (DWI and mask)",
+        "  9.  MrGrid (crop) — crop to brain mask (DWI and mask)",
+        " 10.  JoinTask / MrConvert — FreeSurfer path construction and .mgz → NIfTI",
+        " 11.  DwiExtract / MrcalcMax / MrMath — mean b0 for registration",
+        " 12.  EpiReg — DWI-to-T1 registration",
+        " 13.  TransformConvert — convert FLIRT transform to MRtrix3 format",
+        " 14.  MrTransform — apply transform to DWI and mask",
+        " 15.  Dwi2Response_Dhollander — tissue response function estimation",
+        f" 16.  {fod_step}",
+        " 17.  MtNormalise — multi-tissue FOD normalisation",
+        " 18.  TckGen (iFOD2) — probabilistic tractography",
+        " 19.  TckSift2 — streamline weight optimisation",
+        " 20.  Tck2Connectome — structural connectivity matrix",
+        " 21.  TckMap (TDI) — track density image",
+        " 22.  TckMap (DEC-TDI) — directionally-encoded colour TDI",
+        "",
+        "Outputs:",
+        f"  WM FOD (normalised):  {wm_fod_norm}",
+        f"  GM FOD (normalised):  {gm_fod_norm}",
+        f"  CSF FOD (normalised): {csf_fod_norm}",
+        f"  Connectome:           {connectome}",
+    ]
+
+    with open(log_path, "w") as fh:
+        fh.write("\n".join(lines) + "\n")
+
+    return os.path.abspath(log_path)
+
+
 def detect_shell_structure(dwi_path: str) -> str:
     """Return 'ss3t' for single-shell data (b=0 + one non-zero shell) or
     'msmt_csd' for multi-shell data, by inspecting the DWI header with mrinfo.
@@ -162,11 +277,14 @@ def JoinTask(FS_dir: str):
         "DWI_T1space",
         "DWImask_T1space",
         "wm_fod_norm",
+        "gm_fod_norm",
+        "csf_fod_norm",
         "TDI_file",
         "DECTDI_file",
-        "connectome_out",  # connectomics_task.connectome_out
-        "out_mu",  # SIF2_task.out_mu
-        "out_weights",  # SIF2_task.out_weights
+        "connectome_out",
+        "out_mu",
+        "out_weights",
+        "execution_log",
     ]
 )
 def DwiPipeline(
@@ -176,7 +294,7 @@ def DwiPipeline(
     fTT_image_T1space: File,
     parcellation_image_T1space: File,
     fod_algorithm: str = "msmt_csd",
-) -> tuple[File, File, File, File, File, File, File, File]:
+) -> tuple[File, File, File, File, File, File, File, File, File, File, str]:
 
     # DWIgradcheck
     DWIgradcheck_task = workflow.add(
@@ -184,6 +302,14 @@ def DwiPipeline(
             in_file=dwi_preproc_mif,
             export_grad_mrtrix="DWIgradcheck_grad.txt",
             # fslgrad=<bvec bval>,
+        )
+    )
+
+    # Check whether DwiGradcheck applied any corrections
+    grad_check_task = workflow.add(
+        CheckGradientCorrection(
+            in_file=dwi_preproc_mif,
+            corrected_grad_file=DWIgradcheck_task.export_grad_mrtrix,
         )
     )
 
@@ -256,33 +382,59 @@ def DwiPipeline(
         )
     )
 
-    # # Step 7: Crop images to reduce storage space (but leave some padding on the sides)
+    # # Step 7: Regrid to half voxel size, then crop to brain mask
 
-    # #CONSIDER ADDING 'REGRID' HERE!
+    # Compute half voxel size from bias-corrected DWI header
+    half_vox_task = workflow.add(
+        ComputeHalfVoxelSize(in_file=dwibiasfieldcorr_task.out_file)
+    )
 
-    # grid DWI
-    crop_task_dwi = workflow.add(
+    # Regrid DWI to half voxel size
+    regrid_task_dwi = workflow.add(
         MrGrid(
             in_file=dwibiasfieldcorr_task.out_file,
+            operation="regrid",
+            voxel=half_vox_task.half_voxel,
+            out_file="dwi_regrid.mif.gz",
+        ),
+        name="MrGrid_regrid_dwi",
+    )
+
+    # Regrid mask to half voxel size
+    regrid_task_mask = workflow.add(
+        MrGrid(
+            in_file=synthstrip_task.mask_file,
+            operation="regrid",
+            voxel=half_vox_task.half_voxel,
+            interp="nearest",
+            out_file="dwimask_regrid.mif.gz",
+        ),
+        name="MrGrid_regrid_mask",
+    )
+
+    # Crop DWI to regridded mask
+    crop_task_dwi = workflow.add(
+        MrGrid(
+            in_file=regrid_task_dwi.out_file,
             operation="crop",
-            mask=synthstrip_task.mask_file,
+            mask=regrid_task_mask.out_file,
             out_file="dwi_processed.mif.gz",
             uniform=-3,
         ),
-        name="MrGrid_dwi",
+        name="MrGrid_crop_dwi",
     )
 
-    # grid dwimask
+    # Crop mask
     crop_task_mask = workflow.add(
         MrGrid(
-            in_file=synthstrip_task.mask_file,
+            in_file=regrid_task_mask.out_file,
             operation="crop",
-            mask=synthstrip_task.mask_file,
-            out_file="dwimask_procesesd.mif.gz",
+            mask=regrid_task_mask.out_file,
+            out_file="dwimask_processed.mif.gz",
             interp="nearest",
             uniform=-3,
         ),
-        name="MrGrid_mask",
+        name="MrGrid_crop_mask",
     )
 
     # # ########################
@@ -535,17 +687,32 @@ def DwiPipeline(
         name="TckMap_DECTDI",
     )
 
+    # Write execution log
+    log_task = workflow.add(
+        WriteExecutionLog(
+            wm_fod_norm=NormFod_task.fod_wm_norm,
+            gm_fod_norm=NormFod_task.fod_gm_norm,
+            csf_fod_norm=NormFod_task.fod_csf_norm,
+            connectome=connectomics_task.connectome_out,
+            fod_algorithm=fod_algorithm,
+            grad_warning=grad_check_task.grad_warning,
+        )
+    )
+
     # # SET WF OUTPUT
 
     return (
         transformDWI_task.out_file,
         transformDWImask_task.out_file,
         NormFod_task.fod_wm_norm,
+        NormFod_task.fod_gm_norm,
+        NormFod_task.fod_csf_norm,
         TDImap_task.out_file,
         DECTDImap_task.out_file,
         connectomics_task.connectome_out,
         SIFT2_task.out_mu,
         SIFT2_task.out_weights,
+        log_task.log_file,
     )
 
 
