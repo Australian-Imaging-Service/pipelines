@@ -31,7 +31,7 @@ from fileformats.medimage_mrtrix3 import (
 )  # noqa: F401
 
 # Define the path and output_path variables
-output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"  # Set this to your desired output directory
+output_path = "<output_path>"  # Set this to your desired output directory
 
 
 @shell.define
@@ -806,17 +806,15 @@ def DwiPipeline(
 if __name__ == "__main__":
     import datetime
 
-    dwi_path = (
-        "/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/dwi_BATMAN.mif.gz"
-    )
-    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output"
+    dwi_path = "dwi_image"
+    output_path = "<>desired output directory>"
     wf = DwiPipeline(
         dwi_preproc_mif=dwi_path,
         fod_algorithm=detect_shell_structure(dwi_path),
-        FS_dir="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/FS_outputs",
-        fTTvis_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_5TTvis_hsvs_T1space.mif.gz",
-        fTT_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/5TT_msmt.mif.gz",
-        parcellation_image_T1space="/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/100307_Parcellation_DK_T1space.mif.gz",
+        FS_dir="<input FreeSurfer directory>",
+        fTTvis_image_T1space="<input fTTvis image in T1 space>",
+        fTT_image_T1space="<input fTT image in T1 space>",
+        parcellation_image_T1space="<input parcellation image in T1 space>",
         start_time=datetime.datetime.now().isoformat(timespec="seconds"),
         cache_root=output_path,
     )
