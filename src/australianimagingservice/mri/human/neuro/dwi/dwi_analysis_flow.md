@@ -286,18 +286,68 @@ for subject_dir in sorted(subjects_root.iterdir()):
 
 ## AP/PA preparation — what happens inside the workflow
 
-| `rpe_mode`  | Pydra tasks added                                                                      | dwifslpreproc receives                         |
-|-------------|----------------------------------------------------------------------------------------|------------------------------------------------|
-| `rpe_none`  | none — `dwi_raw_mif` passes straight through                                           | `-rpe_none` only                               |
-| `rpe_pair`  | `DwiExtract` (fwd b0) → `MrMath` (mean) + `DwiExtract` (rpe b0) → `MrMath` → `MrCat` | `-rpe_pair -se_epi <1+1 b0 pair> -align_seepi` |
-| `rpe_all`   | `DwiCat` — concatenates `dwi_raw_mif` + `rpe_file` (AP first)                         | `-rpe_all` (full AP+PA series)                 |
+| `rpe_mode`    | Pydra tasks added                                                                      | dwifslpreproc receives                              |
+|---------------|----------------------------------------------------------------------------------------|-----------------------------------------------------|
+| `rpe_none`    | none — `dwi_raw_mif` passes straight through                                           | `-rpe_none -pe_dir`                                 |
+| `rpe_pair`    | `DwiExtract` (fwd b0) → `MrMath` (mean) + `DwiExtract` (rpe b0) → `MrMath` → `MrCat` | `-rpe_pair -se_epi <1+1 b0 pair> -align_seepi -pe_dir` |
+| `rpe_all`     | `DwiCat` — concatenates `dwi_raw_mif` + `rpe_file` (AP first)                         | `-rpe_all -pe_dir`                                  |
+| `rpe_header`  | none — PE info read from image header                                                  | `-rpe_header` (pe_dir and readout_time omitted)     |
+
+---
+
+## `resolve_inputs` classification — all input permutations
+
+Abbreviations: **MS** = multi-shell (non-zero b-values present); **b0** = b0-only; **E** = equal volume counts; **U** = unequal volume counts; **tag** = PE direction from filename; **header** = PE direction inferred from mrinfo / JSON sidecar.
+
+### A — Single file
+
+| # | Files present | Phase | `dwi_raw_mif` | `rpe_file` | `pe_dir` | `rpe_mode` | |
+|---|---------------|-------|---------------|------------|----------|------------|-|
+| A1 | `dwi_AP.mif.gz` (MS) | 3 | `dwi_AP` | — | tag: AP | `rpe_none` | ✅ |
+| A2 | `dwi_PA.mif.gz` (MS) | 3 | `dwi_PA` | — | tag: PA | `rpe_none` | ✅ unusual — PA-only series |
+| A3 | `dwi.mif.gz` (MS, single PE in header) | 2 | `dwi` | — | header | `rpe_none` | ✅ |
+| A4 | `dwi.mif.gz` (MS, interleaved AP+PA in header) | 2 | `dwi` | — | header (dominant dir) | `rpe_header` | ✅ |
+
+---
+
+### B — Both AP and PA tagged (same acquisition stem)
+
+| # | Files present | Phase | `dwi_raw_mif` | `rpe_file` | `pe_dir` | `rpe_mode` | |
+|---|---------------|-------|---------------|------------|----------|------------|-|
+| B1 | `dwi_AP.mif.gz` (MS) + `dwi_PA.mif.gz` (b0) | 1 | `dwi_AP` | `dwi_PA` | tag: AP | `rpe_pair` | ✅ |
+| B2 | `dwi_AP.mif.gz` (MS, E vols) + `dwi_PA.mif.gz` (MS, E vols) | 1 | `dwi_AP` | `dwi_PA` | tag: AP | `rpe_all` | ✅ |
+| B3 | `dwi_AP.mif.gz` (MS, N vols) + `dwi_PA.mif.gz` (MS, U vols) | 1 | `dwi_AP` | `dwi_PA` | tag: AP | `rpe_pair` | ⚠️ volume mismatch — may need `rpe_split` (override manually) |
+| B4 | `dwi_AP.mif.gz` (b0) + `dwi_PA.mif.gz` (b0) | 3 | `dwi_AP` (b0!) | — | tag: AP | `rpe_none` | ❌ Phase 1 skips b0 FWD; Phase 3 falls back to AP b0 as main — no true DWI present |
+| B5 | `dwi_AP.mif.gz` (b0) + `dwi_PA.mif.gz` (MS) | 3 | `dwi_AP` (b0!) | — | tag: AP | `rpe_none` | ❌ Phase 1 skips b0 FWD; PA MS ignored — no untagged to rescue |
+
+---
+
+### C — Untagged main DWI + PE-tagged companion(s)
+
+| # | Files present | Phase | `dwi_raw_mif` | `rpe_file` | `pe_dir` | `rpe_mode` | |
+|---|---------------|-------|---------------|------------|----------|------------|-|
+| C1 | `dwi.mif.gz` (MS) + `dwi_PA.mif.gz` (b0) | 2 | `dwi` | `dwi_PA` | header | `rpe_pair` | ✅ |
+| C2 | `dwi.mif.gz` (MS, E vols) + `dwi_PA.mif.gz` (MS, E vols) | 2 | `dwi` | `dwi_PA` | header | `rpe_all` | ✅ |
+| C3 | `dwi.mif.gz` (MS, N vols) + `dwi_PA.mif.gz` (MS, U vols) | 2 | `dwi` | `dwi_PA` | header | `rpe_pair` | ⚠️ volume mismatch — may need `rpe_split` |
+| C4 | `dwi.mif.gz` (MS) + `dwi_AP_b0.mif.gz` (b0) + `dwi_PA_b0.mif.gz` (b0) | 2 | `dwi` | `dwi_PA_b0` | header | `rpe_pair` | ✅ AP b0 scout ignored |
+| C5 | `dwi.mif.gz` (MS) + `dwi_AP_b0.mif.gz` (b0) only | 2 | `dwi` | — | header | `rpe_none` | ✅ AP b0 scout ignored (not an RPE companion) |
+
+---
+
+### D — Edge / ambiguous cases
+
+| # | Files present | Phase | `dwi_raw_mif` | `rpe_file` | `pe_dir` | `rpe_mode` | |
+|---|---------------|-------|---------------|------------|----------|------------|-|
+| D1 | Two untagged MS files (different volume counts) | 2 | larger by vol count | — | header | `rpe_none` | ⚠️ smaller file silently ignored — check manually |
+| D2 | `dwi.mif.gz` (untagged) + `dwi_AP.mif.gz` (MS) + `dwi_PA.mif.gz` (MS) | 1 | `dwi_AP` | `dwi_PA` | tag: AP | `rpe_all` or `rpe_pair` | ⚠️ untagged file ignored — Phase 1 finds the tagged pair first |
 
 ---
 
 ## DwiFslpreproc mode reference
 
-| `rpe_mode`   | Condition                                                              | `rpe_file` required? |
-|--------------|------------------------------------------------------------------------|----------------------|
-| `rpe_none`   | No reverse-PE image available; eddy correction only                   | No                   |
-| `rpe_pair`   | Separate b0 SE-EPI pair acquired (AP + PA b0s, unequal or b0-only RPE)| Yes                  |
-| `rpe_all`    | Full DWI series acquired in both PE directions (equal volume counts)   | Yes                  |
+| `rpe_mode`   | Condition                                                                | `rpe_file` required? |
+|--------------|--------------------------------------------------------------------------|----------------------|
+| `rpe_none`   | No reverse-PE image; eddy correction only                                | No                   |
+| `rpe_pair`   | RPE is b0-only, or both MS but unequal volume counts                     | Yes                  |
+| `rpe_all`    | Full DWI acquired in both PE directions with equal volume counts         | Yes                  |
+| `rpe_header` | PE information embedded in image header (interleaved single-file series) | No                   |
