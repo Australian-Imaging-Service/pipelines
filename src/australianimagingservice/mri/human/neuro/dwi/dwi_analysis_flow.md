@@ -2,31 +2,68 @@
 
 ```mermaid
 flowchart TD
-    IN1([dwi_preproc_mif])
-    IN2([FS_dir])
-    IN3([fTTvis_image_T1space])
-    IN4([fTT_image_T1space])
-    IN5([parcellation_image_T1space])
+    %% ── Pre-workflow (plain Python) ──────────────────────────────────────────
+    SUBDIR(["subject_dir<br/>(optional)"])
+    SUBDIR --> RESOLVE["resolve_inputs(subject_dir)<br/>glob DWI · 5TT · 5TTvis · parcellation · FS_outputs<br/>classify AP/PA pair → rpe_mode + rpe_file<br/><i>plain Python — runs before workflow</i>"]
+
+    RESOLVE --> IN1([dwi_raw_mif])
+    RESOLVE --> IN2([FS_dir])
+    RESOLVE --> IN3([fTTvis_image_T1space])
+    RESOLVE --> IN4([fTT_image_T1space])
+    RESOLVE --> IN5([parcellation_image_T1space])
+    RESOLVE --> IN6(["rpe_file<br/>(optional — rpe_pair/rpe_all only)"]):::opt
+
+    IN1 --> PEDETECT["detect_dwi_pe_and_mode(dwi_path)<br/>filename → JSON sidecar → mrinfo -petable<br/><i>plain Python — runs before workflow</i>"]
+    PEDETECT --> PEOUT(["pe_dir · rpe_mode"])
 
     IN1 --> DETECT["detect_shell_structure(dwi_path)<br/>mrinfo -shell_bvalues<br/><i>plain Python — runs before workflow</i>"]
     DETECT --> FOD_CHOICE{"fod_algorithm<br/>(ss3t or msmt_csd)?"}
 
+    subgraph APPAPREP["AP/PA Preparation (Pydra tasks — inside workflow)"]
+        RPE_CHOICE{"rpe_mode?"}
+
+        DWICAT["DwiCat<br/>FWD + RPE → concat 4D DWI<br/>(AP first)"]
+
+        FWD_B0EX["DwiExtract (fwd b0)<br/>b0 volumes from FWD DWI"]
+        FWD_MEAN["MrMath<br/>mean fwd b0 NIfTI"]
+        RPE_B0EX["DwiExtract (rpe b0)<br/>b0 volumes from rpe_file"]
+        RPE_MEAN["MrMath<br/>mean rpe b0 NIfTI"]
+        MRCAT["MrCat<br/>se_epi pair (FWD b0 · RPE b0)"]
+        SE_EPI_PAIR(["se_epi_pair<br/>.mif.gz"])
+
+        DWIPREPARED(["dwi_prepared"])
+
+        RPE_CHOICE -- "rpe_all" --> DWICAT --> DWIPREPARED
+        RPE_CHOICE -- "rpe_pair" --> FWD_B0EX --> FWD_MEAN --> MRCAT --> SE_EPI_PAIR
+        RPE_CHOICE -- "rpe_none /<br/>rpe_pair" --> DWIPREPARED
+    end
+
+    IN1 --> RPE_CHOICE
+    IN6 --> RPE_CHOICE
+    IN6 --> RPE_B0EX
+    RPE_B0EX --> RPE_MEAN --> MRCAT
+
     subgraph PREPROC["DWI Preprocessing"]
         A[DwiGradcheck] --> GRADCHECK["CheckGradientCorrection<br/>warn if bvecs corrected"]
-        IN1 --> A
-        IN1 --> GRADCHECK
         A --> B["MrConvert<br/>corrected grad"]
-        IN1 --> B
         B --> C[DwiDenoise]
         C --> D["MrDegibbs<br/>unring"]
 
-        D --> E1["DwiExtract<br/>early b0"]
+        D --> E1["DwiExtract (early)<br/>b0 volumes"]
         E1 --> E2["MrcalcMax<br/>non-negative b0"]
         E2 --> E3["MrMath<br/>mean b0 NIfTI"]
-        E3 --> E4["MriSynthstrip<br/>brain mask"]
+        E3 --> E4["MriSynthstrip (early)<br/>→ eddy_mask"]
 
-        D --> F["DwiBiascorrect_Ants<br/>bias correction"]
-        E4 --> F
+        D --> FSL["DwiFslpreproc<br/>eddy + topup<br/>-pe_dir / -rpe_mode<br/>-eddy_options '--slm=linear'"]
+        E4 -->|"-eddy_mask"| FSL
+
+        FSL --> P1["DwiExtract (preproc)<br/>b0 volumes"]
+        P1 --> P2["MrcalcMax<br/>non-negative b0"]
+        P2 --> P3["MrMath<br/>mean b0 NIfTI"]
+        P3 --> P5["MriSynthstrip (corrected)<br/>→ corrected brain mask"]
+
+        FSL --> F["DwiBiascorrect_Ants<br/>bias correction"]
+        P5 -->|"corrected mask"| F
 
         F --> HALFVOX["ComputeHalfVoxelSize<br/>mrinfo -spacing ÷ 2"]
 
@@ -39,6 +76,12 @@ flowchart TD
         RM --> G
         RM --> H["MrGrid crop mask"]
     end
+
+    DWIPREPARED --> A
+    DWIPREPARED --> GRADCHECK
+    DWIPREPARED --> B
+    PEOUT -->|"pe_dir · rpe_mode"| FSL
+    SE_EPI_PAIR -->|"-se_epi (rpe_pair only)"| FSL
 
     subgraph FS["FreeSurfer Path Construction"]
         IN2 --> I["JoinTask<br/>build FS paths"]
@@ -98,7 +141,7 @@ flowchart TD
         IN4 --> AC
     end
 
-    X --> LOG["WriteExecutionLog<br/>steps + warnings"]
+    X --> LOG["WriteExecutionLog<br/>steps · warnings · dwifslpreproc options"]
     AA --> LOG
     GRADCHECK --> LOG
 
@@ -113,4 +156,148 @@ flowchart TD
     Z --> OUT7([out_mu])
     Z --> OUT8([out_weights])
     LOG --> OUT9([execution_log<br/>.txt])
+
+    classDef opt fill:#f5e6ff,stroke:#aa88cc,stroke-dasharray:5 5
 ```
+
+---
+
+## Example Usage
+
+### Minimal — subject directory (auto-discovery)
+
+```python
+import datetime
+from dwi_analysis import DwiPipeline, resolve_inputs, detect_dwi_pe_and_mode, detect_shell_structure
+
+subject_dir = "/data/subjects/100307"
+output_path = "/data/output/100307"
+
+inputs = resolve_inputs(subject_dir)
+# inputs["dwi_raw_mif"]                  -> "/data/subjects/100307/100307_dwi_BATMAN_AP.mif.gz"
+# inputs["rpe_file"]                     -> "/data/subjects/100307/100307_dwi_BATMAN_PA.mif.gz"  (or None)
+# inputs["rpe_mode"]                     -> "rpe_pair" / "rpe_all" / "rpe_none"
+# inputs["pe_dir"]                       -> "AP"
+# inputs["FS_dir"]                       -> "/data/subjects/100307/FS_outputs"
+# inputs["fTT_image_T1space"]            -> "/data/subjects/100307/100307_5TT_msmt.mif.gz"
+# inputs["fTTvis_image_T1space"]         -> "/data/subjects/100307/100307_5TTvis_hsvs_T1space.mif.gz"
+# inputs["parcellation_image_T1space"]   -> "/data/subjects/100307/100307_Parcellation_DK_T1space.mif.gz"
+
+dwi_path = inputs["dwi_raw_mif"]
+
+wf = DwiPipeline(
+    **inputs,
+    eddy_options="' --slm=linear'",
+    fod_algorithm=detect_shell_structure(dwi_path),
+    start_time=datetime.datetime.now().isoformat(timespec="seconds"),
+    cache_root=output_path,
+)
+result = wf(cache_root=output_path, rerun=True)
+```
+
+---
+
+### Manual override — explicit files, known PE direction
+
+```python
+wf = DwiPipeline(
+    dwi_raw_mif="/data/subjects/100307/100307_dwi_BATMAN_AP.mif.gz",
+    FS_dir="/data/subjects/100307/FS_outputs",
+    fTTvis_image_T1space="/data/subjects/100307/100307_5TTvis_hsvs_T1space.mif.gz",
+    fTT_image_T1space="/data/subjects/100307/100307_5TT_msmt.mif.gz",
+    parcellation_image_T1space="/data/subjects/100307/100307_Parcellation_HCPMMP1_T1space.mif.gz",
+    pe_dir="AP",
+    rpe_mode="rpe_none",
+    eddy_options="' --slm=linear'",
+    fod_algorithm="msmt_csd",
+    start_time=datetime.datetime.now().isoformat(timespec="seconds"),
+    cache_root="/data/output/100307",
+)
+result = wf(cache_root="/data/output/100307", rerun=True)
+```
+
+---
+
+### With RPE pair (topup + eddy)
+
+```python
+# resolve_inputs detects the PA file and sets rpe_mode="rpe_pair" automatically.
+# Inside the workflow, DwiExtract+MrMath+MrCat build the 1+1 b0 se_epi pair.
+wf = DwiPipeline(
+    **resolve_inputs("/data/subjects/100307"),
+    eddy_options="' --slm=linear --repol'",
+    fod_algorithm=detect_shell_structure("/data/subjects/100307/100307_dwi_BATMAN_AP.mif.gz"),
+    start_time=datetime.datetime.now().isoformat(timespec="seconds"),
+    cache_root="/data/output/100307",
+)
+result = wf(cache_root="/data/output/100307", rerun=True)
+```
+
+---
+
+### With full RPE series (rpe_all — equal volume counts AP + PA)
+
+```python
+# resolve_inputs detects equal-volume AP+PA → rpe_all automatically.
+# Inside the workflow, DwiCat concatenates AP and PA into a single 4D series.
+wf = DwiPipeline(
+    **resolve_inputs("/data/subjects/100307"),
+    eddy_options="' --slm=linear'",
+    fod_algorithm=detect_shell_structure("/data/subjects/100307/100307_dwi_BATMAN_AP.mif.gz"),
+    start_time=datetime.datetime.now().isoformat(timespec="seconds"),
+    cache_root="/data/output/100307",
+)
+result = wf(cache_root="/data/output/100307", rerun=True)
+```
+
+---
+
+### Batch — loop over subjects
+
+```python
+import datetime
+from pathlib import Path
+from dwi_analysis import DwiPipeline, resolve_inputs, detect_shell_structure
+
+subjects_root = Path("/data/subjects")
+output_root   = Path("/data/output")
+
+for subject_dir in sorted(subjects_root.iterdir()):
+    if not subject_dir.is_dir():
+        continue
+    output_path = str(output_root / subject_dir.name)
+    try:
+        inputs = resolve_inputs(str(subject_dir))
+    except FileNotFoundError as e:
+        print(f"  SKIP {subject_dir.name}: {e}")
+        continue
+
+    wf = DwiPipeline(
+        **inputs,
+        eddy_options="' --slm=linear'",
+        fod_algorithm=detect_shell_structure(inputs["dwi_raw_mif"]),
+        start_time=datetime.datetime.now().isoformat(timespec="seconds"),
+        cache_root=output_path,
+    )
+    wf(cache_root=output_path, rerun=True)
+```
+
+---
+
+## AP/PA preparation — what happens inside the workflow
+
+| `rpe_mode`  | Pydra tasks added                                                                      | dwifslpreproc receives                         |
+|-------------|----------------------------------------------------------------------------------------|------------------------------------------------|
+| `rpe_none`  | none — `dwi_raw_mif` passes straight through                                           | `-rpe_none` only                               |
+| `rpe_pair`  | `DwiExtract` (fwd b0) → `MrMath` (mean) + `DwiExtract` (rpe b0) → `MrMath` → `MrCat` | `-rpe_pair -se_epi <1+1 b0 pair> -align_seepi` |
+| `rpe_all`   | `DwiCat` — concatenates `dwi_raw_mif` + `rpe_file` (AP first)                         | `-rpe_all` (full AP+PA series)                 |
+
+---
+
+## DwiFslpreproc mode reference
+
+| `rpe_mode`   | Condition                                                              | `rpe_file` required? |
+|--------------|------------------------------------------------------------------------|----------------------|
+| `rpe_none`   | No reverse-PE image available; eddy correction only                   | No                   |
+| `rpe_pair`   | Separate b0 SE-EPI pair acquired (AP + PA b0s, unequal or b0-only RPE)| Yes                  |
+| `rpe_all`    | Full DWI series acquired in both PE directions (equal volume counts)   | Yes                  |
