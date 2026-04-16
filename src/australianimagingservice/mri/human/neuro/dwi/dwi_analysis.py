@@ -1,9 +1,12 @@
+from pathlib import Path
+
 from pydra.compose import python, shell, workflow
 from fileformats.generic import File
 from pydra.tasks.mrtrix3.v3_1 import (
     DwiGradcheck,
     DwiDenoise,
     MrDegibbs,
+    DwiFslpreproc,
     DwiBiascorrect_Ants,
     TransformConvert,
     MrTransform,
@@ -122,6 +125,73 @@ class Ss3tCsdBeta1(shell.Task):
         )
 
 
+@shell.define
+class DwiCat(shell.Task):
+    """Concatenate two DWI series along the volume axis using dwicat."""
+
+    executable = "dwicat"
+
+    in_file1: ImageIn = shell.arg(
+        help="first input DWI image",
+        argstr="{in_file1}",
+        position=1,
+    )
+    in_file2: ImageIn = shell.arg(
+        help="second input DWI image",
+        argstr="{in_file2}",
+        position=2,
+    )
+    force: bool = shell.arg(
+        help="force overwrite of output",
+        argstr="-force",
+        default=True,
+    )
+
+    class Outputs(shell.Outputs):
+        out_file: ImageOut = shell.outarg(
+            help="concatenated output image",
+            argstr="{out_file}",
+            path_template="dwicat_out.mif.gz",
+            position=3,
+        )
+
+
+@shell.define
+class MrCat(shell.Task):
+    """Concatenate images along a specified axis using mrcat."""
+
+    executable = "mrcat"
+
+    in_file1: ImageIn = shell.arg(
+        help="first input image",
+        argstr="{in_file1}",
+        position=1,
+    )
+    in_file2: ImageIn = shell.arg(
+        help="second input image",
+        argstr="{in_file2}",
+        position=2,
+    )
+    axis: int = shell.arg(
+        help="concatenation axis",
+        argstr="-axis {axis}",
+        default=3,
+    )
+    force: bool = shell.arg(
+        help="force overwrite of output",
+        argstr="-force",
+        default=True,
+    )
+
+    class Outputs(shell.Outputs):
+        out_file: ImageOut = shell.outarg(
+            help="concatenated output image",
+            argstr="{out_file}",
+            path_template="mrcat_out.mif.gz",
+            position=3,
+        )
+
+
 @python.define(outputs=["half_voxel"])
 def ComputeHalfVoxelSize(in_file: File) -> list[float]:
     """Run mrinfo -spacing and return spatial voxel dimensions halved,
@@ -186,6 +256,7 @@ def WriteExecutionLog(
     out_weights: File,
     fod_algorithm: str,
     grad_warning: str,
+    dwifslpreproc_options: str = "",
 ) -> str:
     """Write a plain-text execution log summarising pipeline steps, all outputs,
     timing, resource usage, and any warnings from shell tasks."""
@@ -264,24 +335,26 @@ def WriteExecutionLog(
         "  2.  MrConvert — reimport DWI with corrected gradients",
         "  3.  DwiDenoise — MP-PCA denoising",
         "  4.  MrDegibbs — Gibbs ringing removal",
-        "  5.  DwiExtract / MrcalcMax / MrMath — early mean b0 for masking",
-        "  6.  MriSynthstrip — brain mask from early mean b0",
-        "  7.  DwiBiascorrect_Ants — ANTs bias field correction",
-        "  8.  MrGrid (regrid) — halve voxel size (DWI and mask)",
-        "  9.  MrGrid (crop) — crop to brain mask (DWI and mask)",
-        " 10.  JoinTask / MrConvert — FreeSurfer path construction and .mgz → NIfTI",
-        " 11.  DwiExtract / MrcalcMax / MrMath — mean b0 for registration",
-        " 12.  EpiReg — DWI-to-T1 registration",
-        " 13.  TransformConvert — convert FLIRT transform to MRtrix3 format",
-        " 14.  MrTransform — apply transform to DWI and mask",
-        " 15.  Dwi2Response_Dhollander — tissue response function estimation",
-        f" 16.  {fod_step}",
-        " 17.  MtNormalise — multi-tissue FOD normalisation",
-        " 18.  TckGen (iFOD2) — probabilistic tractography",
-        " 19.  TckSift2 — streamline weight optimisation",
-        " 20.  Tck2Connectome — structural connectivity matrix",
-        " 21.  TckMap (TDI) — track density image",
-        " 22.  TckMap (DEC-TDI) — directionally-encoded colour TDI",
+        "  5.  DwiExtract / MrcalcMax / MrMath / MriSynthstrip — early mean b0 brain mask (eddy_mask)",
+        "  6.  DwiFslpreproc — motion and distortion correction (eddy/topup)",
+        f"       Options: {dwifslpreproc_options}",
+        "  7.  DwiExtract / MrcalcMax / MrMath / MriSynthstrip — corrected mean b0 brain mask",
+        "  8.  DwiBiascorrect_Ants — ANTs bias field correction",
+        "  9.  MrGrid (regrid) — halve voxel size (DWI and mask)",
+        " 10.  MrGrid (crop) — crop to brain mask (DWI and mask)",
+        " 11.  JoinTask / MrConvert — FreeSurfer path construction and .mgz → NIfTI",
+        " 12.  DwiExtract / MrcalcMax / MrMath — mean b0 for registration",
+        " 13.  EpiReg — DWI-to-T1 registration",
+        " 14.  TransformConvert — convert FLIRT transform to MRtrix3 format",
+        " 15.  MrTransform — apply transform to DWI and mask",
+        " 16.  Dwi2Response_Dhollander — tissue response function estimation",
+        f" 17.  {fod_step}",
+        " 18.  MtNormalise — multi-tissue FOD normalisation",
+        " 19.  TckGen (iFOD2) — probabilistic tractography",
+        " 20.  TckSift2 — streamline weight optimisation",
+        " 21.  Tck2Connectome — structural connectivity matrix",
+        " 22.  TckMap (TDI) — track density image",
+        " 23.  TckMap (DEC-TDI) — directionally-encoded colour TDI",
         "",
         "Outputs:",
         f"  DWI (T1 space):       {DWI_T1space}",
@@ -343,6 +416,354 @@ def JoinTask(FS_dir: str):
     return t1_FSpath, t1brain_FSpath, wmseg_FSpath, normimg_FSpath
 
 
+def resolve_inputs(subject_dir: str) -> dict:
+    """
+    Discover all pipeline inputs from a structured subject directory.
+    Classifies the DWI acquisition mode by inspecting file headers with mrinfo.
+    Image preparation (concatenation, b0 extraction) is handled inside DwiPipeline
+    as proper Pydra tasks.
+
+    Expected layout::
+
+        <subject_dir>/
+            <id>_dwi_*.mif.gz          (or .nii.gz — AP/PA tagged or untagged)
+            <id>_5TT_*.mif.gz
+            <id>_5TTvis_*.mif.gz
+            <id>_Parcellation_*.mif.gz  (first match used alphabetically)
+            FS_outputs/
+
+    AP/PA classification rules (applied in priority order):
+      1. Find all DWI candidates (files matching *dwi* or *DWI*).
+      2. Group PE-tagged files by acquisition stem (filename with PE tag stripped).
+         Untagged files (no PE tag) are collected separately.
+      3. If a complete FWD+RPE tagged pair exists AND FWD has non-zero bvals:
+           - RPE is b0-only or unequal volumes  →  rpe_pair  (dwi_raw_mif=FWD, rpe_file=RPE)
+           - Both non-zero bvals, equal volumes  →  rpe_all   (dwi_raw_mif=FWD, rpe_file=RPE)
+         (FWD-tagged b0-only files are skipped as main DWI candidates — treated as scouts)
+      4. Else if an untagged DWI exists:
+           - With RPE-tagged companion: classify companion as above  →  rpe_pair or rpe_all
+             pe_dir is inferred from the header of the untagged file; FWD-tagged
+             companion files (AP/LR/SI b0 scouts) are ignored.
+           - No companion: pe_dir + rpe_mode from header
+             · single PE direction in header  →  rpe_none
+             · mixed PE directions in header  →  rpe_header (interleaved AP+PA in one file)
+      5. Else fall back to any single PE-tagged file  →  rpe_none
+
+    Returns a dict for DwiPipeline(**resolve_inputs(...)). Image preparation tasks
+    (dwicat, dwiextract, mrmath, mrcat) run inside the workflow with full caching.
+    """
+    import re
+    import subprocess
+
+    root = Path(subject_dir)
+    if not root.is_dir():
+        raise FileNotFoundError(f"Subject directory not found: {subject_dir}")
+
+    def _first(patterns, label):
+        for pat in patterns:
+            matches = sorted(root.glob(pat))
+            if matches:
+                return str(matches[0])
+        raise FileNotFoundError(
+            f"Could not find {label} in {subject_dir} "
+            f"(tried: {', '.join(patterns)})"
+        )
+
+    # ── PE tag helpers ────────────────────────────────────────────────────────
+    _FWD = {"AP", "LR", "SI"}
+    _RPE = {"PA", "RL", "IS"}
+    _PE_PATS = [
+        (r"_(AP)(_|\.|$)", "AP"),
+        (r"_(PA)(_|\.|$)", "PA"),
+        (r"_(LR)(_|\.|$)", "LR"),
+        (r"_(RL)(_|\.|$)", "RL"),
+        (r"_(SI)(_|\.|$)", "SI"),
+        (r"_(IS)(_|\.|$)", "IS"),
+    ]
+
+    def _get_pe(name):
+        for pat, pe in _PE_PATS:
+            if re.search(pat, name, re.IGNORECASE):
+                return pe
+        return None
+
+    def _strip_pe(name):
+        for pat, _ in _PE_PATS:
+            name = re.sub(pat, r"_\2", name, flags=re.IGNORECASE)
+        return name
+
+    def _has_nonzero_bvals(path):
+        try:
+            r = subprocess.run(
+                ["mrinfo", str(path), "-shell_bvalues"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return any(float(s) > 50 for s in r.stdout.strip().split())
+        except Exception:
+            return True  # assume non-zero if mrinfo unavailable
+
+    def _get_nvols(path):
+        try:
+            r = subprocess.run(
+                ["mrinfo", str(path), "-size"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            parts = r.stdout.strip().split()
+            return int(parts[3]) if len(parts) >= 4 else 1
+        except Exception:
+            return None
+
+    # ── Find all DWI candidates ───────────────────────────────────────────────
+    dwi_candidates = sorted(
+        {
+            f
+            for pat in ["*dwi*.mif.gz", "*DWI*.mif.gz", "*dwi*.nii.gz", "*DWI*.nii.gz"]
+            for f in root.glob(pat)
+        }
+    )
+    if not dwi_candidates:
+        raise FileNotFoundError(f"No DWI image found in {subject_dir}")
+
+    # ── Group by stem, separate FWD / RPE / untagged ─────────────────────────
+    stem_map = {}
+    untagged = []
+    for f in dwi_candidates:
+        pe = _get_pe(f.name)
+        if pe:
+            stem_map.setdefault(_strip_pe(f.name), {})[pe] = f
+        else:
+            untagged.append(f)
+
+    # ── Classify ──────────────────────────────────────────────────────────────
+    # Priority:
+    #  1. Complete FWD+RPE tagged pair where FWD has non-zero bvals  → rpe_pair/rpe_all
+    #  2. Untagged DWI + RPE-tagged companion                        → rpe_pair/rpe_all
+    #  3. Untagged DWI alone                                         → rpe_none/rpe_header
+    #  4. Fallback: any single PE-tagged file                        → rpe_none
+    dwi_raw_mif = None
+    rpe_file = None
+    pe_dir = "AP"
+    rpe_mode = "rpe_none"
+
+    def _classify_rpe_companion(fwd_path, rpe_path):
+        """Determine rpe_mode from a FWD+RPE pair. Prints a summary. Returns mode string."""
+        fwd_name = Path(fwd_path).name
+        rpe_name = Path(rpe_path).name
+        rpe_has_dwi = _has_nonzero_bvals(str(rpe_path))
+        if rpe_has_dwi:
+            nvols_fwd = _get_nvols(str(fwd_path))
+            nvols_rpe = _get_nvols(str(rpe_path))
+            equal_vols = nvols_fwd is not None and nvols_fwd == nvols_rpe
+            if equal_vols:
+                print(
+                    f"  AP/PA pair detected (rpe_all): "
+                    f"{fwd_name} + {rpe_name} ({nvols_fwd} vols each)"
+                )
+                return "rpe_all"
+            else:
+                print(
+                    f"  AP/PA pair detected (rpe_pair — unequal volumes): "
+                    f"{fwd_name} ({nvols_fwd} vols) + {rpe_name} ({nvols_rpe} vols)"
+                )
+                return "rpe_pair"
+        else:
+            print(
+                f"  AP/PA pair detected (rpe_pair): "
+                f"{fwd_name} (DWI) + {rpe_name} (b0 SE-EPI)"
+            )
+            return "rpe_pair"
+
+    # Phase 1: complete FWD+RPE tagged pair where FWD has non-zero bvals
+    # (Skips b0-only FWD files — those are scouts, not the main DWI)
+    for stem, pe_map in stem_map.items():
+        fwds = {pe: p for pe, p in pe_map.items() if pe in _FWD}
+        rpes = {pe: p for pe, p in pe_map.items() if pe in _RPE}
+        if fwds and rpes:
+            fwd_pe, fwd_path = next(iter(fwds.items()))
+            _rpe_pe, rpe_path = next(iter(rpes.items()))
+            if not _has_nonzero_bvals(str(fwd_path)):
+                continue  # FWD is a b0 scout — skip, let Phase 2 handle
+            rpe_mode = _classify_rpe_companion(fwd_path, rpe_path)
+            dwi_raw_mif = str(fwd_path)
+            rpe_file = str(rpe_path)
+            pe_dir = fwd_pe
+            break
+
+    # Phase 2: untagged DWI (main) + optional RPE-tagged companion
+    if dwi_raw_mif is None and untagged:
+        main_dwi = (
+            max(untagged, key=lambda f: _get_nvols(str(f)) or 0)
+            if len(untagged) > 1
+            else untagged[0]
+        )
+        dwi_raw_mif = str(main_dwi)
+        # Gather all RPE-tagged (PA/RL/IS) files across all stems
+        all_rpe = [
+            (pe, p)
+            for sm in stem_map.values()
+            for pe, p in sm.items()
+            if pe in _RPE
+        ]
+        if all_rpe:
+            _rpe_pe, _rpe_path = all_rpe[0]
+            rpe_file = str(_rpe_path)
+            rpe_mode = _classify_rpe_companion(str(main_dwi), str(_rpe_path))
+            pe_dir, _ = detect_dwi_pe_and_mode(dwi_raw_mif)
+        else:
+            pe_dir, rpe_mode = detect_dwi_pe_and_mode(dwi_raw_mif)
+            label = (
+                "interleaved AP+PA — rpe_header"
+                if rpe_mode == "rpe_header"
+                else "single PE direction"
+            )
+            print(f"  Untagged DWI ({label}): {main_dwi.name}")
+
+    # Phase 3: fallback — single PE-tagged file with no usable pair
+    if dwi_raw_mif is None:
+        for stem, pe_map in stem_map.items():
+            fwds = {pe: p for pe, p in pe_map.items() if pe in _FWD}
+            rpes = {pe: p for pe, p in pe_map.items() if pe in _RPE}
+            if fwds:
+                fwd_pe, fwd_path = next(iter(fwds.items()))
+                print(f"  Single FWD DWI (rpe_none): {fwd_path.name}")
+                dwi_raw_mif = str(fwd_path)
+                pe_dir = fwd_pe
+                break
+            if rpes:
+                rpe_pe, rpe_path = next(iter(rpes.items()))
+                print(f"  Single RPE DWI (rpe_none): {rpe_path.name}")
+                dwi_raw_mif = str(rpe_path)
+                pe_dir = rpe_pe
+                break
+
+    if dwi_raw_mif is None:
+        raise FileNotFoundError(f"Could not identify a main DWI in {subject_dir}")
+
+    # ── Remaining inputs ──────────────────────────────────────────────────────
+    ftt = _first(["*_5TT_*.mif.gz"], "5TT image")
+    fttvis = _first(["*_5TTvis_*.mif.gz"], "5TTvis image")
+    parcellation = _first(["*_Parcellation_*.mif.gz"], "parcellation image")
+    fs_dir = root / "FS_outputs"
+    if not fs_dir.is_dir():
+        raise FileNotFoundError(f"FS_outputs directory not found in {subject_dir}")
+
+    return {
+        "dwi_raw_mif": dwi_raw_mif,
+        "rpe_file": rpe_file,
+        "FS_dir": str(fs_dir),
+        "fTTvis_image_T1space": fttvis,
+        "fTT_image_T1space": ftt,
+        "parcellation_image_T1space": parcellation,
+        "pe_dir": pe_dir,
+        "rpe_mode": rpe_mode,
+    }
+
+
+def detect_dwi_pe_and_mode(dwi_path: str) -> tuple[str, str]:
+    """
+    Infer PE direction and DwiFslpreproc mode from a DWI image.
+
+    Detection order:
+      1. Filename patterns (_AP_, _PA_, _LR_, _RL_, _SI_, _IS_)
+      2. JSON sidecar PhaseEncodingDirection (for NIfTI inputs)
+      3. mrinfo -petable on MIF header
+
+    Returns (pe_dir, rpe_mode) where rpe_mode is one of
+    'rpe_none', 'rpe_pair', 'rpe_all', 'rpe_split'.
+    For a single-file input the mode is always 'rpe_none'; call
+    plan_workflow() from dwi_processing.py for multi-series DICOM inputs.
+    """
+    import json
+    import re
+    import subprocess
+
+    name = Path(dwi_path).name
+
+    _pairs = [
+        (r"_AP(_|$|\b)", "AP"),
+        (r"_A_P(_|$|\b)", "AP"),
+        (r"_PA(_|$|\b)", "PA"),
+        (r"_P_A(_|$|\b)", "PA"),
+        (r"_LR(_|$|\b)", "LR"),
+        (r"_L_R(_|$|\b)", "LR"),
+        (r"_RL(_|$|\b)", "RL"),
+        (r"_R_L(_|$|\b)", "RL"),
+        (r"_SI(_|$|\b)", "SI"),
+        (r"_S_I(_|$|\b)", "SI"),
+        (r"_IS(_|$|\b)", "IS"),
+        (r"_I_S(_|$|\b)", "IS"),
+    ]
+    for pat, pe in _pairs:
+        if re.search(pat, name, re.IGNORECASE):
+            return pe, "rpe_none"
+
+    # JSON sidecar (NIfTI inputs)
+    base = re.sub(r"\.nii(\.gz)?$", "", dwi_path)
+    json_path = base + ".json"
+    _json_map = {
+        "j-": "AP",
+        "j": "PA",
+        "i": "LR",
+        "i-": "RL",
+        "k": "SI",
+        "k-": "IS",
+    }
+    if Path(json_path).exists():
+        try:
+            with open(json_path) as f:
+                ped = json.load(f).get("PhaseEncodingDirection", "").strip()
+            if ped in _json_map:
+                return _json_map[ped], "rpe_none"
+        except Exception:
+            pass
+
+    # MIF header petable
+    try:
+        result = subprocess.run(
+            ["mrinfo", dwi_path, "-petable"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        raw = result.stdout.strip()
+        if raw:
+            _vec_map = {
+                (0, -1, 0): "AP",
+                (0, 1, 0): "PA",
+                (1, 0, 0): "LR",
+                (-1, 0, 0): "RL",
+                (0, 0, 1): "SI",
+                (0, 0, -1): "IS",
+            }
+            dirs = []
+            for line in raw.splitlines():
+                parts = line.split()
+                if len(parts) >= 3:
+                    vec = tuple(round(float(v)) for v in parts[:3])
+                    if vec in _vec_map:
+                        dirs.append(_vec_map[vec])
+            if dirs:
+                unique = set(dirs)
+                if len(unique) == 1:
+                    return dirs[0], "rpe_none"
+                # Multiple PE directions embedded in header → rpe_header
+                counts = {d: dirs.count(d) for d in unique}
+                dominant = max(counts, key=lambda d: counts[d])
+                return dominant, "rpe_header"
+    except Exception:
+        pass
+
+    print(
+        f"  WARNING: could not determine PE direction for {name}. "
+        "Defaulting to AP / rpe_none. Pass pe_dir and rpe_mode explicitly to override."
+    )
+    return "AP", "rpe_none"
+
+
 # Define the input_spec for the workflow
 @workflow.define(
     outputs=[
@@ -360,29 +781,106 @@ def JoinTask(FS_dir: str):
     ]
 )
 def DwiPipeline(
-    dwi_preproc_mif: File,
+    dwi_raw_mif: File,
     FS_dir: str,
     fTTvis_image_T1space: File,
     fTT_image_T1space: File,
     parcellation_image_T1space: File,
+    pe_dir: str = "AP",
+    rpe_mode: str = "rpe_none",
+    rpe_file: str | None = None,
+    readout_time: float | None = None,
+    eddy_options: str = "' --slm=linear'",
     fod_algorithm: str = "msmt_csd",
     start_time: str = "",
     cache_root: str = "",
 ) -> tuple[File, File, File, File, File, File, File, File, File, File, str]:
 
-    # DWIgradcheck
+    # ── AP/PA preparation (rpe_all and rpe_pair) ──────────────────────────────
+    # rpe_all: concatenate FWD + RPE into a single 4D series (FWD first).
+    # rpe_pair: build a 1+1 b0 SE-EPI pair (FWD mean b0 first, RPE mean b0 second)
+    #           as required by dwifslpreproc -rpe_pair.
+    # The prepared dwi input and se_epi path are resolved here before DwiGradcheck.
+
+    se_epi_task_out = None  # will be wired to DwiFslpreproc se_epi if rpe_pair
+
+    if rpe_mode == "rpe_all":
+        # Concatenate AP + PA (AP first — pe_dir identifies the first half)
+        dwicat_task = workflow.add(
+            DwiCat(
+                in_file1=dwi_raw_mif,
+                in_file2=rpe_file,
+                out_file="dwi_AP_PA_concat.mif.gz",
+            ),
+            name="DwiCat_rpe_all",
+        )
+        dwi_prepared = dwicat_task.out_file
+
+    elif rpe_mode == "rpe_pair":
+        # Extract mean b0 from FWD DWI
+        fwd_b0_extract = workflow.add(
+            DwiExtract(
+                in_file=dwi_raw_mif,
+                out_file="fwd_bzero.mif.gz",
+                bzero=True,
+            ),
+            name="DwiExtract_fwd_b0",
+        )
+        fwd_meanb0 = workflow.add(
+            MrMath(
+                in_file=fwd_b0_extract.out_file,
+                out_file="fwd_meanb0.mif.gz",
+                operation="mean",
+                axis=3,
+            ),
+            name="MrMath_fwd_meanb0",
+        )
+        # Extract mean b0 from RPE series
+        rpe_b0_extract = workflow.add(
+            DwiExtract(
+                in_file=rpe_file,
+                out_file="rpe_bzero.mif.gz",
+                bzero=True,
+            ),
+            name="DwiExtract_rpe_b0",
+        )
+        rpe_meanb0 = workflow.add(
+            MrMath(
+                in_file=rpe_b0_extract.out_file,
+                out_file="rpe_meanb0.mif.gz",
+                operation="mean",
+                axis=3,
+            ),
+            name="MrMath_rpe_meanb0",
+        )
+        # Concatenate: FWD b0 first, RPE b0 second (equal 1+1 pair)
+        se_epi_task = workflow.add(
+            MrCat(
+                in_file1=fwd_meanb0.out_file,
+                in_file2=rpe_meanb0.out_file,
+                out_file="se_epi_pair.mif.gz",
+                axis=3,
+            ),
+            name="MrCat_se_epi",
+        )
+        se_epi_task_out = se_epi_task.out_file
+        dwi_prepared = dwi_raw_mif
+
+    else:
+        dwi_prepared = dwi_raw_mif
+
+    # DWIgradcheck — operates on the prepared (possibly concatenated) DWI
     DWIgradcheck_task = workflow.add(
         DwiGradcheck(
-            in_file=dwi_preproc_mif,
+            in_file=dwi_prepared,
             export_grad_mrtrix="DWIgradcheck_grad.txt",
-            # fslgrad=<bvec bval>,
         )
     )
 
     # Check whether DwiGradcheck applied any corrections
     grad_check_task = workflow.add(
         CheckGradientCorrection(
-            in_file=dwi_preproc_mif,
+            in_file=dwi_prepared,
             corrected_grad_file=DWIgradcheck_task.export_grad_mrtrix,
         )
     )
@@ -390,7 +888,7 @@ def DwiPipeline(
     # create mif with corrected grad
     DWItoMif_task = workflow.add(
         MrConvert(
-            in_file=dwi_preproc_mif,
+            in_file=dwi_prepared,
             grad=DWIgradcheck_task.export_grad_mrtrix,
         ),
         name="MrConvert_grad",
@@ -410,9 +908,7 @@ def DwiPipeline(
         )
     )
 
-    # motion and distortion correction (eddy, topup) - placeholder
-
-    # Extract b0 volumes from degibbs output for mask generation
+    # ── Early b0 brain mask — used as eddy_mask in DwiFslpreproc ─────────────
     early_b0_task = workflow.add(
         DwiExtract(
             in_file=dwi_degibbs_task.out,
@@ -441,17 +937,101 @@ def DwiPipeline(
         name="MrMath_early_meanb0",
     )
 
-    # Generate brain mask using mri_synthstrip on mean b0
     synthstrip_task = workflow.add(
         MriSynthstrip(
             in_file=early_meanb0_task.out_file,
-        )
+        ),
+        name="MriSynthstrip_early",
     )
 
+    # ── Motion and distortion correction ─────────────────────────────────────
+    # Build a human-readable options summary for the execution log.
+    _se_epi_label = "yes" if rpe_mode in ("rpe_pair", "rpe_split") else "no"
+    _pe_label = "from header" if rpe_mode == "rpe_header" else pe_dir
+    _rt_label = (
+        "from header"
+        if rpe_mode == "rpe_header"
+        else (str(readout_time) if readout_time is not None else "from header")
+    )
+    dwifslpreproc_options = (
+        f"mode: -{rpe_mode}  pe_dir: {_pe_label}  "
+        f"readout_time: {_rt_label}  "
+        f'eddy_options: "{eddy_options}"  '
+        f"se_epi: {_se_epi_label}"
+    )
+
+    # Only pass the single active rpe flag — pydra's xor constraint rejects
+    # multiple rpe_* kwargs even when the extras are False.
+    # rpe_header is also mutually exclusive with pe_dir and readout_time.
+    if rpe_mode == "rpe_none":
+        _rpe_kw = {"rpe_none": True}
+    elif rpe_mode == "rpe_pair":
+        _rpe_kw = {"rpe_pair": True}
+    elif rpe_mode == "rpe_all":
+        _rpe_kw = {"rpe_all": True}
+    elif rpe_mode == "rpe_header":
+        _rpe_kw = {"rpe_header": True}
+    else:
+        _rpe_kw = {"rpe_split": True}
+
+    _fslpreproc_kw: dict = {
+        "in_file": dwi_degibbs_task.out,
+        "out_file": "DWI_preproc.mif.gz",
+        **_rpe_kw,
+        "eddy_mask": synthstrip_task.mask_file,
+        "se_epi": se_epi_task_out if rpe_mode in ("rpe_pair", "rpe_split") else None,
+        "align_seepi": rpe_mode in ("rpe_pair", "rpe_split"),
+        "eddy_options": eddy_options,
+    }
+    # pe_dir and readout_time are mutually exclusive with rpe_header in dwifslpreproc
+    if rpe_mode != "rpe_header":
+        _fslpreproc_kw["pe_dir"] = pe_dir
+        if readout_time is not None:
+            _fslpreproc_kw["readout_time"] = readout_time
+
+    dwifslpreproc_task = workflow.add(DwiFslpreproc(**_fslpreproc_kw))
+
+    # ── Corrected brain mask from DwiFslpreproc output ────────────────────────
+    preproc_b0_task = workflow.add(
+        DwiExtract(
+            in_file=dwifslpreproc_task.out_file,
+            out_file="preproc_bzero.mif.gz",
+            bzero=True,
+        ),
+        name="DwiExtract_preproc",
+    )
+
+    preproc_b0_nonneg = workflow.add(
+        MrcalcMax(
+            in_file=preproc_b0_task.out_file,
+            number=0.0,
+            operand="max",
+        ),
+        name="MrcalcMax_preproc_b0",
+    )
+
+    preproc_meanb0_task = workflow.add(
+        MrMath(
+            in_file=preproc_b0_nonneg.output_image,
+            out_file="preproc_meanb0.nii.gz",
+            operation="mean",
+            axis=3,
+        ),
+        name="MrMath_preproc_meanb0",
+    )
+
+    corrected_synthstrip_task = workflow.add(
+        MriSynthstrip(
+            in_file=preproc_meanb0_task.out_file,
+        ),
+        name="MriSynthstrip_corrected",
+    )
+
+    # ── Bias field correction (uses DwiFslpreproc output + corrected mask) ───
     dwibiasfieldcorr_task = workflow.add(
         DwiBiascorrect_Ants(
-            in_file=dwi_degibbs_task.out,
-            mask=synthstrip_task.mask_file,
+            in_file=dwifslpreproc_task.out_file,
+            mask=corrected_synthstrip_task.mask_file,
             bias="biasfield.mif.gz",
         )
     )
@@ -778,6 +1358,7 @@ def DwiPipeline(
             out_weights=SIFT2_task.out_weights,
             fod_algorithm=fod_algorithm,
             grad_warning=grad_check_task.grad_warning,
+            dwifslpreproc_options=dwifslpreproc_options,
         )
     )
 
@@ -806,15 +1387,16 @@ def DwiPipeline(
 if __name__ == "__main__":
     import datetime
 
-    dwi_path = "dwi_image"
-    output_path = "<>desired output directory>"
+    subject_dir = "/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/"
+    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output/"
+
+    inputs = resolve_inputs(subject_dir)
+    dwi_path = inputs["dwi_raw_mif"]
+
     wf = DwiPipeline(
-        dwi_preproc_mif=dwi_path,
+        **inputs,
+        eddy_options="' --slm=linear'",
         fod_algorithm=detect_shell_structure(dwi_path),
-        FS_dir="<input FreeSurfer directory>",
-        fTTvis_image_T1space="<input fTTvis image in T1 space>",
-        fTT_image_T1space="<input fTT image in T1 space>",
-        parcellation_image_T1space="<input parcellation image in T1 space>",
         start_time=datetime.datetime.now().isoformat(timespec="seconds"),
         cache_root=output_path,
     )
