@@ -62,7 +62,7 @@ jobs:
 
       - name: Trigger external docs rebuild
         run: >
-          gh workflow run 'Deploy Hugo site to Pages'
+          gh workflow run 'github pages'
           -f hugo_update_mod="github.com/${GITHUB_REPOSITORY}@docs"
           --ref ${{ matrix.page.branch }}
         env:
