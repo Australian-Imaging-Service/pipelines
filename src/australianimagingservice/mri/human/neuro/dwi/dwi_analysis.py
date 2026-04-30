@@ -192,20 +192,6 @@ class MrCat(shell.Task):
         )
 
 
-@python.define(outputs=["half_voxel"])
-def ComputeHalfVoxelSize(in_file: File) -> list[float]:
-    """Run mrinfo -spacing and return spatial voxel dimensions halved,
-    as a list of floats suitable for MrGrid voxel parameter."""
-    import subprocess
-
-    result = subprocess.run(
-        ["mrinfo", str(in_file), "-spacing"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return [float(v) / 2 for v in result.stdout.strip().split()[:3]]
-
 
 @python.define(outputs=["grad_warning"])
 def CheckGradientCorrection(in_file: File, corrected_grad_file: File) -> str:
@@ -340,13 +326,12 @@ def WriteExecutionLog(
         f"       Options: {dwifslpreproc_options}",
         "  7.  DwiExtract / MrcalcMax / MrMath / MriSynthstrip — corrected mean b0 brain mask",
         "  8.  DwiBiascorrect_Ants — ANTs bias field correction",
-        "  9.  MrGrid (regrid) — halve voxel size (DWI and mask)",
-        " 10.  MrGrid (crop) — crop to brain mask (DWI and mask)",
-        " 11.  JoinTask / MrConvert — FreeSurfer path construction and .mgz → NIfTI",
-        " 12.  DwiExtract / MrcalcMax / MrMath — mean b0 for registration",
-        " 13.  EpiReg — DWI-to-T1 registration",
-        " 14.  TransformConvert — convert FLIRT transform to MRtrix3 format",
-        " 15.  MrTransform — apply transform to DWI and mask",
+        "  9.  MrGrid (crop) — crop to brain mask at native DWI resolution (DWI and mask)",
+        " 10.  JoinTask / MrConvert — FreeSurfer path construction and .mgz → NIfTI",
+        " 11.  DwiExtract / MrcalcMax / MrMath — mean b0 for registration",
+        " 12.  EpiReg — DWI-to-T1 registration",
+        " 13.  TransformConvert — convert FLIRT transform to MRtrix3 format",
+        " 14.  MrTransform — apply transform + reslice to T1 grid (DWI and mask)",
         " 16.  Dwi2Response_Dhollander — tissue response function estimation",
         f" 17.  {fod_step}",
         " 18.  MtNormalise — multi-tissue FOD normalisation",
@@ -411,7 +396,7 @@ def JoinTask(FS_dir: str):
     t1_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
     t1brain_FSpath = os.path.join(FS_dir, "mri", "brainmask.mgz")
     wmseg_FSpath = os.path.join(FS_dir, "mri", "wm.seg.mgz")
-    normimg_FSpath = os.path.join(FS_dir, "mri", "T1.mgz")
+    normimg_FSpath = os.path.join(FS_dir, "mri", "norm.mgz")
 
     return t1_FSpath, t1brain_FSpath, wmseg_FSpath, normimg_FSpath
 
@@ -603,10 +588,7 @@ def resolve_inputs(subject_dir: str) -> dict:
         dwi_raw_mif = str(main_dwi)
         # Gather all RPE-tagged (PA/RL/IS) files across all stems
         all_rpe = [
-            (pe, p)
-            for sm in stem_map.values()
-            for pe, p in sm.items()
-            if pe in _RPE
+            (pe, p) for sm in stem_map.values() for pe, p in sm.items() if pe in _RPE
         ]
         if all_rpe:
             _rpe_pe, _rpe_path = all_rpe[0]
@@ -1036,42 +1018,15 @@ def DwiPipeline(
         )
     )
 
-    # # Step 7: Regrid to half voxel size, then crop to brain mask
+    # # Step 7: Crop DWI and mask to brain extent (native DWI resolution)
+    # Regridding is deferred to MrTransform, which reslices directly to T1 space.
 
-    # Compute half voxel size from bias-corrected DWI header
-    half_vox_task = workflow.add(
-        ComputeHalfVoxelSize(in_file=dwibiasfieldcorr_task.out_file)
-    )
-
-    # Regrid DWI to half voxel size
-    regrid_task_dwi = workflow.add(
-        MrGrid(
-            in_file=dwibiasfieldcorr_task.out_file,
-            operation="regrid",
-            voxel=half_vox_task.half_voxel,
-            out_file="dwi_regrid.mif.gz",
-        ),
-        name="MrGrid_regrid_dwi",
-    )
-
-    # Regrid mask to half voxel size
-    regrid_task_mask = workflow.add(
-        MrGrid(
-            in_file=synthstrip_task.mask_file,
-            operation="regrid",
-            voxel=half_vox_task.half_voxel,
-            interp="nearest",
-            out_file="dwimask_regrid.mif.gz",
-        ),
-        name="MrGrid_regrid_mask",
-    )
-
-    # Crop DWI to regridded mask
+    # Crop DWI to brain mask
     crop_task_dwi = workflow.add(
         MrGrid(
-            in_file=regrid_task_dwi.out_file,
+            in_file=dwibiasfieldcorr_task.out_file,
             operation="crop",
-            mask=regrid_task_mask.out_file,
+            mask=corrected_synthstrip_task.mask_file,
             out_file="dwi_processed.mif.gz",
             uniform=-3,
         ),
@@ -1081,9 +1036,9 @@ def DwiPipeline(
     # Crop mask
     crop_task_mask = workflow.add(
         MrGrid(
-            in_file=regrid_task_mask.out_file,
+            in_file=corrected_synthstrip_task.mask_file,
             operation="crop",
-            mask=regrid_task_mask.out_file,
+            mask=corrected_synthstrip_task.mask_file,
             out_file="dwimask_processed.mif.gz",
             interp="nearest",
             uniform=-3,
@@ -1187,20 +1142,21 @@ def DwiPipeline(
         )
     )
 
-    # #apply transform to DWI image
+    # #apply transform to DWI image — reslice to T1 grid in one step
     transformDWI_task = workflow.add(
         MrTransform(
             in_file=crop_task_dwi.out_file,
             inverse=False,
             out_file="DWI_T1space.mif.gz",
             linear=transformconvert_task.out_file,
+            template=fTTvis_image_T1space,
             strides=fTTvis_image_T1space,
             reorient_fod="no",
         ),
         name="MrTransform_dwi",
     )
 
-    # #apply transform to DWI mask image
+    # #apply transform to DWI mask image — reslice to T1 grid, nearest-neighbour to keep binary
     transformDWImask_task = workflow.add(
         MrTransform(
             in_file=crop_task_mask.out_file,
@@ -1208,6 +1164,7 @@ def DwiPipeline(
             out_file="DWImask_T1space.mif.gz",
             interp="nearest",
             linear=transformconvert_task.out_file,
+            template=fTTvis_image_T1space,
             strides=fTTvis_image_T1space,
             reorient_fod="no",
         ),
@@ -1387,8 +1344,8 @@ def DwiPipeline(
 if __name__ == "__main__":
     import datetime
 
-    subject_dir = "/Users/adso8337/Desktop/DWIpipeline_testing/Data/100307/"
-    output_path = "/Users/adso8337/Desktop/DWIpipeline_testing/output/"
+    subject_dir = "/Users/adso8337/Desktop/5TTmsmt_testing/data/BATMAN/"
+    output_path = "/Users/adso8337/Desktop/5TTmsmt_testing/outputs/BATMAN_HSVS/"
 
     inputs = resolve_inputs(subject_dir)
     dwi_path = inputs["dwi_raw_mif"]
