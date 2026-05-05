@@ -50,7 +50,7 @@ def CollateParcellations(out_dir: Path | None = None, **parcs: "Mif") -> "Direct
         out_dir = Path("./out_dir").absolute()
     out_dir.mkdir(exist_ok=True)
     for name, parc in parcs.items():
-        parc.copy(out_dir, new_stem=name)
+        parc.copy(out_dir, new_stem=f"atlas_{name}")
     return DirectoryOf[Mif](out_dir)  # type: ignore[no-any-return,type-arg,misc]
 
 
