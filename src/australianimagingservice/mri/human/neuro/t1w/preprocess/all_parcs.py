@@ -167,6 +167,13 @@ if __name__ == "__main__":
     fastsurfer_executable = get_arg(7, "FASTSURFER_EXECUTABLE", "fastsurfer")
     fastsurfer_python = get_arg(8, None, "python3")
 
+    try:
+        n_threads = len(os.sched_getaffinity(0))  # respects cgroup/affinity limits
+    except AttributeError:
+        n_threads = os.cpu_count() or 1
+    os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(n_threads)
+    print(f"Detected {n_threads} usable CPU threads — ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS set to {n_threads}")
+
     wf = AllParcellations(
         t1w=t1w,
         subjects_dir=subjects_dir,
