@@ -22,6 +22,7 @@ from pydra.environments.docker import Docker
 from pydra.environments.native import Native
 from pydra.tasks.fastsurfer.latest import Fastsurfer
 from .helpers import JoinTaskCatalogue
+from .mri_synthstrip import MriSynthstrip
 
 # from pydra.engine.task import FunctionTask
 # from pydra.engine.specs import BaseSpec
