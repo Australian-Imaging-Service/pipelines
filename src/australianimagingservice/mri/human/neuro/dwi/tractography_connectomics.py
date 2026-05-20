@@ -23,7 +23,6 @@ from fileformats.medimage_mrtrix3 import (
 
 from dwi_preprocessing import MrcalcMax
 
-
 # ── Custom shell task wrappers ─────────────────────────────────────────────────
 
 
@@ -297,10 +296,13 @@ def resolve_tractography_inputs(
     Expected T1 directory layout::
 
         <t1_dir>/
-            <id>_5TT_hsvs_*.mif.gz     (or fsl / freesurfer variants)
-            <id>_5TTvis_*.mif.gz
-            <id>_Parcellation_*.mif.gz  (one or more)
+            5TTimages/
+                5TT_hsvs.mif.gz     (or fsl / freesurfer variants)
+                5TTvis_hsvs.mif.gz
+            Atlases/
+                Atlas_<name>.mif.gz  (one per parcellation)
             FS_outputs/
+            LUT/
     """
     import json
 
@@ -352,44 +354,26 @@ def resolve_tractography_inputs(
             raise FileNotFoundError(f"{label} response function not found: {path}")
 
     # ── 5TT and 5TTvis images ──────────────────────────────────────────────────
-    _ftt_patterns = {
-        "hsvs": ["*5TT*hsvs*", "*hsvs*5TT*", "*_5TT_*.mif.gz"],
-        "fsl": ["*5TT*fsl*", "*fsl*5TT*", "*_5TT_*.mif.gz"],
-        "freesurfer": [
-            "*5TT*freesurfer*",
-            "*5TT*FS_*",
-            "*freesurfer*5TT*",
-            "*_5TT_*.mif.gz",
-        ],
-    }
-    _fttvis_patterns = {
-        "hsvs": ["*5TTvis*hsvs*", "*hsvs*5TTvis*", "*_5TTvis_*.mif.gz"],
-        "fsl": ["*5TTvis*fsl*", "*fsl*5TTvis*", "*_5TTvis_*.mif.gz"],
-        "freesurfer": ["*5TTvis*freesurfer*", "*5TTvis*FS_*", "*_5TTvis_*.mif.gz"],
-    }
-
-    def _first_match(root, patterns, label):
-        for pat in patterns:
-            matches = sorted(root.glob(pat))
-            if matches:
-                return str(matches[0])
-        raise FileNotFoundError(
-            f"Could not find {label} in {root} "
-            f"(ftt_method={ftt_method!r}, tried: {', '.join(patterns)})"
-        )
-
+    _valid_methods = {"hsvs", "fsl", "freesurfer"}
     ftt_key = ftt_method.lower()
-    if ftt_key not in _ftt_patterns:
+    if ftt_key not in _valid_methods:
         raise ValueError(
             f"Unknown ftt_method {ftt_method!r}. Choose from: hsvs, fsl, freesurfer."
         )
 
-    fTT_image = _first_match(
-        root_t1, _ftt_patterns[ftt_key], f"5TT image ({ftt_method})"
-    )
-    fTTvis_image = _first_match(
-        root_t1, _fttvis_patterns[ftt_key], f"5TTvis image ({ftt_method})"
-    )
+    ftt_dir = root_t1 / "5TTimages"
+    if not ftt_dir.is_dir():
+        raise FileNotFoundError(f"5TTimages/ directory not found in {t1_dir}")
+
+    fTT_image = ftt_dir / f"5TT_{ftt_key}.mif.gz"
+    fTTvis_image = ftt_dir / f"5TTvis_{ftt_key}.mif.gz"
+
+    for img, label in [(fTT_image, f"5TT_{ftt_key}.mif.gz"), (fTTvis_image, f"5TTvis_{ftt_key}.mif.gz")]:
+        if not img.exists():
+            raise FileNotFoundError(f"{label} not found in {ftt_dir}")
+
+    fTT_image = str(fTT_image)
+    fTTvis_image = str(fTTvis_image)
 
     print(f"  5TT method:  {ftt_method}")
     print(f"  5TT image:   {Path(fTT_image).name}")
@@ -398,14 +382,16 @@ def resolve_tractography_inputs(
     # ── FreeSurfer outputs ─────────────────────────────────────────────────────
     fs_dir = root_t1 / "FS_outputs"
     if not fs_dir.is_dir():
-        raise FileNotFoundError(f"FS_outputs directory not found in {t1_dir}")
+        raise FileNotFoundError(f"FS_outputs/ directory not found in {t1_dir}")
 
     # ── Parcellation images ────────────────────────────────────────────────────
-    parcellations = sorted(root_t1.glob("*_Parcellation_*.mif.gz"))
+    atlases_dir = root_t1 / "Atlases"
+    if not atlases_dir.is_dir():
+        raise FileNotFoundError(f"Atlases/ directory not found in {t1_dir}")
+
+    parcellations = sorted(atlases_dir.glob("Atlas_*.mif.gz"))
     if not parcellations:
-        parcellations = sorted(root_t1.glob("*[Pp]arcellation*.mif.gz"))
-    if not parcellations:
-        raise FileNotFoundError(f"No parcellation images found in {t1_dir}")
+        raise FileNotFoundError(f"No Atlas_*.mif.gz parcellation images found in {atlases_dir}")
 
     print(f"  Found {len(parcellations)} parcellation image(s):")
     for p in parcellations:
@@ -746,7 +732,7 @@ if __name__ == "__main__":
     import datetime
 
     preprocessed_dir = "/Users/adso8337/Desktop/5TTmsmt_testing/outputs/BATMAN_preproc/"
-    t1_dir = "/Users/adso8337/Desktop/5TTmsmt_testing/data/BATMAN_T1dir/"
+    t1_dir = "/Users/adso8337/Desktop/5TTmsmt_testing/outputs/T1testing/final_outputs/"
     output_path = "/Users/adso8337/Desktop/5TTmsmt_testing/outputs/BATMAN_tractography/"
 
     inputs = resolve_tractography_inputs(
