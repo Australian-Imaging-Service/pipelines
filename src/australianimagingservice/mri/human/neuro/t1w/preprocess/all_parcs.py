@@ -1,7 +1,7 @@
 from pathlib import Path
 from fileformats.generic import File, Directory, DirectoryOf
 from fileformats.medimage import NiftiGz
-from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
+from fileformats.medimage_mrtrix3.image import ImageFormat as Mif, ImageFormatGz
 from pydra.compose import workflow, python
 from australianimagingservice.mri.human.neuro.t1w.preprocess.single_parc import (
     SingleParcellation,
@@ -36,7 +36,7 @@ parcellation_list = [
     "Yeo7",
 ]  # List of different parcellations
 
-collate_inputs = {p: Mif for p in parcellation_list}
+collate_inputs = {p: Mif | ImageFormatGz for p in parcellation_list}
 collate_inputs["out_dir"] = Path | None
 
 
@@ -44,14 +44,14 @@ collate_inputs["out_dir"] = Path | None
     inputs=collate_inputs,
     outputs=["out_dir"],
 )
-def CollateParcellations(out_dir: Path | None = None, **parcs: "Mif") -> "DirectoryOf[Mif]":  # type: ignore[type-arg]
+def CollateParcellations(out_dir: Path | None = None, **parcs: "Mif | ImageFormatGz") -> "Directory":  # type: ignore[type-arg]
     """Collate multiple parcellations into a single directory."""
     if out_dir is None:
         out_dir = Path("./out_dir").absolute()
     out_dir.mkdir(exist_ok=True)
     for name, parc in parcs.items():
         parc.copy(out_dir, new_stem=name)
-    return DirectoryOf[Mif](out_dir)  # type: ignore[no-any-return,type-arg,misc]
+    return Directory(out_dir)  # type: ignore[no-any-return,misc]
 
 
 @workflow.define(
@@ -72,13 +72,14 @@ def AllParcellations(
     freesurfer_home: Directory,
     mrtrix_lut_dir: Directory,
     fs_license: File,
+    resources_dir: Path,
     in_fastsurfer_container: bool = False,
     fastsurfer_python: str = "python3",
     fastsurfer_batch: int = 16,
-    labelsgmfirst_executable: str = "labelsgmfirst",
+    labelsgmfirst_executable: str = "labelsgmfix",
     fastsurfer_nthreads: int = 24,
 ) -> tuple[
-    DirectoryOf[Mif],
+    Directory,
     Mif,
     Mif,
     Mif,
@@ -101,6 +102,7 @@ def AllParcellations(
                 freesurfer_home=freesurfer_home,
                 mrtrix_lut_dir=mrtrix_lut_dir,
                 fs_license=fs_license,
+                resources_dir=resources_dir,
                 in_fastsurfer_container=in_fastsurfer_container,
                 fastsurfer_python=fastsurfer_python,
                 fastsurfer_batch=fastsurfer_batch,
@@ -137,9 +139,9 @@ if __name__ == "__main__":
 
     # Helper: get arg or fallback to env var or default
     def get_arg(idx: int, env: str | None = None, default: str | None = None) -> str:
-        if len(sys.argv) > idx:
+        if len(sys.argv) > idx and sys.argv[idx]:
             return sys.argv[idx]
-        if env and env in os.environ:
+        if env and os.environ.get(env):
             return os.environ[env]
         if default is not None:
             return default
@@ -166,6 +168,9 @@ if __name__ == "__main__":
     fs_license = Path(get_arg(6, "FS_LICENSE", str(freesurfer_home / "license.txt")))
     fastsurfer_executable = get_arg(7, "FASTSURFER_EXECUTABLE", "fastsurfer")
     fastsurfer_python = get_arg(8, None, "python3")
+    # Derive resources_dir relative to this file (dev install) or from env var
+    _default_resources = str(Path(__file__).parents[7] / "resources")
+    resources_dir = Path(get_arg(9, "RESOURCES_DIR", _default_resources))
 
     try:
         n_threads = len(os.sched_getaffinity(0))  # respects cgroup/affinity limits
@@ -180,10 +185,10 @@ if __name__ == "__main__":
         freesurfer_home=freesurfer_home,
         mrtrix_lut_dir=mrtrix_lut_dir,
         fs_license=fs_license,
-        fastsurfer_executable=None,
+        resources_dir=resources_dir,
         fastsurfer_python=fastsurfer_python,
     )
 
-    result = wf(cache_root=cache_dir)
+    result = wf(cache_root=cache_dir, rerun=False)
     print("Workflow finished. Outputs:")
     print(result)

@@ -1,6 +1,7 @@
 import os
 import typing as ty
 from fileformats.generic import Directory, File
+from pathlib import Path
 from pydra.compose import python, shell
 
 
@@ -27,10 +28,15 @@ def JoinTaskCatalogue(
     FS_dir: Directory,
     freesurfer_home: Directory,
     mrtrix_lut_dir: Directory,
+    resources_dir: Path,
 ) -> ty.Tuple[str, str, str, str, str, str, str, str, str, str, str, str, str, str]:
     node_image = parcellation + "_nodes.mif"
     final_parc_image = os.path.join(f"Atlas_{parcellation}.mif.gz")
     normimg_path = os.path.join(FS_dir, "mri", "norm.mgz")
+
+    mica_annots = os.path.join(resources_dir, "mica-mni-parcellations")
+    mica_luts = os.path.join(resources_dir, "mica-mni-parcellations", "lut")
+    neuro_luts = os.path.join(resources_dir, "neuro-parcellations")
 
     if (
         "schaefer" in parcellation
@@ -40,15 +46,8 @@ def JoinTaskCatalogue(
         or parcellation == "glasser360"
     ):
         fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage5")
-        parc_lut_file = os.path.join(
-            freesurfer_home,
-            "MICA_MNI_parcellations",
-            "lut",
-            f"lut_{parcellation}_mics.csv",
-        )
-        mrtrix_lut_file = os.path.join(
-            mrtrix_lut_dir, f"{parcellation}_reordered_LUT.txt"
-        )
+        parc_lut_file = os.path.join(mica_luts, f"lut_{parcellation}_mics.csv")
+        mrtrix_lut_file = os.path.join(neuro_luts, f"{parcellation}_reordered_LUT.txt")
 
         output_parcellation_filename = os.path.join(
             FS_dir, "mri", f"{parcellation}.nii.gz"
@@ -56,14 +55,10 @@ def JoinTaskCatalogue(
         lh_annotation = os.path.join(FS_dir, "label", f"lh.{parcellation}_mics.annot")
         rh_annotation = os.path.join(FS_dir, "label", f"rh.{parcellation}_mics.annot")
         source_annotation_file_lh = os.path.join(
-            freesurfer_home,
-            "MICA_MNI_parcellations",
-            f"lh.{parcellation}_mics.annot",
+            mica_annots, f"lh.{parcellation}_mics.annot"
         )
         source_annotation_file_rh = os.path.join(
-            freesurfer_home,
-            "MICA_MNI_parcellations",
-            f"rh.{parcellation}_mics.annot",
+            mica_annots, f"rh.{parcellation}_mics.annot"
         )
         annot_short = f"{parcellation}_mics"
         l2v_temp = os.path.join(FS_dir, "mri", "T1.mgz")
@@ -87,7 +82,6 @@ def JoinTaskCatalogue(
         )
 
     elif parcellation == "desikan":
-        # DESIKAN definitions
         fsavg_dir = ""
         parc_lut_file = os.path.join(freesurfer_home, "FreeSurferColorLUT.txt")
         mrtrix_lut_file = os.path.join(mrtrix_lut_dir, "fs_default.txt")
@@ -118,7 +112,6 @@ def JoinTaskCatalogue(
         )
 
     elif parcellation == "destrieux":
-        # DESTRIEUX definitions
         fsavg_dir = ""
         parc_lut_file = os.path.join(freesurfer_home, "FreeSurferColorLUT.txt")
         mrtrix_lut_file = os.path.join(mrtrix_lut_dir, "fs_a2009s.txt")
@@ -151,20 +144,19 @@ def JoinTaskCatalogue(
         )
 
     elif parcellation == "hcpmmp1":
-        # HCPMMP1 definitions
         fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage")
-        parc_lut_file = os.path.join(mrtrix_lut_dir, "hcpmmp1_original.txt")
-        mrtrix_lut_file = os.path.join(mrtrix_lut_dir, "hcpmmp1_ordered.txt")
+        parc_lut_file = os.path.join(neuro_luts, "hcpmmp1_original.txt")
+        mrtrix_lut_file = os.path.join(neuro_luts, "hcpmmp1_ordered.txt")
         output_parcellation_filename = os.path.join(
             FS_dir, "mri", f"{parcellation}.nii.gz"
         )
         lh_annotation = os.path.join(FS_dir, "label", "lh.HCPMMP1.annot")
         rh_annotation = os.path.join(FS_dir, "label", "rh.HCPMMP1.annot")
         source_annotation_file_lh = os.path.join(
-            freesurfer_home, "HCPMMP1", "lh.HCPMMP1.annot"
+            resources_dir, "hcpmmp1-parcellations", "lh.HCPMMP1.annot"
         )
         source_annotation_file_rh = os.path.join(
-            freesurfer_home, "HCPMMP1", "rh.HCPMMP1.annot"
+            resources_dir, "hcpmmp1-parcellations", "rh.HCPMMP1.annot"
         )
         annot_short = "HCPMMP1"
         l2v_temp = ""
@@ -188,26 +180,20 @@ def JoinTaskCatalogue(
         )
 
     elif parcellation == "Yeo7":
-        # yeo7 definitions
+        yeo_dir = os.path.join(resources_dir, "yeo2011-parcellations")
         fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage5")
-        parc_lut_file = os.path.join(
-            freesurfer_home, "Yeo2011", "Yeo2011_7networks_Split_Components_LUT.txt"
-        )
-        mrtrix_lut_file = os.path.join(mrtrix_lut_dir, "Yeo2011_7N_split.txt")
+        parc_lut_file = os.path.join(yeo_dir, "Yeo2011_7networks_Split_Components_LUT.txt")
+        mrtrix_lut_file = os.path.join(neuro_luts, "Yeo2011_7N_split.txt")
         output_parcellation_filename = os.path.join(
             FS_dir, "mri", f"{parcellation}.nii.gz"
         )
         lh_annotation = os.path.join(FS_dir, "label", "lh.Yeo7.annot")
         rh_annotation = os.path.join(FS_dir, "label", "rh.Yeo7.annot")
         source_annotation_file_lh = os.path.join(
-            freesurfer_home,
-            "Yeo2011",
-            "lh.Yeo2011_7Networks_N1000.split_components.annot",
+            yeo_dir, "lh.Yeo2011_7Networks_N1000.split_components.annot"
         )
         source_annotation_file_rh = os.path.join(
-            freesurfer_home,
-            "Yeo2011",
-            "rh.Yeo2011_7Networks_N1000.split_components.annot",
+            yeo_dir, "rh.Yeo2011_7Networks_N1000.split_components.annot"
         )
         annot_short = "Yeo7"
         l2v_temp = ""
@@ -231,28 +217,20 @@ def JoinTaskCatalogue(
         )
 
     elif parcellation == "Yeo17":
-        # yeo17 definitions
+        yeo_dir = os.path.join(resources_dir, "yeo2011-parcellations")
         fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage5")
-        parc_lut_file = os.path.join(
-            freesurfer_home,
-            "Yeo2011",
-            "Yeo2011_17networks_Split_Components_LUT.txt",
-        )
-        mrtrix_lut_file = os.path.join(mrtrix_lut_dir, "Yeo2011_17N_split.txt")
+        parc_lut_file = os.path.join(yeo_dir, "Yeo2011_17networks_Split_Components_LUT.txt")
+        mrtrix_lut_file = os.path.join(neuro_luts, "Yeo2011_17N_split.txt")
         output_parcellation_filename = os.path.join(
             FS_dir, "mri", f"{parcellation}.nii.gz"
         )
         lh_annotation = os.path.join(FS_dir, "label", "lh.Yeo17.annot")
         rh_annotation = os.path.join(FS_dir, "label", "rh.Yeo17.annot")
         source_annotation_file_lh = os.path.join(
-            freesurfer_home,
-            "Yeo2011",
-            "lh.Yeo2011_17Networks_N1000.split_components.annot",
+            yeo_dir, "lh.Yeo2011_17Networks_N1000.split_components.annot"
         )
         source_annotation_file_rh = os.path.join(
-            freesurfer_home,
-            "Yeo2011",
-            "rh.Yeo2011_17Networks_N1000.split_components.annot",
+            yeo_dir, "rh.Yeo2011_17Networks_N1000.split_components.annot"
         )
         annot_short = "Yeo17"
         l2v_temp = ""
