@@ -1,0 +1,67 @@
+schema_version: '2.0'
+title: PhantomKit
+version: &package_version "0.1.0"
+authors:
+  - name: Arkiev D'Souza
+    email: arkiev.dsouza@sydney.edu.au
+  - name: Thomas G. Close
+    email: thomas.close@sydney.edu.au
+docs:
+  description: >-
+    End-to-end MRI phantom quality assurance pipeline for the ISBI Gold Standard
+    Phantom (SPIRIT, 120E). Processes DWI, T1/T2 mapping, and other contrast
+    acquisitions to derive ADC, T1, T2, SNR and CNR metrics with
+    temperature-corrected reference overlays. Outputs per-session interactive
+    HTML QA reports.
+  info_url: https://github.com/Australian-Imaging-Service/phantomkit
+base_image:
+  # The PhantomKit base image bundles FSL (conda), ANTs, MRtrix3 and dcm2niix.
+  # Build from the phantomkit repo Dockerfile and push to GHCR before running
+  # `pydra2app make xnat` against this spec:
+  #
+  #   docker build -t ghcr.io/australian-imaging-service/phantomkit:0.1.0 .
+  #   docker push ghcr.io/australian-imaging-service/phantomkit:0.1.0
+  #
+  # The GitHub Actions workflow .github/workflows/docker.yml in the phantomkit
+  # repo handles this automatically on releases.
+  name: ghcr.io/australian-imaging-service/phantomkit
+  tag: *package_version
+  package_manager: apt
+packages:
+  pip:
+    pydra2app:
+    frametree:
+    frametree-xnat:
+    australianimagingservice:
+commands:
+  pipeline:
+    operates_on: medimage/session
+    task:
+      type: python
+      function: australianimagingservice.mri.quality_control.phantomkit:run_pipeline
+    sources:
+      DicomData:
+        field: input_dir
+        datatype: medimage/dicom-series
+        help: >-
+          Session DICOM data. All scan series in the session are collected into
+          a single directory tree and passed to the phantomkit pipeline as
+          --input-dir.
+    parameters:
+      Phantom:
+        field: phantom
+        help: "Phantom name — must match a key in template_data/ (e.g. SPIRIT or 120E)"
+      DenoiseDegibbs:
+        field: denoise_degibbs
+        help: "Apply dwidenoise + mrdegibbs before DWI preprocessing"
+        default: false
+      Gradcheck:
+        field: gradcheck
+        help: "Run MRtrix3 dwigradcheck to verify gradient table orientations"
+        default: false
+      ReadoutTime:
+        field: readout_time
+        help: "Override TotalReadoutTime (seconds) used by FSL topup/eddy"
+      EddyOptions:
+        field: eddy_options
+        help: "Override the FSL eddy options string passed to dwifslpreproc"
