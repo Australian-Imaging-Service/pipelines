@@ -5,11 +5,11 @@ base_image:
   # Chose a NeuroDesk FSL container as the base
   name: deepmi/fastsurfer
   package_manager: apt # It is not obvious from the base image what the package manager is
-  tag: gpu-v2.2.0
+  tag: gpu-v2.5.3
 packages:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
-    pydra: 1.0a6
+    pydra: 1.0a9
     pydra-tasks-mrtrix3:
     pydra-tasks-fsl: 0.3.1
     fileformats:
@@ -22,7 +22,7 @@ packages:
     frametree-xnat:
     australianimagingservice:
   neurodocker:
-    dcm2niix: v1.0.20240202
+    dcm2niix: v1.0.20250506
     mrtrix3: 3.0.4
     freesurfer:
       version: &freesurfer_version 7.4.1
