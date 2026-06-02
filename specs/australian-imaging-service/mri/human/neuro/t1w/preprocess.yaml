@@ -5,7 +5,7 @@ base_image:
   # Chose a NeuroDesk FSL container as the base
   name: deepmi/fastsurfer
   package_manager: apt # It is not obvious from the base image what the package manager is
-  tag: gpu-v2.5.3
+  tag: gpu-latest
 packages:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
