@@ -1,15 +1,15 @@
 title: "Preprocess T1-weighted MRI" # Short name for the pipeline referenced in the UI
 schema_version: "2.0" # the version of the specification format used for this file
-version: "1.1.4"
+version: "1.1.5"
 base_image:
   # Chose a NeuroDesk FSL container as the base
   name: deepmi/fastsurfer
   package_manager: apt # It is not obvious from the base image what the package manager is
-  tag: gpu-v2.2.0
+  tag: gpu-latest
 packages:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
-    pydra: 1.0a6
+    pydra: 1.0a9
     pydra-tasks-mrtrix3:
     pydra-tasks-fsl: 0.3.1
     fileformats:
@@ -22,8 +22,8 @@ packages:
     frametree-xnat:
     australianimagingservice:
   neurodocker:
-    dcm2niix: v1.0.20240202
-    mrtrix3: 3.0.2
+    dcm2niix: v1.0.20250506
+    mrtrix3: 3.0.4
     freesurfer:
       version: &freesurfer_version 7.4.1
       args:
