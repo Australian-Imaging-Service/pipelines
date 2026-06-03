@@ -10,8 +10,8 @@ weight: 10
 |---|-----|
 |Name|human.neuro.t1w.preprocess|
 |Title|Preprocess T1-weighted MRI|
-|Version|1.1.4|
-|Base image|`deepmi/fastsurfer:gpu-v2.2.0`|
+|Version|1.1.5|
+|Base image|`deepmi/fastsurfer:gpu-latest`|
 |Maintainer|Arkiev D'Souza (arkiev.dsouza@sydney.edu.au)|
 |Info URL|https://placeholder.org|
 
