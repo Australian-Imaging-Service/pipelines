@@ -15,10 +15,10 @@ from pydra.tasks.mrtrix3.v3_1 import (
     Dwi2Response_Dhollander,
 )
 from pydra.tasks.fastsurfer.mri_synthstrip import MriSynthstrip
-from fileformats.medimage_mrtrix3 import (
+from fileformats.vendor.mrtrix3.medimage import (  # noqa: F401
     ImageIn,
     ImageOut,
-)  # noqa: F401
+)
 
 
 # ── Custom shell task wrappers ─────────────────────────────────────────────────
@@ -658,7 +658,7 @@ def DwiPreprocessing(
 
     elif rpe_mode == "rpe_pair":
         fwd_b0_extract = workflow.add(
-            DwiExtract(in_file=dwi_raw_mif, out_file="fwd_bzero.mif.gz", bzero=True),
+            DwiExtract(in_file=dwi_raw_mif, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
             name="DwiExtract_fwd_b0",
         )
         fwd_meanb0 = workflow.add(
@@ -667,11 +667,12 @@ def DwiPreprocessing(
                 out_file="fwd_meanb0.mif.gz",
                 operation="mean",
                 axis=3,
+                config=[],
             ),
             name="MrMath_fwd_meanb0",
         )
         rpe_b0_extract = workflow.add(
-            DwiExtract(in_file=rpe_file, out_file="rpe_bzero.mif.gz", bzero=True),
+            DwiExtract(in_file=rpe_file, out_file="rpe_bzero.mif.gz", bzero=True, config=[]),
             name="DwiExtract_rpe_b0",
         )
         rpe_meanb0 = workflow.add(
@@ -680,6 +681,7 @@ def DwiPreprocessing(
                 out_file="rpe_meanb0.mif.gz",
                 operation="mean",
                 axis=3,
+                config=[],
             ),
             name="MrMath_rpe_meanb0",
         )
@@ -703,6 +705,7 @@ def DwiPreprocessing(
         DwiGradcheck(
             in_file=dwi_prepared,
             export_grad_mrtrix="DWIgradcheck_grad.txt",
+            config=[],
         )
     )
 
@@ -718,15 +721,16 @@ def DwiPreprocessing(
         MrConvert(
             in_file=dwi_prepared,
             grad=DWIgradcheck_task.export_grad_mrtrix,
+            config=[],
         ),
         name="MrConvert_grad",
     )
 
     # ── Step 3: Denoise ────────────────────────────────────────────────────────
-    dwi_denoise_task = workflow.add(DwiDenoise(dwi=DWItoMif_task.out_file))
+    dwi_denoise_task = workflow.add(DwiDenoise(dwi=DWItoMif_task.out_file, config=[]))
 
     # ── Step 4: Gibbs ringing removal ─────────────────────────────────────────
-    dwi_degibbs_task = workflow.add(MrDegibbs(in_=dwi_denoise_task.out))
+    dwi_degibbs_task = workflow.add(MrDegibbs(in_=dwi_denoise_task.out, config=[]))
 
     # ── Step 5: Early b0 brain mask (eddy_mask) ───────────────────────────────
     early_b0_task = workflow.add(
@@ -734,6 +738,7 @@ def DwiPreprocessing(
             in_file=dwi_degibbs_task.out,
             out_file="early_bzero.mif.gz",
             bzero=True,
+            config=[],
         ),
         name="DwiExtract_early",
     )
@@ -747,6 +752,7 @@ def DwiPreprocessing(
             out_file="early_meanb0.nii.gz",
             operation="mean",
             axis=3,
+            config=[],
         ),
         name="MrMath_early_meanb0",
     )
@@ -789,6 +795,7 @@ def DwiPreprocessing(
         "se_epi": se_epi_task_out if rpe_mode in ("rpe_pair", "rpe_split") else None,
         "align_seepi": rpe_mode in ("rpe_pair", "rpe_split"),
         "eddy_options": eddy_options,
+        "config": [],
     }
     if rpe_mode != "rpe_header":
         _fslpreproc_kw["pe_dir"] = pe_dir
@@ -803,6 +810,7 @@ def DwiPreprocessing(
             in_file=dwifslpreproc_task.out_file,
             out_file="preproc_bzero.mif.gz",
             bzero=True,
+            config=[],
         ),
         name="DwiExtract_preproc",
     )
@@ -816,6 +824,7 @@ def DwiPreprocessing(
             out_file="preproc_meanb0.nii.gz",
             operation="mean",
             axis=3,
+            config=[],
         ),
         name="MrMath_preproc_meanb0",
     )
@@ -830,6 +839,7 @@ def DwiPreprocessing(
             in_file=dwifslpreproc_task.out_file,
             mask=corrected_synthstrip_task.mask_file,
             bias="biasfield.mif.gz",
+            config=[],
         )
     )
 
@@ -841,6 +851,7 @@ def DwiPreprocessing(
             mask=corrected_synthstrip_task.mask_file,
             out_file="dwi_processed.mif.gz",
             uniform=-3,
+            config=[],
         ),
         name="MrGrid_crop_dwi",
     )
@@ -852,6 +863,7 @@ def DwiPreprocessing(
             out_file="dwimask_processed.mif.gz",
             interp="nearest",
             uniform=-3,
+            config=[],
         ),
         name="MrGrid_crop_mask",
     )
@@ -862,6 +874,7 @@ def DwiPreprocessing(
             in_file=crop_task_dwi.out_file,
             mask=crop_task_mask.out_file,
             voxels="voxels.mif.gz",
+            config=[],
         )
     )
 
@@ -911,16 +924,19 @@ def DwiPreprocessing(
 
 if __name__ == "__main__":
     import datetime
+    import os
 
     subject_dir = "/Users/adso8337/Desktop/5TTmsmt_testing/data/BATMAN/"
-    output_path = "/Users/adso8337/Desktop/5TTmsmt_testing/outputs/BATMAN_preproc/"
+    output_path = "/Users/adso8337/Desktop/5TTmsmt_testing/outputs/preproc/"
+
+    nthreads = max(1, (os.cpu_count() or 1) - 2)
 
     inputs = resolve_dwi_inputs(subject_dir)
     dwi_path = inputs["dwi_raw_mif"]
 
     wf = DwiPreprocessing(
         **inputs,
-        eddy_options="' --slm=linear'",
+        eddy_options=f"' --slm=linear --nthr={nthreads}'",
         fod_algorithm=detect_shell_structure(dwi_path),
         start_time=datetime.datetime.now().isoformat(timespec="seconds"),
         cache_root=output_path,
