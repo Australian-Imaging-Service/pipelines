@@ -138,6 +138,7 @@ def SingleParcellation(
                 sgm_amyg_hipp=True,
                 nocleanup=True,
                 white_stem=True,
+                config=None,
             )
         )
 
@@ -146,6 +147,7 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_hsvs.out_file,
                 # out_file="5TTvis_hsvs.mif.gz",
+                config=None,
             ),
             name="fTTvis_task_hsvs",
         )
@@ -159,6 +161,7 @@ def SingleParcellation(
                 nocrop=True,
                 sgm_amyg_hipp=True,
                 nocleanup=True,
+                config=None,
             )
         )
 
@@ -167,6 +170,7 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_freesurfer.out_file,
                 # out_file="5TTvis_freesurfer.mif.gz",
+                config=None,
             ),
             name="fTTvis_task_freesurfer",
         )
@@ -181,6 +185,7 @@ def SingleParcellation(
                 sgm_amyg_hipp=True,
                 nocleanup=True,
                 premasked=True,
+                config=None,
             )
         )
 
@@ -189,6 +194,7 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_fsl.out_file,
                 #    out_file="5TTvis_fsl.mif.gz",
+                config=None,
             ),
             name="fTTvis_task_fsl",
         )
@@ -242,7 +248,9 @@ def SingleParcellation(
                 SurfaceTransform(
                     source_subject=join_task.fsavg_dir,
                     target_subject=fastsurfer.subjects_dir_output,
-                    source_annot_file=getattr(join_task, f"source_annotation_file_{hemi}"),
+                    source_annot_file=getattr(
+                        join_task, f"source_annotation_file_{hemi}"
+                    ),
                     out_file=getattr(join_task, f"{hemi}_annotation"),
                     hemi=hemi,
                 ),
@@ -256,7 +264,9 @@ def SingleParcellation(
                 SurfaceTransform(
                     source_subject=join_task.fsavg_dir,
                     target_subject=fastsurfer.subjects_dir_output,
-                    source_annot_file=getattr(join_task, f"source_annotation_file_{hemi}"),
+                    source_annot_file=getattr(
+                        join_task, f"source_annotation_file_{hemi}"
+                    ),
                     out_file=getattr(join_task, f"{hemi}_annotation"),
                     hemi=hemi,
                 ),
@@ -330,6 +340,7 @@ def SingleParcellation(
                 lut_out=join_task.mrtrix_lut_file,
                 image_out=join_task.final_parc_image,  # type: ignore[]
                 # name="LabelConvert_task",
+                config=None,
             )
         )
 
@@ -394,6 +405,7 @@ def SingleParcellation(
                 lut_in=join_task.parc_lut_file,
                 lut_out=join_task.mrtrix_lut_file,
                 # image_out="labelconvert.mif",  # join_task.node_image,
+                config=None,
             )
         )
 
@@ -407,6 +419,7 @@ def SingleParcellation(
                 premasked=True,
                 sgm_amyg_hipp=True,
                 executable=labelsgmfirst_executable,
+                config=None,
             )
         )
 
