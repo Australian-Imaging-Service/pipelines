@@ -32,6 +32,7 @@ from fileformats.medimage_mrtrix3 import (
     ImageOut,
     Tracks,
 )  # noqa: F401
+from australianimagingservice.mri.human.neuro.dwi.dwi_preprocessing import get_eddy_nthr
 
 # Define the path and output_path variables
 output_path = "<output_path>"  # Set this to your desired output directory
@@ -772,7 +773,7 @@ def DwiPipeline(
     rpe_mode: str = "rpe_none",
     rpe_file: str | None = None,
     readout_time: float | None = None,
-    eddy_options: str = "' --slm=linear'",
+    eddy_options: str = f"' --slm=linear --nthr={get_eddy_nthr()}'",
     fod_algorithm: str = "msmt_csd",
     start_time: str = "",
     cache_root: str = "",
@@ -1350,9 +1351,10 @@ if __name__ == "__main__":
     inputs = resolve_inputs(subject_dir)
     dwi_path = inputs["dwi_raw_mif"]
 
+    nthr = get_eddy_nthr()
     wf = DwiPipeline(
         **inputs,
-        eddy_options="' --slm=linear'",
+        eddy_options=f"' --slm=linear --nthr={nthr}'",
         fod_algorithm=detect_shell_structure(dwi_path),
         start_time=datetime.datetime.now().isoformat(timespec="seconds"),
         cache_root=output_path,

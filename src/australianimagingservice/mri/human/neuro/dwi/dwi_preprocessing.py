@@ -20,7 +20,6 @@ from fileformats.medimage_mrtrix3 import (
     ImageOut,
 )  # noqa: F401
 
-
 # ── Custom shell task wrappers ─────────────────────────────────────────────────
 
 
@@ -617,6 +616,13 @@ def resolve_dwi_inputs(subject_dir: str) -> dict:
     }
 
 
+def get_eddy_nthr() -> int:
+    """Return threads to pass to eddy --nthr: all CPUs minus one, minimum 1."""
+    import os
+
+    return max(1, (os.cpu_count() or 1) - 1)
+
+
 # ── Main workflow ──────────────────────────────────────────────────────────────
 
 
@@ -636,7 +642,7 @@ def DwiPreprocessing(
     rpe_mode: str = "rpe_none",
     rpe_file: str | None = None,
     readout_time: float | None = None,
-    eddy_options: str = "' --slm=linear'",
+    eddy_options: str = f"' --slm=linear --nthr={get_eddy_nthr()}'",
     fod_algorithm: str = "msmt_csd",
     start_time: str = "",
     cache_root: str = "",
@@ -912,15 +918,15 @@ def DwiPreprocessing(
 if __name__ == "__main__":
     import datetime
 
-    subject_dir = "/Users/adso8337/Desktop/5TTmsmt_testing/data/BATMAN/"
-    output_path = "/Users/adso8337/Desktop/5TTmsmt_testing/outputs/BATMAN_preproc/"
-
+    subject_dir = "/Users/adso8337/Desktop/000044v2/Data/scans/"
+    output_path = "/Users/adso8337/Desktop/000044v2/outputs/Outputs/"
     inputs = resolve_dwi_inputs(subject_dir)
     dwi_path = inputs["dwi_raw_mif"]
 
+    nthr = get_eddy_nthr()
     wf = DwiPreprocessing(
         **inputs,
-        eddy_options="' --slm=linear'",
+        eddy_options=f"' --slm=linear --nthr={nthr}'",
         fod_algorithm=detect_shell_structure(dwi_path),
         start_time=datetime.datetime.now().isoformat(timespec="seconds"),
         cache_root=output_path,

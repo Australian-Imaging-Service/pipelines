@@ -28,7 +28,7 @@ flowchart TD
 
         RPE_CHOICE -- "rpe_all" --> DWICAT --> DWIPREPARED
         RPE_CHOICE -- "rpe_pair" --> FWD_B0EX --> FWD_MEAN --> MRCAT --> SE_EPI_PAIR
-        RPE_CHOICE -- "rpe_none /<br/>rpe_pair" --> DWIPREPARED
+        RPE_CHOICE -- "rpe_none /<br/>rpe_pair /<br/>rpe_header" --> DWIPREPARED
     end
 
     IN1 --> RPE_CHOICE
@@ -65,14 +65,14 @@ flowchart TD
     DWIPREPARED --> A
     DWIPREPARED --> GRADCHECK
     DWIPREPARED --> B
+    SE_EPI_PAIR -.->|"-se_epi (rpe_pair)"| FSL
 
     subgraph RESP["Response Function Estimation (Step 10)"]
         G --> RF["⑩ Dwi2Response_Dhollander<br/>native DWI space<br/>voxels.mif.gz"]
         H -->|"mask"| RF
         RF --> RFW(["out_sfwm<br/>response_wm"])
         RF --> RFG(["out_gm<br/>response_gm"])
-        RFC --> RFC2(["out_csf<br/>response_csf"])
-        RF --> RFC
+        RF --> RFC(["out_csf<br/>response_csf"])
     end
 
     subgraph MANIFEST["Manifest + Log"]
@@ -80,14 +80,14 @@ flowchart TD
         H --> MAN
         RFW --> MAN
         RFG --> MAN
-        RFC2 --> MAN
+        RFC --> MAN
         FOD_CHOICE --> MAN
 
         G --> LOG["WritePreprocessingLog<br/>steps · timing · RAM · warnings"]
         H --> LOG
         RFW --> LOG
         RFG --> LOG
-        RFC2 --> LOG
+        RFC --> LOG
         GRADCHECK --> LOG
     end
 
@@ -95,7 +95,7 @@ flowchart TD
     H --> OUT2([dwimask_preprocessed<br/>dwimask_processed.mif.gz])
     RFW --> OUT3([response_wm])
     RFG --> OUT4([response_gm])
-    RFC2 --> OUT5([response_csf])
+    RFC --> OUT5([response_csf])
     MAN --> OUT6([preprocessing_manifest.json<br/>→ consumed by tractography_connectomics.py])
     LOG --> OUT7([execution_log<br/>pipeline_preprocessing_log.txt])
 
