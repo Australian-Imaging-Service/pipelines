@@ -62,7 +62,7 @@ def SingleParcellation(
     labelsgmfirst_executable: str = "labelsgmfix",
     fastsurfer_nthreads: int = 24,
 ) -> tuple[
-    Mif | ImageFormatGz,
+    ImageFormatGz,
     Mif | None,
     Mif | None,
     Mif | None,
