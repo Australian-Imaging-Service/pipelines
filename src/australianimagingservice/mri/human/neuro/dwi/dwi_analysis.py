@@ -24,13 +24,10 @@ from pydra.tasks.mrtrix3.v3_1 import (
 )
 from pydra.tasks.fsl.v6 import EpiReg
 from pydra.tasks.fastsurfer.mri_synthstrip import MriSynthstrip
-from fileformats.medimage import NiftiGzXBvec, NiftiGz
 
-from fileformats.medimage_mrtrix3 import (
-    ImageFormat,
+from fileformats.vendor.mrtrix3.medimage import (
     ImageIn,
     ImageOut,
-    Tracks,
 )  # noqa: F401
 from australianimagingservice.mri.human.neuro.dwi.dwi_preprocessing import get_eddy_nthr
 
@@ -191,7 +188,6 @@ class MrCat(shell.Task):
             path_template="mrcat_out.mif.gz",
             position=3,
         )
-
 
 
 @python.define(outputs=["grad_warning"])

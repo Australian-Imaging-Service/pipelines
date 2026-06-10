@@ -16,12 +16,12 @@ from pydra.tasks.mrtrix3.v3_1 import (
     TckMap,
 )
 from pydra.tasks.fsl.v6 import EpiReg
-from fileformats.medimage_mrtrix3 import (
+from fileformats.vendor.mrtrix3.medimage import (
     ImageIn,
     ImageOut,
 )  # noqa: F401
 
-from dwi_preprocessing import MrcalcMax
+from .dwi_preprocessing import MrcalcMax
 
 # ── Custom shell task wrappers ─────────────────────────────────────────────────
 
@@ -368,7 +368,10 @@ def resolve_tractography_inputs(
     fTT_image = ftt_dir / f"5TT_{ftt_key}.mif.gz"
     fTTvis_image = ftt_dir / f"5TTvis_{ftt_key}.mif.gz"
 
-    for img, label in [(fTT_image, f"5TT_{ftt_key}.mif.gz"), (fTTvis_image, f"5TTvis_{ftt_key}.mif.gz")]:
+    for img, label in [
+        (fTT_image, f"5TT_{ftt_key}.mif.gz"),
+        (fTTvis_image, f"5TTvis_{ftt_key}.mif.gz"),
+    ]:
         if not img.exists():
             raise FileNotFoundError(f"{label} not found in {ftt_dir}")
 
@@ -391,7 +394,9 @@ def resolve_tractography_inputs(
 
     parcellations = sorted(atlases_dir.glob("Atlas_*.mif.gz"))
     if not parcellations:
-        raise FileNotFoundError(f"No Atlas_*.mif.gz parcellation images found in {atlases_dir}")
+        raise FileNotFoundError(
+            f"No Atlas_*.mif.gz parcellation images found in {atlases_dir}"
+        )
 
     print(f"  Found {len(parcellations)} parcellation image(s):")
     for p in parcellations:
