@@ -3,26 +3,47 @@ title: Phantom vial signal metrics
 version: &package_version "0.1.7"
 authors:
   - name: Arkiev D'Souza
-    email: arkiev@mq.edu.au
+    email: arkiev.dsouza@sydney.edu.au
   - name: Thomas G. Close
     email: tom.g.close@gmail.com
 docs:
   description: >-
-    Pydra workflow for processing a single GSP SPIRIT phantom MRI session.
+    End-to-end pydra workflow for processing a GSP SPIRIT or 120E phantom MRI
+    session.
 
-    Registers the phantom scan to the GSP SPIRIT template using iterative ANTs
-    SyN registration with an orientation search, extracts per-vial signal
-    statistics for all contrast images, and generates publication-quality plots.
+    Supports three processing stages:
+
+      Stage 1 — DWI preprocessing: automatic series classification and
+      phase-encoding correction mode selection (rpe_none, rpe_pair, rpe_all,
+      rpe_split), FSL dwifslpreproc, DWI bias correction, tensor fitting to
+      produce ADC and FA maps, and T1-to-DWI coregistration via FLIRT.
+
+      Stage 2 — Phantom QC in DWI space: iterative ANTs rigid registration of
+      the T1 (in DWI space) to the phantom template, inverse transform of vial
+      segmentations into DWI space, and per-vial ADC and FA metric extraction.
+
+      Stage 3 — Native contrast QC: registration of the T1 to the phantom
+      template, inverse transform of vial segmentations, and per-vial metric
+      extraction across all contrast images (T1, IR, TE). Generates
+      publication-quality scatter plots and parametric map plots.
+
+    All stages are invoked from a single command pointing at a DICOM session
+    directory; series classification and preprocessing mode selection are fully
+    automatic.
   info_url: https://github.com/Australian-Imaging-Service/phantomkit
 packages:
   pip:
-    phantomkit:
-    pydra: 1.0a8
+    phantomkit: *package_version
+    pydra: 1.0a9
   neurodocker:
     dcm2niix: v1.0.20240202
     mrtrix3: 3.0.4
     ants: 2.6.2
+    fsl: 6.0.7.9
 commands:
   all_metrics:
     operates_on: medimage/session
     task: phantomkit.analyses.vial_signal:VialSignalAnalysis
+  pipeline:
+    operates_on: medimage/session
+    task: phantomkit.pipeline:run_pipeline
