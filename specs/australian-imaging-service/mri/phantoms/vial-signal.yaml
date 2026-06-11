@@ -16,13 +16,13 @@ docs:
   info_url: https://github.com/Australian-Imaging-Service/phantomkit
 packages:
   pip:
-    phantomkit: *package_version
-    pydra: 1.0a7
+    phantomkit:
+    pydra: 1.0a8
   neurodocker:
     dcm2niix: v1.0.20240202
-    mrtrix3: 3.0.2
+    mrtrix3: 3.0.4
     ants: 2.6.2
 commands:
   all_metrics:
     operates_on: medimage/session
-    task: phantomkit.protocols.vial_signal:VialSignalAnalysis
+    task: phantomkit.analyses.vial_signal:VialSignalAnalysis
