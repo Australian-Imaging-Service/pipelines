@@ -17,11 +17,12 @@ from pydra.tasks.mrtrix3.v3_1 import (
 )
 from fileformats.generic import Directory, File
 from fileformats.medimage import NiftiGz
-from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
+from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif, ImageFormatGz
 from pydra.environments.docker import Docker
 from pydra.environments.native import Native
 from pydra.tasks.fastsurfer.latest import Fastsurfer
 from .helpers import JoinTaskCatalogue
+from .mri_synthstrip import MriSynthstrip
 
 # from pydra.engine.task import FunctionTask
 # from pydra.engine.specs import BaseSpec
@@ -54,13 +55,14 @@ def SingleParcellation(
     mrtrix_lut_dir: Directory,
     fs_license: File,
     subjects_dir: Path,
+    resources_dir: Path,
     in_fastsurfer_container: bool = False,
     fastsurfer_python: str = "python3",
     fastsurfer_batch: int = 16,
-    labelsgmfirst_executable: str = "labelsgmfirst",
+    labelsgmfirst_executable: str = "labelsgmfix",
     fastsurfer_nthreads: int = 24,
 ) -> tuple[
-    Mif,
+    ImageFormatGz,
     Mif | None,
     Mif | None,
     Mif | None,
@@ -116,8 +118,8 @@ def SingleParcellation(
     if in_fastsurfer_container:
         fastsurfer.inputs.py = "/venv/bin/python"
         fastsurfer.inputs.executable = "/fastsurfer/run_fastsurfer.sh"
-    # else:
-    #     fastsurfer.inputs.py = fastsurfer_python
+    else:
+        fastsurfer.inputs.py = "/venv/bin/python"
 
     # #################################################
     # # FIVE TISSUE TYPE Generation and visualisation #
@@ -136,6 +138,7 @@ def SingleParcellation(
                 sgm_amyg_hipp=True,
                 nocleanup=True,
                 white_stem=True,
+                config=None,
             )
         )
 
@@ -144,6 +147,7 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_hsvs.out_file,
                 # out_file="5TTvis_hsvs.mif.gz",
+                config=None,
             ),
             name="fTTvis_task_hsvs",
         )
@@ -157,6 +161,7 @@ def SingleParcellation(
                 nocrop=True,
                 sgm_amyg_hipp=True,
                 nocleanup=True,
+                config=None,
             )
         )
 
@@ -165,6 +170,7 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_freesurfer.out_file,
                 # out_file="5TTvis_freesurfer.mif.gz",
+                config=None,
             ),
             name="fTTvis_task_freesurfer",
         )
@@ -179,6 +185,7 @@ def SingleParcellation(
                 sgm_amyg_hipp=True,
                 nocleanup=True,
                 premasked=True,
+                config=None,
             )
         )
 
@@ -187,6 +194,7 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_fsl.out_file,
                 #    out_file="5TTvis_fsl.mif.gz",
+                config=None,
             ),
             name="fTTvis_task_fsl",
         )
@@ -214,7 +222,7 @@ def SingleParcellation(
             parcellation=parcellation,
             freesurfer_home=freesurfer_home,
             mrtrix_lut_dir=mrtrix_lut_dir,
-            # output_path=output_path,
+            resources_dir=resources_dir,
         )  # pyright: ignore[reportArgumentType]
     )
 
@@ -240,7 +248,9 @@ def SingleParcellation(
                 SurfaceTransform(
                     source_subject=join_task.fsavg_dir,
                     target_subject=fastsurfer.subjects_dir_output,
-                    source_file=getattr(join_task, f"source_annotation_file_{hemi}"),
+                    source_annot_file=getattr(
+                        join_task, f"source_annotation_file_{hemi}"
+                    ),
                     out_file=getattr(join_task, f"{hemi}_annotation"),
                     hemi=hemi,
                 ),
@@ -254,7 +264,9 @@ def SingleParcellation(
                 SurfaceTransform(
                     source_subject=join_task.fsavg_dir,
                     target_subject=fastsurfer.subjects_dir_output,
-                    source_file=getattr(join_task, f"source_annotation_file_{hemi}"),
+                    source_annot_file=getattr(
+                        join_task, f"source_annotation_file_{hemi}"
+                    ),
                     out_file=getattr(join_task, f"{hemi}_annotation"),
                     hemi=hemi,
                 ),
@@ -278,7 +290,8 @@ def SingleParcellation(
 
         mri_a2a_task_v2atlas = workflow.add(
             Aparc2Aseg(
-                subject_id=join_task.fsavg_dir,  # create dependency on lh and rh annot files having been created
+                subject_id=fastsurfer.subjects_dir_output,
+                annot=join_task.annot_short,
                 volmask=True,  # same as --new-ribbon
                 lh_annotation=mri_s2s_task1_v2atlas.out_file,
                 rh_annotation=mri_s2s_task2_v2atlas.out_file,
@@ -327,6 +340,7 @@ def SingleParcellation(
                 lut_out=join_task.mrtrix_lut_file,
                 image_out=join_task.final_parc_image,  # type: ignore[]
                 # name="LabelConvert_task",
+                config=None,
             )
         )
 
@@ -341,42 +355,31 @@ def SingleParcellation(
 
     volfile = join_task.output_parcellation_filename
 
-    mri_s2s_task_originals = {}
-
     if parcellation in ["hcpmmp1", "Yeo17", "Yeo7"]:
         ##################################
         # mri_surf2surf task - lh and rh #
         ##################################
-        hemispheres = ["lh"]
-        for hemi in hemispheres:
-            mri_s2s_task_originals_lh = workflow.add(
-                SurfaceSmooth(
-                    source_subject=join_task.fsavg_dir,
-                    target_subject=fastsurfer.subjects_dir_output,  # FS_dir,
-                    source_annot_file=getattr(
-                        join_task, f"source_annotation_file_{hemi}"
-                    ),
-                    out_file=getattr(join_task, f"{hemi}_annotation"),
-                    hemi=hemi,
-                ),
-                name="mri_s2s_task_originals_lh",
-            )
+        mri_s2s_task_originals_lh = workflow.add(
+            SurfaceTransform(
+                source_subject=join_task.fsavg_dir,
+                target_subject=fastsurfer.subjects_dir_output,
+                source_annot_file=join_task.source_annotation_file_lh,
+                out_file=join_task.lh_annotation,
+                hemi="lh",
+            ),
+            name="mri_s2s_task_originals_lh",
+        )
 
-        hemispheres = ["rh"]
-        mri_s2s_task_originals = {}
-        for hemi in hemispheres:
-            mri_s2s_task_originals_rh = workflow.add(
-                SurfaceSmooth(
-                    source_subject=join_task.fsavg_dir,
-                    target_subject=fastsurfer.subjects_dir_output,  # FS_dir,
-                    source_annot_file=getattr(
-                        join_task, f"source_annotation_file_{hemi}"
-                    ),
-                    out_file=getattr(join_task, f"{hemi}_annotation"),
-                    hemi=hemi,
-                ),
-                name="mri_s2s_task_originals_rh",
-            )
+        mri_s2s_task_originals_rh = workflow.add(
+            SurfaceTransform(
+                source_subject=join_task.fsavg_dir,
+                target_subject=fastsurfer.subjects_dir_output,
+                source_annot_file=join_task.source_annotation_file_rh,
+                out_file=join_task.rh_annotation,
+                hemi="rh",
+            ),
+            name="mri_s2s_task_originals_rh",
+        )
 
         # ########################
         # # mri_aparc2aseg task  #
@@ -384,14 +387,15 @@ def SingleParcellation(
 
         mri_a2a_task_originals = workflow.add(
             Aparc2Aseg(
-                subject_id=mri_s2s_task_originals["rh"].target_subject_id,  # FS_dir,
-                old_ribbon=True,
+                subject_id=fastsurfer.subjects_dir_output,
+                annot=join_task.annot_short,
+                volmask=True,
                 lh_annotation=mri_s2s_task_originals_lh.out_file,
                 rh_annotation=mri_s2s_task_originals_rh.out_file,
             )
         )
 
-        volfile = mri_a2a_task_originals.volfile
+        volfile = mri_a2a_task_originals.out_file
 
     if parcellation in ["destrieux", "desikan", "hcpmmp1", "Yeo17", "Yeo7"]:
         # relabel segmenetation to integers
@@ -401,6 +405,7 @@ def SingleParcellation(
                 lut_in=join_task.parc_lut_file,
                 lut_out=join_task.mrtrix_lut_file,
                 # image_out="labelconvert.mif",  # join_task.node_image,
+                config=None,
             )
         )
 
@@ -414,12 +419,13 @@ def SingleParcellation(
                 premasked=True,
                 sgm_amyg_hipp=True,
                 executable=labelsgmfirst_executable,
+                config=None,
             )
         )
 
         return_image = sgm_first.out_file
-    else:
-        return_image = volfile
+    # v2atlas parcellations (schaefer/aparc/vosdewael/economo/glasser360) have return_image
+    # set to LabelConvert_task.image_out above — no else branch needed here
 
     return (
         return_image,
