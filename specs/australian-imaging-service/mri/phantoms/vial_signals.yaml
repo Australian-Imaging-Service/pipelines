@@ -1,6 +1,6 @@
 schema_version: '2.0'
-title: GSP-Spirit-Analysis
-version: &package_version "0.1.0"
+title: Phantom vial signal metrics
+version: &package_version "0.1.7"
 authors:
   - name: Arkiev D'Souza
     email: arkiev@mq.edu.au
@@ -23,8 +23,6 @@ packages:
     mrtrix3: 3.0.2
     ants: 2.6.2
 commands:
-  gsp_spirit:
+  all_metrics:
     operates_on: medimage/session
-    task:
-      type: python
-      function: phantomkit.protocols.gsp_spirit:GspSpiritAnalysis
+    task: phantomkit.protocols.vial_signal:VialSignalAnalysis
