@@ -88,12 +88,13 @@ commands:
         help: "Number of threads to use for FastSurfer inference"
         default: 24
     configuration: # Additional args passed to arcana.common:shell_cmd
-      mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert
+      mrtrix_lut_dir: /ais_resources/neuro-parcellations
       freesurfer_home: &freesurfer_home !join ["/opt/freesurfer-", *freesurfer_version]
       fs_license: *freesurfer_license
       subjects_dir: /work/subjects
       in_fastsurfer_container: true
       labelsgmfirst_executable: labelsgmfix
+      resources_dir: /ais_resources
   all_parcs:
     task: australianimagingservice.mri.human.neuro.t1w.preprocess:AllParcellations
     operates_on: medimage/session
@@ -111,16 +112,17 @@ commands:
         help: "Number of threads to use for FastSurfer inference"
         default: 24
     configuration: # Additional args passed to arcana.common:shell_cmd
-      mrtrix_lut_dir: /parcellations # /opt/mrtrix3-3.0.2/share/mrtrix3/labelconvert ## should this be 
-      freesurfer_home: *freesurfer_home ## freesurfer_home: *freesurfer_home
+      mrtrix_lut_dir: /ais_resources/neuro-parcellations
+      freesurfer_home: *freesurfer_home
       fs_license: *freesurfer_license
       subjects_dir: /work/subjects
       in_fastsurfer_container: true
       labelsgmfirst_executable: labelsgmfix
+      resources_dir: /ais_resources
 resources:
-  neuro-parcellations: /parcellations
-  yeo2011-parcellations: !join [*freesurfer_home, "/Yeo2011"]
-  mica-mni-parcellations: !join [*freesurfer_home, "/MICA_MNI_parcellations"]
-  mica-mni-surfaces: !join [*freesurfer_home, "/MICA_MNI_surfaces"]
-  hcpmmp1-parcellations: !join [*freesurfer_home, "/HCPMMP1"]
+  neuro-parcellations: /ais_resources/neuro-parcellations
+  yeo2011-parcellations: /ais_resources/yeo2011-parcellations
+  mica-mni-parcellations: /ais_resources/mica-mni-parcellations
+  mica-mni-surfaces: /ais_resources/mica-mni-surfaces
+  hcpmmp1-parcellations: /ais_resources/hcpmmp1-parcellations
   fastsurfer: /fastsurfer-run
