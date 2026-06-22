@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "australianimagingservice"
 description = "Analysis pipelines library of the Australian Imaging Service"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
     "fileformats",
     "fileformats-medimage-extras",
