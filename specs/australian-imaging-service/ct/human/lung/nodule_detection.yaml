@@ -16,15 +16,15 @@ docs:
     User-facing description goes here
   info_url: https://github.com/Project-MONAI/model-zoo
 packages:
-  system:
+  # system:
     # - libglib2.0-0  # Replace with any required packages
   # conda:
   #   tesseract: 5.5.0
   pip:
-    pydra-compose-monai: 
-    nibabel: "5.2.1",
-    pytorch-ignite: "0.4.11",
-    torchvision: "0.19.0",
+    pydra-compose-monai: 0.1.1
+    nibabel: "5.2.1"
+    pytorch-ignite: "0.4.11"
+    torchvision: "0.19.0"
     tensorboard: "2.17.0"
     torch: 2.4.0
     numpy: 1.24.4
