@@ -1,0 +1,37 @@
+schema_version: '2.0'
+title: CT Lung nodule detection
+version: "0.6.10"
+# base_image:
+#   # Chose a NeuroDesk FSL container as the base
+#   name: deepmi/fastsurfer
+#   package_manager: apt # It is not obvious from the base image what the package manager is
+#   tag: gpu-latest
+authors:
+  - name: Gary S. Browne
+    email: gary.browne@sydney.edu.au
+  - name: Thomas G. Close
+    email: tom.g.close@gmail.com
+docs:
+  description: >-
+    User-facing description goes here
+  info_url: https://github.com/Project-MONAI/model-zoo
+packages:
+  system:
+    # - libglib2.0-0  # Replace with any required packages
+  # conda:
+  #   tesseract: 5.5.0
+  pip:
+    pydra-compose-monai: 
+    nibabel: "5.2.1",
+    pytorch-ignite: "0.4.11",
+    torchvision: "0.19.0",
+    tensorboard: "2.17.0"
+    torch: 2.4.0
+    numpy: 1.24.4
+    monai: 1.4.0
+commands:
+  nodule-detection:
+    operates_on: medimage/session
+    task:
+      type: monai
+      bundle: lung_nodule_ct_detection
