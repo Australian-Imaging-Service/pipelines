@@ -138,7 +138,7 @@ def SingleParcellation(
                 sgm_amyg_hipp=True,
                 nocleanup=True,
                 white_stem=True,
-                config=None,
+                config=[],
             )
         )
 
@@ -147,7 +147,7 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_hsvs.out_file,
                 # out_file="5TTvis_hsvs.mif.gz",
-                config=None,
+                config=[],
             ),
             name="fTTvis_task_hsvs",
         )
@@ -161,7 +161,7 @@ def SingleParcellation(
                 nocrop=True,
                 sgm_amyg_hipp=True,
                 nocleanup=True,
-                config=None,
+                config=[],
             )
         )
 
@@ -170,7 +170,7 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_freesurfer.out_file,
                 # out_file="5TTvis_freesurfer.mif.gz",
-                config=None,
+                config=[],
             ),
             name="fTTvis_task_freesurfer",
         )
@@ -185,7 +185,7 @@ def SingleParcellation(
                 sgm_amyg_hipp=True,
                 nocleanup=True,
                 premasked=True,
-                config=None,
+                config=[],
             )
         )
 
@@ -194,7 +194,7 @@ def SingleParcellation(
             Fivett2Vis(
                 in_file=fTTgen_task_fsl.out_file,
                 #    out_file="5TTvis_fsl.mif.gz",
-                config=None,
+                config=[],
             ),
             name="fTTvis_task_fsl",
         )
@@ -253,6 +253,10 @@ def SingleParcellation(
                     ),
                     out_file=getattr(join_task, f"{hemi}_annotation"),
                     hemi=hemi,
+                    source_file=None,
+                    source_type=None,
+                    target_ico_order=None,
+                    target_type=None,
                 ),
                 name="mri_s2s_task_lh",
             )
@@ -269,6 +273,10 @@ def SingleParcellation(
                     ),
                     out_file=getattr(join_task, f"{hemi}_annotation"),
                     hemi=hemi,
+                    source_file=None,
+                    source_type=None,
+                    target_ico_order=None,
+                    target_type=None,
                 ),
                 name="mri_s2s_task_rh",
             )
@@ -291,7 +299,6 @@ def SingleParcellation(
         mri_a2a_task_v2atlas = workflow.add(
             Aparc2Aseg(
                 subject_id=fastsurfer.subjects_dir_output,
-                annot=join_task.annot_short,
                 volmask=True,  # same as --new-ribbon
                 lh_annotation=mri_s2s_task1_v2atlas.out_file,
                 rh_annotation=mri_s2s_task2_v2atlas.out_file,
@@ -340,7 +347,7 @@ def SingleParcellation(
                 lut_out=join_task.mrtrix_lut_file,
                 image_out=join_task.final_parc_image,  # type: ignore[]
                 # name="LabelConvert_task",
-                config=None,
+                config=[],
             )
         )
 
@@ -366,6 +373,10 @@ def SingleParcellation(
                 source_annot_file=join_task.source_annotation_file_lh,
                 out_file=join_task.lh_annotation,
                 hemi="lh",
+                source_file=None,
+                source_type=None,
+                target_ico_order=None,
+                target_type=None,
             ),
             name="mri_s2s_task_originals_lh",
         )
@@ -377,6 +388,10 @@ def SingleParcellation(
                 source_annot_file=join_task.source_annotation_file_rh,
                 out_file=join_task.rh_annotation,
                 hemi="rh",
+                source_file=None,
+                source_type=None,
+                target_ico_order=None,
+                target_type=None,
             ),
             name="mri_s2s_task_originals_rh",
         )
@@ -388,7 +403,6 @@ def SingleParcellation(
         mri_a2a_task_originals = workflow.add(
             Aparc2Aseg(
                 subject_id=fastsurfer.subjects_dir_output,
-                annot=join_task.annot_short,
                 volmask=True,
                 lh_annotation=mri_s2s_task_originals_lh.out_file,
                 rh_annotation=mri_s2s_task_originals_rh.out_file,
@@ -405,7 +419,7 @@ def SingleParcellation(
                 lut_in=join_task.parc_lut_file,
                 lut_out=join_task.mrtrix_lut_file,
                 # image_out="labelconvert.mif",  # join_task.node_image,
-                config=None,
+                config=[],
             )
         )
 
@@ -419,7 +433,7 @@ def SingleParcellation(
                 premasked=True,
                 sgm_amyg_hipp=True,
                 executable=labelsgmfirst_executable,
-                config=None,
+                config=[],
             )
         )
 

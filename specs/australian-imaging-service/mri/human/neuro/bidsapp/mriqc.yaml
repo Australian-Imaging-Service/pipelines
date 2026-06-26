@@ -21,7 +21,11 @@ packages:
     - pydra-compose-bidsapp
   neurodocker:
     dcm2niix: v1.0.20250506
-    mrtrix3: "3.0.4"
+    mrtrix3:
+      version: "3.0.4"
+      args:
+        method: source
+        build_processes: "4"
 commands:
   mriqc:
     operates_on: medimage/session

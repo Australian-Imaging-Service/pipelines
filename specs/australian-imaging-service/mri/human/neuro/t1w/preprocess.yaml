@@ -7,40 +7,45 @@ base_image:
   package_manager: apt # It is not obvious from the base image what the package manager is
   tag: gpu-latest
 packages:
+  conda:
+    pip:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
+    setuptools:
     pydra: 1.0a9
     pydra-tasks-mrtrix3:
-    pydra-tasks-fsl: 0.3.1
+    pydra-tasks-fsl:
     fileformats:
     pydra-tasks-fastsurfer:
     fileformats-medimage-extras:
     fileformats-vendor-mrtrix3:
-    fileformats-vendor-mrtrix3-extras:
     pydra2app:
     frametree:
     frametree-xnat:
     australianimagingservice:
   neurodocker:
     dcm2niix: v1.0.20250506
-    mrtrix3: 3.0.4
+    mrtrix3:
+      version: "3.0.4"
+      args:
+        method: source
+        build_processes: "4"
     freesurfer:
       version: &freesurfer_version 7.4.1
       args:
-        exclude_paths:
-          - average/mult-comp-cor
-          - lib/cuda
-          - lib/qt
-          - subjects/V1_average
-          - subjects/bert
-          - subjects/cvs_avg35
-          - subjects/cvs_avg35_inMNI152
-          - subjects/fsaverage3
-          - subjects/fsaverage4
-          # - subjects/fsaverage5
-          - subjects/fsaverage6
-          - subjects/fsaverage_sym
-          - trctrain
+        exclude_paths: |
+          average/mult-comp-cor
+          lib/cuda
+          lib/qt
+          subjects/V1_average
+          subjects/bert
+          subjects/cvs_avg35
+          subjects/cvs_avg35_inMNI152
+          subjects/fsaverage3
+          subjects/fsaverage4
+          subjects/fsaverage6
+          subjects/fsaverage_sym
+          trctrain
     fsl: 6.0.5.1
 authors:
   # Authors of the pipeline. The first email will be considered to be the maintainer of
