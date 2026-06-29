@@ -12,6 +12,7 @@ packages:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
     setuptools:
+    simplejson:
     pydra: 1.0a9
     pydra-tasks-mrtrix3:
     pydra-tasks-fsl:
