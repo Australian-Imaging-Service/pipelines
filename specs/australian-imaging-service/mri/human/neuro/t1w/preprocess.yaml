@@ -13,6 +13,11 @@ packages:
   pip:
     setuptools:
     simplejson:
+    acres:
+    looseversion:
+    fileformats-datascience:
+    fileformats-medimage:
+    fileformats-vendor-fsl:
     pydra: 1.0a9
     pydra-tasks-mrtrix3:
     pydra-tasks-fsl:
