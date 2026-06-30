@@ -302,6 +302,7 @@ def SingleParcellation(
                 volmask=True,  # same as --new-ribbon
                 lh_annotation=mri_s2s_task1_v2atlas.out_file,
                 rh_annotation=mri_s2s_task2_v2atlas.out_file,
+                out_file=join_task.output_parcellation_filename,
             ),
             name="mri_a2a_task_v2atlasprocessing",
         )
@@ -406,6 +407,7 @@ def SingleParcellation(
                 volmask=True,
                 lh_annotation=mri_s2s_task_originals_lh.out_file,
                 rh_annotation=mri_s2s_task_originals_rh.out_file,
+                out_file=join_task.output_parcellation_filename,
             )
         )
 
