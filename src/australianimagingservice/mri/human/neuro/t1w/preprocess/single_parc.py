@@ -428,7 +428,7 @@ def SingleParcellation(
                 parc=LabelConvert_task_originals.image_out,
                 t1=join_task.normimg_path,
                 lut=join_task.mrtrix_lut_file,
-                # out_file=join_task.final_parc_image,
+                out_file=join_task.final_parc_image,
                 nocleanup=True,
                 premasked=True,
                 sgm_amyg_hipp=True,
