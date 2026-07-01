@@ -24,8 +24,6 @@ packages:
     fileformats:
     pydra-tasks-fastsurfer:
     fileformats-medimage-extras:
-    fileformats-vendor-freesurfer:
-    pydra-tasks-freesurfer:
     pydra2app:
     frametree:
     frametree-xnat:
