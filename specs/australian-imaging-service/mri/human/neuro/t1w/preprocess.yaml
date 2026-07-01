@@ -23,7 +23,7 @@ packages:
     pydra-tasks-fsl:
     fileformats:
     pydra-tasks-fastsurfer:
-    pydra-tasks-freesurfer: ">=0.3.0"
+    pydra-tasks-freesurfer: 0.3.0
     fileformats-medimage-extras:
     pydra2app:
     frametree:
