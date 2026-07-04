@@ -45,6 +45,9 @@ test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>
 repository = "https://github.com/Australian-Imaging-Service/pipelines"
 
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.version]
 source = "vcs"
 
