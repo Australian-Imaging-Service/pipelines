@@ -1,4 +1,6 @@
 import logging
+import sys
+import attrs
 
 from pydra.compose import workflow
 from pydra.tasks.fsl.v6 import Reorient2Std, Threshold
@@ -7,6 +9,24 @@ from pydra.tasks.freesurfer.v8 import (
     Label2Vol,
     Aparc2Aseg,
 )
+
+
+def _patch_string_formatters(cls: type) -> None:
+    # pydra-tasks-freesurfer PyPI 0.3.0 stores formatter names as strings
+    # (e.g. formatter="aseg_formatter"). pydra 1.0a9 requires callables.
+    # This resolves each string to the actual function from the defining module.
+    module = sys.modules.get(cls.__module__)
+    if module is None:
+        return
+    for f in attrs.fields(cls):
+        meta = f.metadata.get("__PYDRA_METADATA__")
+        if meta is not None and isinstance(getattr(meta, "formatter", None), str):
+            func = getattr(module, meta.formatter, None)
+            if func is not None:
+                meta.formatter = func
+
+
+_patch_string_formatters(Aparc2Aseg)
 from pydra.tasks.mrtrix3.v3_1 import (
     LabelConvert,
     Fivett2Vis,
