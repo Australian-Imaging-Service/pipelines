@@ -12,7 +12,7 @@ dependencies = [
     "fileformats-medimage-extras",
     "pydra ==1.0a9",
     "pydra-tasks-fastsurfer >=0.2.2",
-    "pydra-tasks-freesurfer @ git+https://github.com/arkiev/pydra-freesurfer.git@7987d20",
+    "pydra-tasks-freesurfer @ git+https://github.com/arkiev/pydra-freesurfer.git@be8fc8f",
     "pydra-tasks-fsl",
     "pydra-tasks-mrtrix3 >=3.1.0a1",
 ]
