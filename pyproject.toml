@@ -13,7 +13,7 @@ dependencies = [
     "pydra ==1.0a9",
     "pydra-tasks-fastsurfer >=0.2.2",
     "pydra-tasks-freesurfer @ git+https://github.com/arkiev/pydra-freesurfer.git@be8fc8f",
-    "pydra-tasks-fsl",
+    "pydra-tasks-fsl @ git+https://github.com/arkiev/pydra-tasks-fsl.git@c0eda08",
     "pydra-tasks-mrtrix3 >=3.1.0a1",
 ]
 license = "CC-BY-4.0"
