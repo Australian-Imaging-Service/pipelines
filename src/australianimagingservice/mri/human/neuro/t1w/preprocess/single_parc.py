@@ -299,6 +299,7 @@ def SingleParcellation(
         mri_a2a_task_v2atlas = workflow.add(
             Aparc2Aseg(
                 subject_id=fastsurfer.subjects_dir_output,
+                annot=join_task.annot_short,
                 volmask=True,  # same as --new-ribbon
                 lh_annotation=mri_s2s_task1_v2atlas.out_file,
                 rh_annotation=mri_s2s_task2_v2atlas.out_file,
@@ -404,6 +405,7 @@ def SingleParcellation(
         mri_a2a_task_originals = workflow.add(
             Aparc2Aseg(
                 subject_id=fastsurfer.subjects_dir_output,
+                annot=join_task.annot_short,
                 volmask=True,
                 lh_annotation=mri_s2s_task_originals_lh.out_file,
                 rh_annotation=mri_s2s_task_originals_rh.out_file,
