@@ -637,10 +637,11 @@ def get_eddy_nthr() -> int:
     ]
 )
 def DwiPreprocessing(
-    dwi_raw_mif: File,
+    dwi_raw_mif: ImageIn,
     pe_dir: str = "AP",
     rpe_mode: str = "rpe_none",
-    rpe_file: str | None = None,
+    rpe_file: ImageIn | None = None,
+    json_import: File | None = None,
     readout_time: float | None = None,
     eddy_options: str = f"' --slm=linear --nthr={get_eddy_nthr()}'",
     fod_algorithm: str = "msmt_csd",
@@ -648,13 +649,26 @@ def DwiPreprocessing(
     cache_root: str = "",
 ) -> tuple[File, File, File, File, File, str]:
 
+    # ── Step 0: Normalise input to MIF ────────────────────────────────────────
+    # Accepts .mif, .mif.gz, .nii, .nii.gz (+ JSON sidecar), or DICOM.
+    # Embeds PE direction and gradient metadata from DICOM headers or the JSON
+    # sidecar so every downstream tool can read it from the MIF header.
+    input_to_mif = workflow.add(
+        MrConvert(
+            in_file=dwi_raw_mif,
+            json_import=json_import,
+            config=[],
+        ),
+        name="MrConvert_to_mif",
+    )
+
     # ── AP/PA preparation ──────────────────────────────────────────────────────
     se_epi_task_out = None
 
     if rpe_mode == "rpe_all":
         dwicat_task = workflow.add(
             DwiCat(
-                in_file1=dwi_raw_mif,
+                in_file1=input_to_mif.out_file,
                 in_file2=rpe_file,
                 out_file="dwi_AP_PA_concat.mif.gz",
             ),
@@ -664,7 +678,7 @@ def DwiPreprocessing(
 
     elif rpe_mode == "rpe_pair":
         fwd_b0_extract = workflow.add(
-            DwiExtract(in_file=dwi_raw_mif, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
+            DwiExtract(in_file=input_to_mif.out_file, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
             name="DwiExtract_fwd_b0",
         )
         fwd_meanb0 = workflow.add(
@@ -701,10 +715,10 @@ def DwiPreprocessing(
             name="MrCat_se_epi",
         )
         se_epi_task_out = se_epi_task.out_file
-        dwi_prepared = dwi_raw_mif
+        dwi_prepared = input_to_mif.out_file
 
     else:
-        dwi_prepared = dwi_raw_mif
+        dwi_prepared = input_to_mif.out_file
 
     # ── Step 1: Gradient check ─────────────────────────────────────────────────
     DWIgradcheck_task = workflow.add(

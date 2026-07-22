@@ -451,11 +451,11 @@ def Tractography(
     join_task = workflow.add(JoinTask(FS_dir=FS_dir))
 
     nifti_t1brain = workflow.add(
-        MrConvert(in_file=join_task.t1brain_FSpath, out_file="t1brain.nii.gz"),
+        MrConvert(in_file=join_task.t1brain_FSpath, out_file="t1brain.nii.gz", config=[]),
         name="MrConvert_t1brain",
     )
     nifti_normimg = workflow.add(
-        MrConvert(in_file=join_task.normimg_FSpath, out_file="normimg.nii.gz"),
+        MrConvert(in_file=join_task.normimg_FSpath, out_file="normimg.nii.gz", config=[]),
         name="MrConvert_normimg",
     )
 
@@ -465,6 +465,7 @@ def Tractography(
             in_file=dwi_preprocessed,
             out_file="bzero.mif.gz",
             bzero=True,
+            config=[],
         )
     )
     mrcalc_max = workflow.add(
@@ -481,6 +482,7 @@ def Tractography(
             out_file="dwi_meanbzero.nii.gz",
             operation="mean",
             axis=3,
+            config=[],
         )
     )
 
@@ -513,6 +515,7 @@ def Tractography(
             flirt_ref=nifti_t1brain.out_file,
             operation="flirt_import",
             out_file="epi2struct_mrtrix.txt",
+            config=[],
         )
     )
 
@@ -526,6 +529,7 @@ def Tractography(
             template=fTTvis_image_T1space,
             strides=fTTvis_image_T1space,
             reorient_fod="no",
+            config=[],
         ),
         name="MrTransform_dwi",
     )
@@ -540,6 +544,7 @@ def Tractography(
             template=fTTvis_image_T1space,
             strides=fTTvis_image_T1space,
             reorient_fod="no",
+            config=[],
         ),
         name="MrTransform_mask",
     )
@@ -568,6 +573,7 @@ def Tractography(
                 response_wm=response_wm,
                 response_gm=response_gm,
                 response_csf=response_csf,
+                config=[],
             ),
             name="GenFod_T1space",
         )
@@ -585,6 +591,7 @@ def Tractography(
             fod_wm_norm="wmfod_norm.mif.gz",
             fod_gm_norm="gmfod_norm.mif.gz",
             fod_csf_norm="csffod_norm.mif.gz",
+            config=[],
         )
     )
 
@@ -602,6 +609,7 @@ def Tractography(
             crop_at_gmwmi=True,
             cutoff=0.06,
             seeds=0,
+            config=[],
         )
     )
 
@@ -612,6 +620,7 @@ def Tractography(
             in_fod=NormFod_task.fod_wm_norm,
             act=fTT_image_T1space,
             out_mu="mu.txt",
+            config=[],
         )
     )
 
@@ -623,6 +632,7 @@ def Tractography(
             vox=1,
             template=fTT_image_T1space,
             out_file="TDI.mif.gz",
+            config=[],
         ),
         name="TckMap_TDI",
     )
@@ -635,6 +645,7 @@ def Tractography(
             template=fTT_image_T1space,
             dec=True,
             out_file="DECTDI.mif.gz",
+            config=[],
         ),
         name="TckMap_DECTDI",
     )
@@ -688,6 +699,7 @@ def Connectomics(
             nodes_in=parcellation_image_T1space,
             symmetric=True,
             zero_diagonal=True,
+            config=[],
         )
     )
 

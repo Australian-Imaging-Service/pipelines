@@ -1,0 +1,145 @@
+title: "DWI Tractography and Connectomics"
+schema_version: "2.0"
+version: "0.1.0"
+base_image:
+  name: ubuntu
+  tag: "22.04"
+  package_manager: apt
+packages:
+  pip:
+    setuptools:
+    simplejson:
+    acres:
+    looseversion:
+    fileformats-datascience:
+    fileformats-medimage:
+    fileformats-vendor-fsl:
+    fileformats-vendor-mrtrix3:
+    pydra: 1.0a9
+    pydra-tasks-mrtrix3:
+    pydra-tasks-fsl:
+    fileformats:
+    pydra2app:
+    frametree:
+    frametree-xnat:
+    australianimagingservice:
+    fileformats-medimage-extras:
+  neurodocker:
+    dcm2niix: v1.0.20250506
+    mrtrix3:
+      version: "3.0.4"
+      args:
+        method: source
+        build_processes: "4"
+    freesurfer:
+      version: &freesurfer_version 7.4.1
+      args:
+        exclude_paths: |
+          average/mult-comp-cor
+          lib/cuda
+          lib/qt
+          subjects/V1_average
+          subjects/bert
+          subjects/cvs_avg35
+          subjects/cvs_avg35_inMNI152
+          subjects/fsaverage3
+          subjects/fsaverage4
+          subjects/fsaverage6
+          subjects/fsaverage_sym
+          trctrain
+    fsl: 6.0.5.1
+authors:
+  - name: Arkiev D'Souza
+    email: arkiev.dsouza@sydney.edu.au
+  - name: Thomas G. Close
+    email: thomas.close@sydney.edu.au
+docs:
+  info_url: "https://placeholder.org"
+  description: |
+    DWI-to-T1 registration, FOD estimation (msmt_csd or ss3t), multi-tissue FOD
+    normalisation, probabilistic tractography (iFOD2 + ACT), SIFT2 weight
+    optimisation, and structural connectivity matrix generation. Requires outputs
+    from the DWI preprocessing pipeline and the T1 preprocessing pipeline.
+commands:
+  tractography:
+    task: australianimagingservice.mri.human.neuro.dwi.tractography_connectomics:Tractography
+    operates_on: medimage/session
+    sources:
+      DwiPreprocessed:
+        field: dwi_preprocessed
+        help: "Preprocessed DWI image (output of dwi_preprocessing pipeline)"
+      DwiMask:
+        field: dwimask_preprocessed
+        help: "Brain mask in native DWI space (output of dwi_preprocessing pipeline)"
+      FSDir:
+        field: FS_dir
+        help: "FreeSurfer subject directory (output of T1 preprocessing pipeline)"
+      FTTvisImage:
+        field: fTTvis_image_T1space
+        help: "5TT visualisation image in T1 space (output of T1 preprocessing pipeline)"
+      FTTImage:
+        field: fTT_image_T1space
+        help: "5TT image in T1 space (output of T1 preprocessing pipeline)"
+      ResponseWM:
+        field: response_wm
+        help: "WM response function (output of dwi_preprocessing pipeline)"
+      ResponseGM:
+        field: response_gm
+        help: "GM response function (output of dwi_preprocessing pipeline)"
+      ResponseCSF:
+        field: response_csf
+        help: "CSF response function (output of dwi_preprocessing pipeline)"
+    parameters:
+      FodAlgorithm:
+        field: fod_algorithm
+        help: "FOD estimation algorithm — msmt_csd (multi-shell) or ss3t (single-shell)"
+        default: msmt_csd
+  connectomics:
+    task: australianimagingservice.mri.human.neuro.dwi.tractography_connectomics:Connectomics
+    operates_on: medimage/session
+    sources:
+      Tracks:
+        field: tracks
+        help: "Tractogram (.tck) from tractography command"
+      OutWeights:
+        field: out_weights
+        help: "SIFT2 streamline weights file"
+      OutMu:
+        field: out_mu
+        help: "SIFT2 mu (proportionality coefficient) file"
+      ParcellationImageT1space:
+        field: parcellation_image_T1space
+        help: "Parcellation atlas image in T1 space"
+      DwiT1space:
+        field: DWI_T1space
+        help: "DWI image registered to T1 space"
+      DwiMaskT1space:
+        field: DWImask_T1space
+        help: "DWI brain mask in T1 space"
+      WmFodNorm:
+        field: wm_fod_norm
+        help: "Normalised WM FOD image"
+      GmFodNorm:
+        field: gm_fod_norm
+        help: "Normalised GM FOD image"
+      CsfFodNorm:
+        field: csf_fod_norm
+        help: "Normalised CSF FOD image"
+      TDIFile:
+        field: TDI_file
+        help: "Track density image"
+      DECTDIFile:
+        field: DECTDI_file
+        help: "Directionally-encoded colour TDI"
+    parameters:
+      ParcellationStem:
+        field: parcellation_stem
+        help: "Short name of the parcellation (used for output file naming)"
+      FodAlgorithm:
+        field: fod_algorithm
+        help: "FOD algorithm used (must match the tractography command)"
+        default: msmt_csd
+      FTTMethod:
+        field: ftt_method
+        help: "5TT method used (hsvs, fsl, or freesurfer)"
+        default: hsvs
