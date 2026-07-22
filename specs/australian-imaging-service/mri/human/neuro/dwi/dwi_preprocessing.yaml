@@ -82,19 +82,7 @@ commands:
         field: rpe_mode
         help: "Reverse phase-encoding mode: rpe_none, rpe_pair, rpe_all, rpe_header"
         default: rpe_none
-      EddyOptions:
-        field: eddy_options
-        help: "Extra options passed verbatim to FSL eddy"
-        default: "' --slm=linear'"
       FodAlgorithm:
         field: fod_algorithm
         help: "FOD estimation algorithm — msmt_csd (multi-shell) or ss3t (single-shell)"
         default: msmt_csd
-      JsonImport:
-        field: json_import
-        help: >
-          Optional JSON sidecar to import into the MIF header (PE direction,
-          slice timing, etc.). Only needed when the JSON does not share the
-          same basename as the DWI file; NIfTI+JSON pairs uploaded as a
-          single BIDS resource are handled automatically.
-        salience: hidden
