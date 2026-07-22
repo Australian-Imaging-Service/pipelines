@@ -38,7 +38,13 @@ def test_dwi_preprocess_app(
     project_id = f"{run_prefix}mrihumanneurodwipreprocess"
 
     test_data = (
-        test_data_dir / "specs" / "mri" / "human" / "neuro" / "dwi" / "dwi_preprocessing"
+        test_data_dir
+        / "specs"
+        / "mri"
+        / "human"
+        / "neuro"
+        / "dwi"
+        / "dwi_preprocessing"
     )
     upload_test_dataset_to_xnat(project_id, test_data, xnat_connect)
 
