@@ -75,8 +75,9 @@ def test_dwi_preprocess_app(
     command_inputs = {
         "preprocess": {
             "DWI": "dwi_AP",
+            "DwiRPE": "dwi_PA",
             "PEDirection": "AP",
-            "RPEMode": "rpe_none",
+            "RPEMode": "rpe_pair",
             "FodAlgorithm": "msmt_csd",
         },
     }
