@@ -68,3 +68,19 @@ class MonaiModels:
             / "monai"
             / f"{entry.name}.yaml"
         )
+
+    def existing_version(self, entry: WhitelistEntry) -> Optional[str]:
+        path = self.spec_path(entry)
+        if not path.is_file():
+            return None
+        data = yaml.safe_load(path.read_text()) or {}
+        version = data.get("version")
+        return str(version) if version is not None else None
+
+    def detect_changes(self, entries: List[WhitelistEntry]) -> List[WhitelistEntry]:
+        """Return entries with no spec yet, or whose version differs from the spec."""
+        changed: List[WhitelistEntry] = []
+        for entry in entries:
+            if self.existing_version(entry) != entry.version:
+                changed.append(entry)
+        return changed

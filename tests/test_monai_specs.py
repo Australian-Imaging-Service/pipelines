@@ -98,3 +98,30 @@ def test_fetch_available_uses_monai_api(tmp_path, whitelist_file, monkeypatch):
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     available = mm.fetch_available()
     assert available["spleen_ct_segmentation"] == "0.5.3"
+
+
+def _write_spec(path: Path, version: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump({"name": path.stem, "version": version}))
+
+
+def test_existing_version_none_when_missing(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]
+    assert mm.existing_version(entry) is None
+
+
+def test_detect_changes_flags_new_and_updated(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+
+    # No spec yet -> flagged as changed (new)
+    assert mm.detect_changes([entry]) == [entry]
+
+    # Spec at same version -> not flagged
+    _write_spec(mm.spec_path(entry), "0.5.3")
+    assert mm.detect_changes([entry]) == []
+
+    # Spec at older version -> flagged (updated)
+    _write_spec(mm.spec_path(entry), "0.5.0")
+    assert mm.detect_changes([entry]) == [entry]
