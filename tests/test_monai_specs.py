@@ -89,6 +89,8 @@ def test_filter_whitelist_respects_pin(tmp_path: Path):
 def test_fetch_available_uses_monai_api(tmp_path, whitelist_file, monkeypatch):
     import scripts.monai_specs as ms
 
+    # get_all_bundles_list() returns one (bundle_name, latest_version) tuple
+    # per bundle, already reduced to the latest version.
     monkeypatch.setattr(
         ms, "get_all_bundles_list",
         lambda **kw: [("spleen_ct_segmentation", "0.5.3")],
