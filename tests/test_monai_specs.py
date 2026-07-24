@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -146,20 +147,29 @@ def test_task_module_ref_and_path(tmp_path, whitelist_file):
     )
 
 
-def test_write_task_module_emits_importable_define_call(tmp_path, whitelist_file):
+def test_bundle_vendor_dir_beside_module(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]
+    assert mm.bundle_vendor_dir(entry) == (
+        mm.task_module_path(entry).parent / "spleen_ct_segmentation_bundle"
+    )
+
+
+def test_write_task_module_uses_module_relative_bundle(tmp_path, whitelist_file):
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]
     path = mm.write_task_module(entry)
     assert path == mm.task_module_path(entry)
     text = path.read_text()
-    # references pydra-compose-monai define, bakes the bundle path, names the class
+    # references pydra-compose-monai define, uses a module-relative bundle path
+    # (NOT an absolute /opt/bundles path), and names the class
     assert "from pydra.compose import monai" in text
-    assert '"/opt/bundles/spleen_ct_segmentation"' in text
+    assert "Path(__file__).parent" in text
+    assert '"spleen_ct_segmentation_bundle"' in text
+    assert "/opt/bundles" not in text
     assert "SpleenCtSegmentation = monai.define(" in text
     # every generated package dir has an __init__.py so the dotted ref imports
     assert (path.parent / "__init__.py").is_file()
-    # intermediate directories up to src/ are also importable packages
-    assert (tmp_path / "src" / "australianimagingservice" / "__init__.py").is_file()
 
 
 @pytest.fixture
@@ -236,15 +246,75 @@ def test_sync_writes_only_changed(tmp_path, whitelist_file, overlay_dir, monkeyp
         ms, "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
+
+    # A fake downloaded bundle dir for vendor_bundle to copy.
+    fake_bundle = tmp_path / "downloaded_bundle"
+    (fake_bundle / "configs").mkdir(parents=True)
+    (fake_bundle / "configs" / "metadata.json").write_text("{}")
+
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
 
-    written = mm.sync(download_bundle=lambda entry: tmp_path / "bundle")
+    written = mm.sync(download_bundle=lambda entry: fake_bundle)
     assert len(written) == 1
     assert written[0].is_file()
-    # sync also emitted the committed per-model task module
+    # sync also emitted the committed per-model task module ...
     entry = mm.whitelist()[0]._replace(version="0.5.3")
     assert mm.task_module_path(entry).is_file()
+    # ... and vendored the bundle beside it
+    assert (mm.bundle_vendor_dir(entry) / "configs" / "metadata.json").is_file()
 
     # Second run: version unchanged -> nothing written
-    written2 = mm.sync(download_bundle=lambda entry: tmp_path / "bundle")
+    written2 = mm.sync(download_bundle=lambda entry: fake_bundle)
     assert written2 == []
+
+
+def _make_synthetic_bundle(dest: Path) -> Path:
+    configs = dest / "configs"
+    configs.mkdir(parents=True, exist_ok=True)
+    (configs / "metadata.json").write_text(json.dumps({
+        "name": "SpleenCtSegmentation",
+        "network_data_format": {
+            "inputs": {"image": {"type": "image", "modality": "CT"}},
+            "outputs": {"pred": {"type": "image", "format": "segmentation"}},
+        },
+    }))
+    (configs / "inference.json").write_text(json.dumps({
+        "postprocessing": {"_target_": "Compose", "transforms": [
+            {"_target_": "SaveImaged", "keys": ["pred"], "output_postfix": "seg"}
+        ]}
+    }))
+    return dest
+
+
+def test_generated_spec_loads_as_xnatapp(tmp_path, whitelist_file, overlay_dir, monkeypatch):
+    import importlib
+    import scripts.monai_specs as ms
+    from pydra2app.xnat import XnatApp
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {
+            "sources": {"image": {"datatype": "medimage/nifti-gz-x",
+                                  "help": "in", "path": "network_data_format/inputs/image"}},
+            "sinks": {"pred": {"datatype": "medimage/nifti-gz-x",
+                               "help": "out", "path": "network_data_format/outputs/pred"}},
+            "parameters": {},
+        },
+    )
+    bundle = _make_synthetic_bundle(tmp_path / "downloaded")
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+
+    # Full sync path: writes the module, vendors the bundle beside it, writes the spec.
+    written = mm.sync(download_bundle=lambda entry: bundle)
+    assert len(written) == 1
+    spec_path = written[0]
+
+    # Make the generated module importable, then load the spec (eager task import).
+    monkeypatch.syspath_prepend(str(tmp_path / "src"))
+    importlib.invalidate_caches()
+
+    image_spec = XnatApp.load(spec_path)
+    assert image_spec.commands
+    assert image_spec.commands[0].name
+    # command.task resolved to an actual class (not left as an unresolved string)
+    assert not isinstance(image_spec.commands[0].task, str)

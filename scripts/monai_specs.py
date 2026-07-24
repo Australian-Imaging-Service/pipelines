@@ -8,7 +8,6 @@ import yaml
 from monai.bundle import get_all_bundles_list
 from pydra.compose.monai import spec_fragment
 
-BAKED_BUNDLE_ROOT = "/opt/bundles"
 PACKAGE = "australianimagingservice"
 OVERLAYS_DIR = Path(__file__).parent / "overlays"
 
@@ -118,34 +117,44 @@ class MonaiModels:
         dotted = ".".join(self._module_parts(entry))
         return f"{dotted}:{self.class_name(entry)}"
 
+    def bundle_vendor_dir(self, entry: WhitelistEntry) -> Path:
+        """Directory where the model's bundle is vendored, beside its module."""
+        return self.task_module_path(entry).parent / f"{entry.name}_bundle"
+
     def write_task_module(self, entry: WhitelistEntry) -> Path:
         """Generate a committed per-model task module (define()-built class).
 
-        The class bakes in the in-image bundle path so command.task can
-        reference it directly with no runtime configuration.
+        The class builds itself from the bundle vendored beside this module
+        (``<model>_bundle/``), using a module-relative path so it resolves
+        identically on the build host (CI / --generate-only) and inside the
+        built image. pipeline2app imports and introspects this class eagerly
+        at spec-load / Dockerfile-generation time, so the bundle must be
+        present next to the module — which is why sync() vendors it (Task 6).
         """
         path = self.task_module_path(entry)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Ensure every generated package directory from the model's package
-        # dir up to (and including) <root>/src/ is importable.
+        # Ensure every generated package directory is importable.
         src_root = self.root / "src"
+        pkg_dirs = []
         pkg_dir = path.parent
-        package_dirs = [pkg_dir]
-        while pkg_dir != src_root:
+        while True:
+            pkg_dirs.append(pkg_dir)
+            if pkg_dir == src_root:
+                break
             pkg_dir = pkg_dir.parent
-            package_dirs.append(pkg_dir)
-        for pkg_dir in package_dirs:
-            init = pkg_dir / "__init__.py"
+        for d in pkg_dirs:
+            init = d / "__init__.py"
             if not init.exists():
                 init.write_text("")
 
-        bundle_path = f"{BAKED_BUNDLE_ROOT}/{entry.name}"
         cls = self.class_name(entry)
+        bundle_dirname = f"{entry.name}_bundle"
         path.write_text(
             '"""Auto-generated MONAI task module. Do not edit by hand."""\n'
+            "from pathlib import Path\n"
             "from pydra.compose import monai\n\n"
-            f'BUNDLE_PATH = "{bundle_path}"\n\n'
+            f'BUNDLE_PATH = Path(__file__).parent / "{bundle_dirname}"\n\n'
             f'{cls} = monai.define(BUNDLE_PATH, name="{cls}")\n'
         )
         return path
@@ -199,12 +208,29 @@ class MonaiModels:
         path.write_text(yaml.safe_dump(spec, sort_keys=False))
         return path
 
-    def sync(self, download_bundle: Callable[[WhitelistEntry], Path]) -> List[Path]:
-        """Full pipeline: fetch → filter → detect → codegen + generate → write.
+    def vendor_bundle(self, entry: WhitelistEntry, bundle_dir: Path) -> Path:
+        """Copy the downloaded bundle to sit beside the generated module.
 
-        For each changed model: download the bundle, write the committed
-        per-model task module, generate the spec (which references that
-        module), and write the spec. Returns the spec paths written.
+        The generated task module reads the bundle via a module-relative path
+        (``Path(__file__).parent / "<model>_bundle"``), so the bundle must be
+        committed there. Idempotent: replaces any existing vendored copy.
+        """
+        import shutil
+
+        dest = self.bundle_vendor_dir(entry)
+        if dest.exists():
+            shutil.rmtree(dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(bundle_dir, dest)
+        return dest
+
+    def sync(self, download_bundle: Callable[[WhitelistEntry], Path]) -> List[Path]:
+        """Full pipeline: fetch → filter → detect → vendor + codegen + generate → write.
+
+        For each changed model: download the bundle, vendor it beside the
+        generated module, write the committed per-model task module, generate
+        the spec (which references that module + vendored bundle), and write
+        the spec. Returns the spec paths written.
 
         ``download_bundle`` maps an entry to a local bundle root directory
         (injected so tests need no network; production passes ``self._download``).
@@ -216,6 +242,7 @@ class MonaiModels:
         for entry in changed:
             bundle_dir = download_bundle(entry)
             self.write_task_module(entry)
+            self.vendor_bundle(entry, bundle_dir)
             spec = self.generate_spec(entry, bundle_dir)
             written.append(self.write_spec(entry, spec))
         return written
