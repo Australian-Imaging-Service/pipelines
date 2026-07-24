@@ -4,18 +4,20 @@
 
 **Goal:** Add a `MonaiModels` generator (in `scripts/`) that fetches MONAI Model Zoo bundles, filters by a whitelist, detects version changes, generates pipeline2app XNAT specs (using `pydra-compose-monai`), and writes them into a `monai/` spec namespace — driven by a scheduled GitHub Action that opens a PR.
 
-**Architecture:** A single orchestrator class `MonaiModels` with focused, independently-testable methods (fetch → filter → detect → generate → write → sync). MONAI→fileformats field serialization is delegated to `pydra_compose_monai.spec_fragment`; catalog/build metadata comes from a hand-authored per-model overlay deep-merged with the fragment. Generated specs are `pydra2app`/`pipeline2app` 2.x `XnatApp` specs.
+**Architecture:** A single orchestrator class `MonaiModels` with focused, independently-testable methods (fetch → filter → detect → generate → write → sync). MONAI→fileformats field serialization is delegated to `pydra_compose_monai.spec_fragment`; catalog/build metadata comes from a hand-authored per-model overlay deep-merged with the fragment. For each model the generator also emits a committed, importable per-model task module (a `define()`-built `MonaiTask` subclass with the baked-in bundle path) that the spec's `command.task` references by dotted path. Generated specs are `pydra2app`/`pipeline2app` 2.x `XnatApp` specs.
 
 **Tech Stack:** Python ≥3.8, PyYAML, monai.bundle, pydra-compose-monai (from PyPI), pydra2app/pydra2app-xnat, pytest. Work lands on the existing `monai-test` branch.
 
+> **Design decision (Option A, 2026-07-24):** `command.task` points at a **committed generated per-model class** (`australianimagingservice…monai.<model>:<Class>`), NOT a generic `pydra.compose.monai:BundleTask`. Reason: the raw `MonaiTask` base has no usable fields and cannot be instantiated with `bundle=`; only a `define()`-built subclass can. The module-reference form is pipeline2app's primary, best-tested `task` path (identical to how the existing FSL/FastSurfer specs work), is reviewable as real Python in the sync PR, and avoids a per-container-launch `define()` call. (The inline task-dict form was verified against source to also work, but re-adds a runtime `define()` and a field-serialization surface, so it was not chosen.)
+
 ## Global Constraints
 
-- Depends on **`pydra-compose-monai`** providing `spec_fragment()` and `BundleTask` (Plan `2026-07-10-monai-spec-fragment.md` in the pydra-compose-monai repo). That must ship first; add `pydra-compose-monai` to the `test` deps of `pyproject.toml`.
-- `requires-python >=3.8` (repo target) — this repo targets py38, so **use `Optional[...]`/`Dict[...]` typing imports, NOT `X | Y` syntax**, in `scripts/`.
+- Depends on **`pydra-compose-monai`** providing `spec_fragment()` (Plan `2026-07-10-monai-spec-fragment.md` in the pydra-compose-monai repo, PR #12). That must ship / be installable first; add `pydra-compose-monai` to the `test` deps of `pyproject.toml`. NOTE: `BundleTask` was dropped from that plan — do not reference it.
+- `requires-python >=3.8` (repo target) — this repo targets py38, so **use `Optional[...]`/`Dict[...]` typing imports, NOT `X | Y` syntax**, in `scripts/`. (The *generated* task modules import from `pydra.compose.monai`, which requires 3.11 — that is fine because they only ever run inside the built image, not under the repo's py38 floor.)
 - Generated specs target the **pydra2app/pipeline2app 2.x schema** consumed by `XnatApp.load(...)` (see `tests/test_monai.py`): top-level `commands:` is a **list**; per-command keys `task`, `operates_on`, `sources`, `sinks`, `parameters`, `configuration`.
-- `command.task` = `"pydra.compose.monai:BundleTask"`; bundle fixed via `configuration: {bundle: /opt/bundles/<model>}`.
+- `command.task` = the dotted ref of the generated per-model class: `"australianimagingservice.<modality>.<species>.<region>.monai.<model>:<ClassName>"`. The class is a `define()`-built `MonaiTask` subclass whose `bundle` defaults to the baked-in path `/opt/bundles/<model>`. No `configuration.bundle` is needed (the default is baked into the class), so `configuration` is `{}`.
 - Datatypes are fileformats MIME-like strings.
-- Generator lives in top-level `scripts/` (already excluded from mypy/package in `pyproject.toml`). Tests live in `tests/`.
+- Generator lives in top-level `scripts/` (already excluded from mypy/package in `pyproject.toml`). Tests live in `tests/`. Generated task modules live in the installable package under `src/australianimagingservice/<modality>/<species>/<region>/monai/`.
 - Generated specs written under `specs/australian-imaging-service/<modality>/<species>/<region>/monai/<model>.yaml`.
 - The Action opens a **PR**, never pushes to a protected branch directly.
 
@@ -24,6 +26,7 @@
 - `scripts/monai_specs.py` — `MonaiModels` class + a `__main__` entry point (`python -m scripts.monai_specs sync`).
 - `scripts/monai_whitelist.yaml` — control surface: models, optional version pins, anatomy placement.
 - `scripts/overlays/<model>.yaml` — per-model hand-authored catalog/build metadata.
+- `src/australianimagingservice/<modality>/<species>/<region>/monai/<model>.py` — generated, committed per-model task class (`define()`-built) referenced by `command.task`.
 - `tests/test_monai_specs.py` — unit tests for each method against synthetic bundles.
 - `.github/workflows/monai-sync.yml` — scheduled sync Action.
 
@@ -413,7 +416,149 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 4: Generate a full spec (fragment + overlay merge)
+### Task 4: Naming/module-path helpers + generate the per-model task module
+
+**Files:**
+- Modify: `scripts/monai_specs.py`
+- Test: `tests/test_monai_specs.py`
+
+**Interfaces:**
+- Consumes: `WhitelistEntry` (Task 1); `self.root`.
+- Produces:
+  ```python
+  def class_name(self, entry: WhitelistEntry) -> str:      # CamelCase, e.g. SpleenCtSegmentation
+  def task_module_path(self, entry: WhitelistEntry) -> Path:
+      # <root>/src/australianimagingservice/<modality>/<species>/<region>/monai/<model>.py
+  def task_module_ref(self, entry: WhitelistEntry) -> str:
+      # "australianimagingservice.<modality>.<species>.<region>.monai.<model>:<ClassName>"
+  def write_task_module(self, entry: WhitelistEntry) -> Path:
+      # writes the generated .py (define()-built class, baked-in bundle path), returns path
+  ```
+- The generated module baked-bundle path is `/opt/bundles/<model>` (`BAKED_BUNDLE_ROOT`).
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `tests/test_monai_specs.py`:
+
+```python
+def test_class_name_is_camelcase(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]
+    assert mm.class_name(entry) == "SpleenCtSegmentation"
+
+
+def test_task_module_ref_and_path(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]
+    assert mm.task_module_ref(entry) == (
+        "australianimagingservice.ct.human.abdomen.monai."
+        "spleen_ct_segmentation:SpleenCtSegmentation"
+    )
+    assert mm.task_module_path(entry) == (
+        tmp_path / "src" / "australianimagingservice" / "ct" / "human"
+        / "abdomen" / "monai" / "spleen_ct_segmentation.py"
+    )
+
+
+def test_write_task_module_emits_importable_define_call(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]
+    path = mm.write_task_module(entry)
+    assert path == mm.task_module_path(entry)
+    text = path.read_text()
+    # references pydra-compose-monai define, bakes the bundle path, names the class
+    assert "from pydra.compose import monai" in text
+    assert '"/opt/bundles/spleen_ct_segmentation"' in text
+    assert "SpleenCtSegmentation = monai.define(" in text
+    # every generated package dir has an __init__.py so the dotted ref imports
+    assert (path.parent / "__init__.py").is_file()
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd /Users/gbro5457/code/pipelines && .venv/bin/pytest tests/test_monai_specs.py -k "class_name or task_module or write_task_module" -v`
+Expected: FAIL (`AttributeError` — helpers not defined)
+
+- [ ] **Step 3: Write minimal implementation**
+
+At the module top of `scripts/monai_specs.py`, add constants and a re-export used by tests:
+
+```python
+import re
+
+BAKED_BUNDLE_ROOT = "/opt/bundles"
+PACKAGE = "australianimagingservice"
+```
+
+Add the methods to `MonaiModels`:
+
+```python
+    def class_name(self, entry: WhitelistEntry) -> str:
+        """CamelCase Python class name derived from the model name."""
+        words = re.split(r"[^a-zA-Z0-9]+", entry.name)
+        return "".join(w.capitalize() for w in words if w)
+
+    def _module_parts(self, entry: WhitelistEntry) -> List[str]:
+        return [PACKAGE, entry.modality, entry.species, entry.region, "monai", entry.name]
+
+    def task_module_path(self, entry: WhitelistEntry) -> Path:
+        parts = self._module_parts(entry)
+        return self.root.joinpath("src", *parts).with_suffix(".py")
+
+    def task_module_ref(self, entry: WhitelistEntry) -> str:
+        dotted = ".".join(self._module_parts(entry))
+        return f"{dotted}:{self.class_name(entry)}"
+
+    def write_task_module(self, entry: WhitelistEntry) -> Path:
+        """Generate a committed per-model task module (define()-built class).
+
+        The class bakes in the in-image bundle path so command.task can
+        reference it directly with no runtime configuration.
+        """
+        path = self.task_module_path(entry)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Ensure every generated package directory is importable.
+        pkg_dir = path.parent
+        src_root = self.root / "src"
+        while pkg_dir != src_root and src_root in pkg_dir.parents or pkg_dir == src_root:
+            init = pkg_dir / "__init__.py"
+            if not init.exists():
+                init.write_text("")
+            if pkg_dir == src_root:
+                break
+            pkg_dir = pkg_dir.parent
+
+        bundle_path = f"{BAKED_BUNDLE_ROOT}/{entry.name}"
+        cls = self.class_name(entry)
+        path.write_text(
+            '"""Auto-generated MONAI task module. Do not edit by hand."""\n'
+            "from pydra.compose import monai\n\n"
+            f'BUNDLE_PATH = "{bundle_path}"\n\n'
+            f'{cls} = monai.define(BUNDLE_PATH, name="{cls}")\n'
+        )
+        return path
+```
+
+Note on the `__init__.py` loop: it walks from the model's package dir up to `src/` inclusive, writing an empty `__init__.py` in each level that lacks one, so the full dotted path is importable inside the image.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `.venv/bin/pytest tests/test_monai_specs.py -k "class_name or task_module or write_task_module" -v`
+Expected: PASS (3 passed)
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add scripts/monai_specs.py tests/test_monai_specs.py
+git commit -m "feat(monai): generate committed per-model task module for command.task
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 5: Generate the full spec (fragment + overlay merge)
 
 **Files:**
 - Modify: `scripts/monai_specs.py`
@@ -421,12 +566,12 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Test: `tests/test_monai_specs.py`
 
 **Interfaces:**
-- Consumes: `pydra_compose_monai.spec_fragment(bundle_dir) -> {"sources","sinks","parameters"}` (Plan A, Task 1); a per-model overlay YAML.
+- Consumes: `pydra_compose_monai.spec_fragment(bundle_dir) -> {"sources","sinks","parameters"}` (Plan A); the per-model overlay YAML; `task_module_ref` (Task 4).
 - Produces:
   ```python
   def overlay_path(self, entry: WhitelistEntry) -> Path:      # scripts/overlays/<name>.yaml
   def generate_spec(self, entry: WhitelistEntry, bundle_dir: Path) -> dict:
-      # full XnatApp 2.x spec dict
+      # full XnatApp 2.x spec dict; command.task = task_module_ref(entry)
   ```
 - The merge rewrites each sink's `path` from the bundle metadata path (`network_data_format/outputs/<x>`) to the frametree store path `monai/<name>/<x>`.
 
@@ -500,8 +645,12 @@ def test_generate_spec_shape(tmp_path, whitelist_file, overlay_dir, monkeypatch)
     assert spec["version"] == "0.5.3"
     assert isinstance(spec["commands"], list) and len(spec["commands"]) == 1
     cmd = spec["commands"][0]
-    assert cmd["task"] == "pydra.compose.monai:BundleTask"
-    assert cmd["configuration"]["bundle"] == "/opt/bundles/spleen_ct_segmentation"
+    assert cmd["task"] == (
+        "australianimagingservice.ct.human.abdomen.monai."
+        "spleen_ct_segmentation:SpleenCtSegmentation"
+    )
+    # bundle is baked into the generated class, so configuration is empty
+    assert cmd["configuration"] == {}
     assert cmd["operates_on"] == "session"
     assert cmd["sources"]["image"]["datatype"] == "medimage/nifti-gz-x"
     # sink path rewritten to the frametree store path
@@ -521,8 +670,6 @@ At module top of `scripts/monai_specs.py` add:
 from pydra.compose.monai import spec_fragment
 
 OVERLAYS_DIR = Path(__file__).parent / "overlays"
-BAKED_BUNDLE_ROOT = "/opt/bundles"
-TASK_REF = "pydra.compose.monai:BundleTask"
 ```
 
 Add a module-level deep-merge helper and the methods:
@@ -548,6 +695,9 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
         Combines the bundle-derived field fragment with the hand-authored
         overlay (title/authors/docs/base_image/packages/operates_on).
+        command.task references the committed generated per-model class
+        (see write_task_module); the bundle is baked into that class, so
+        the command needs no configuration.
         """
         overlay = yaml.safe_load(self.overlay_path(entry).read_text()) or {}
         fragment = spec_fragment(bundle_dir)
@@ -561,9 +711,9 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
         operates_on = overlay.get("operates_on", "session")
         command = {
-            "task": TASK_REF,
+            "task": self.task_module_ref(entry),
             "operates_on": operates_on,
-            "configuration": {"bundle": f"{BAKED_BUNDLE_ROOT}/{entry.name}"},
+            "configuration": {},
             "sources": fragment["sources"],
             "sinks": sinks,
             "parameters": fragment["parameters"],
@@ -597,19 +747,20 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 5: Write spec to disk + `sync()` orchestration + CLI entry point
+### Task 6: Write spec to disk + `sync()` orchestration + CLI entry point
 
 **Files:**
 - Modify: `scripts/monai_specs.py`
 - Test: `tests/test_monai_specs.py`
 
 **Interfaces:**
-- Consumes: all prior methods; `monai.bundle.download` to fetch a bundle for generation.
+- Consumes: all prior methods, including `write_task_module` (Task 4); `monai.bundle.download` to fetch a bundle for generation.
 - Produces:
   ```python
   def write_spec(self, entry: WhitelistEntry, spec: dict) -> Path:   # writes YAML, returns path
   def sync(self, download_bundle: Callable[[WhitelistEntry], Path]) -> List[Path]:
-      # fetch -> filter -> detect_changes -> for each: download, generate, write
+      # fetch -> filter -> detect_changes -> for each: download, write_task_module, generate, write_spec
+      # returns the spec paths written
   # module: def main(argv=None) -> int   (argparse: subcommand "sync")
   ```
 
@@ -641,6 +792,9 @@ def test_sync_writes_only_changed(tmp_path, whitelist_file, overlay_dir, monkeyp
     written = mm.sync(download_bundle=lambda entry: tmp_path / "bundle")
     assert len(written) == 1
     assert written[0].is_file()
+    # sync also emitted the committed per-model task module
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    assert mm.task_module_path(entry).is_file()
 
     # Second run: version unchanged -> nothing written
     written2 = mm.sync(download_bundle=lambda entry: tmp_path / "bundle")
@@ -664,7 +818,11 @@ Add `from typing import Callable` to the typing imports, then add to `MonaiModel
         return path
 
     def sync(self, download_bundle: Callable[[WhitelistEntry], Path]) -> List[Path]:
-        """Full pipeline: fetch → filter → detect → generate → write.
+        """Full pipeline: fetch → filter → detect → codegen + generate → write.
+
+        For each changed model: download the bundle, write the committed
+        per-model task module, generate the spec (which references that
+        module), and write the spec. Returns the spec paths written.
 
         ``download_bundle`` maps an entry to a local bundle root directory
         (injected so tests need no network; production passes ``self._download``).
@@ -675,6 +833,7 @@ Add `from typing import Callable` to the typing imports, then add to `MonaiModel
         written: List[Path] = []
         for entry in changed:
             bundle_dir = download_bundle(entry)
+            self.write_task_module(entry)
             spec = self.generate_spec(entry, bundle_dir)
             written.append(self.write_spec(entry, spec))
         return written
@@ -736,15 +895,15 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 6: Contract check — generated spec loads as an XnatApp
+### Task 7: Contract check — generated spec loads as an XnatApp
 
 **Files:**
 - Test: `tests/test_monai_specs.py`
 
 **Interfaces:**
-- Consumes: `pydra2app.xnat.XnatApp.load` (already a test dep); a generated spec file.
+- Consumes: `pydra2app.xnat.XnatApp.load` (already a test dep); a generated spec file; the generated per-model task module (must be importable).
 
-This is the go/no-go for Option B (generic `BundleTask`) vs Option A (per-model generated class). If `XnatApp.load` rejects the spec because `command.sources`/`sinks` name fields that are not static attrs fields on `BundleTask`, escalate to Option A (see design doc "Open items").
+This is the go/no-go contract check for Option A. `XnatApp.load` resolves `command.task` by importing the dotted module reference and checking it subclasses `pydra.compose.base.Task`, then introspects its fields via `pydra.utils.get_fields`. For this test to import the generated module, it must be on `sys.path` — the test writes the module under `tmp_path/src/...` and the `sync`/`write_task_module` path uses the package name `australianimagingservice`, which is already importable from the repo's own `src/` (installed `-e`). Since the *generated* class name/path here point into a temp tree, this test instead asserts the spec's structure loads; a heavier end-to-end that actually imports a generated class is exercised by the existing `tests/test_monai.py` build path once a real model is committed. If `XnatApp.load` rejects the spec, record the error and escalate before proceeding.
 
 - [ ] **Step 1: Write the test**
 
@@ -784,20 +943,22 @@ Expected: PASS. If it FAILS on field resolution, record the error and escalate t
 
 ```bash
 git add tests/test_monai_specs.py
-git commit -m "test(monai): assert generated spec loads as an XnatApp (Option B go/no-go)
+git commit -m "test(monai): assert generated spec loads as an XnatApp (Option A contract check)
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 7: Add dependency + scheduled GitHub Action
+### Task 8: Add dependency + scheduled GitHub Action
 
 **Files:**
 - Modify: `pyproject.toml:41` (add `pydra-compose-monai` to `test` deps)
 - Create: `.github/workflows/monai-sync.yml`
 
 **Interfaces:** none (CI wiring).
+
+> **Dependency availability:** `pydra-compose-monai` with `spec_fragment()` is on branch `docs/monai-spec-fragment-plan` (PR #12) and may not yet be on PyPI when this task runs. If the pinned PyPI release lacks `spec_fragment`, install from git in the meantime (e.g. `pydra-compose-monai @ git+https://github.com/Australian-Imaging-Service/pydra-compose-monai@docs/monai-spec-fragment-plan`) and switch to a version pin once released.
 
 - [ ] **Step 1: Add the dependency**
 
@@ -842,9 +1003,10 @@ jobs:
           base: monai-test
           title: "Update MONAI model specs"
           commit-message: "chore(monai): sync model specs from Model Zoo"
-          body: "Automated MONAI Model Zoo spec sync. Review generated specs before merge."
+          body: "Automated MONAI Model Zoo spec sync. Review generated specs and task modules before merge."
           add-paths: |
             specs/**/monai/**
+            src/australianimagingservice/**/monai/**
 ```
 
 - [ ] **Step 3: Validate the workflow YAML**
@@ -863,7 +1025,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 8: Full regression + lint
+### Task 9: Full regression + lint
 
 **Files:** none (verification only)
 
@@ -877,9 +1039,16 @@ Expected: all tests pass.
 Run: `.venv/bin/pytest tests/test_monai.py -v` (this is the network/XNAT test; expect it to be skipped/collected as before — it must not be newly broken by our changes).
 Expected: same collection/skip behavior as before this work; no new import errors from `scripts/`.
 
+- [ ] **Step 3: Sanity-check a generated task module imports (if pydra-compose-monai available)**
+
+Run: `.venv/bin/python -c "import scripts.monai_specs"` then, if `pydra.compose.monai` is installed, generate one module to a temp dir and byte-compile it:
+`.venv/bin/python -c "import ast, pathlib; ast.parse(pathlib.Path('scripts/monai_specs.py').read_text())"`
+Expected: no syntax errors. (Full import of a *generated* module requires `pydra-compose-monai` + a real bundle; that is covered by the build path in `tests/test_monai.py`.)
+
 ## Self-Review
 
-- **Spec coverage:** Component 2 (`MonaiModels` methods `fetch`/`filter`/`detect`/`generate`/`write`/`sync`) → Tasks 1–5. Whitelist + overlay control surfaces → Tasks 1 & 4. `monai/` namespace output → Task 1 `spec_path` + Task 5 `write_spec`. Option B go/no-go (`XnatApp.load`) → Task 6. Component 3 (scheduled PR-opening Action) → Task 7. Regression → Task 8. Depends-on Plan A's `spec_fragment`/`BundleTask` → Global Constraints + Task 7 dep. Complete.
+- **Spec coverage:** Component 2 (`MonaiModels` methods `fetch`/`filter`/`detect`/`generate`/`write`/`sync`) → Tasks 1–3, 5, 6. Per-model task-module codegen (Option A) → Task 4. Whitelist + overlay control surfaces → Tasks 1 & 5. `monai/` namespace output → Task 1 `spec_path` + Task 6 `write_spec`. Option A contract check (`XnatApp.load`) → Task 7. Component 3 (scheduled PR-opening Action, incl. generated `src/` paths) → Task 8. Regression → Task 9. Depends-on Plan A's `spec_fragment` → Global Constraints + Task 8 dep. Complete.
 - **Placeholder scan:** No TBD/TODO; every code step shows full code and exact commands. The overlay email uses a generic placeholder address (no PII).
-- **Type consistency:** `WhitelistEntry` fields (`name/version/modality/species/region`) used consistently; `spec_fragment` return shape (`sources`/`sinks`/`parameters`) matches Plan A and every consumer here; `TASK_REF`/`configuration.bundle` strings match between impl and tests; `sync(download_bundle=...)` signature consistent between Task 5 impl, tests, and CLI (`mm._download`).
-- **py38 constraint:** `scripts/` uses `Optional`/`List`/`Dict`/`Callable` from `typing`, no `X | Y` unions — consistent with repo target.
+- **Type consistency:** `WhitelistEntry` fields (`name/version/modality/species/region`) used consistently; `spec_fragment` return shape (`sources`/`sinks`/`parameters`) matches Plan A and every consumer here; `command.task` value equals `task_module_ref(entry)` in both the Task 5 impl and its test; `configuration` is `{}` consistently (bundle baked into the generated class); `sync(download_bundle=...)` signature consistent between Task 6 impl, tests, and CLI (`mm._download`).
+- **Option A consistency:** No remaining references to `BundleTask` or `configuration.bundle`; `command.task` is the generated dotted ref everywhere; `write_task_module` is called in `sync` (Task 6) and its output PR-tracked (Task 8).
+- **py38 constraint:** `scripts/` uses `Optional`/`List`/`Dict`/`Callable` from `typing`, no `X | Y` unions — consistent with repo target. Generated modules import from `pydra.compose.monai` (3.11+) but only ever run inside the built image.
