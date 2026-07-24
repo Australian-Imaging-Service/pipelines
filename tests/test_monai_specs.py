@@ -216,3 +216,35 @@ def test_generate_spec_shape(tmp_path, whitelist_file, overlay_dir, monkeypatch)
     assert cmd["sources"]["image"]["datatype"] == "medimage/nifti-gz-x"
     # sink path rewritten to the frametree store path
     assert cmd["sinks"]["pred"]["path"] == "monai/spleen_ct_segmentation/pred"
+
+
+def test_write_spec_creates_yaml(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    path = mm.write_spec(entry, {"name": entry.name, "version": "0.5.3", "commands": []})
+    assert path == mm.spec_path(entry)
+    reloaded = yaml.safe_load(path.read_text())
+    assert reloaded["version"] == "0.5.3"
+
+
+def test_sync_writes_only_changed(tmp_path, whitelist_file, overlay_dir, monkeypatch):
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(ms, "get_all_bundles_list",
+                        lambda **kw: [("spleen_ct_segmentation", "0.5.3")])
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+
+    written = mm.sync(download_bundle=lambda entry: tmp_path / "bundle")
+    assert len(written) == 1
+    assert written[0].is_file()
+    # sync also emitted the committed per-model task module
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    assert mm.task_module_path(entry).is_file()
+
+    # Second run: version unchanged -> nothing written
+    written2 = mm.sync(download_bundle=lambda entry: tmp_path / "bundle")
+    assert written2 == []

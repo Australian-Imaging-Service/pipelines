@@ -2,7 +2,7 @@
 import re
 import typing as ty
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import yaml
 from monai.bundle import get_all_bundles_list
@@ -192,3 +192,62 @@ class MonaiModels:
         merged = _deep_merge(overlay, spec)
         merged.pop("operates_on", None)  # consumed into the command
         return merged
+
+    def write_spec(self, entry: WhitelistEntry, spec: dict) -> Path:
+        path = self.spec_path(entry)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(yaml.safe_dump(spec, sort_keys=False))
+        return path
+
+    def sync(self, download_bundle: Callable[[WhitelistEntry], Path]) -> List[Path]:
+        """Full pipeline: fetch → filter → detect → codegen + generate → write.
+
+        For each changed model: download the bundle, write the committed
+        per-model task module, generate the spec (which references that
+        module), and write the spec. Returns the spec paths written.
+
+        ``download_bundle`` maps an entry to a local bundle root directory
+        (injected so tests need no network; production passes ``self._download``).
+        """
+        available = self.fetch_available()
+        whitelisted = self.filter_whitelist(available)
+        changed = self.detect_changes(whitelisted)
+        written: List[Path] = []
+        for entry in changed:
+            bundle_dir = download_bundle(entry)
+            self.write_task_module(entry)
+            spec = self.generate_spec(entry, bundle_dir)
+            written.append(self.write_spec(entry, spec))
+        return written
+
+    def _download(self, entry: WhitelistEntry) -> Path:
+        """Download a bundle from the Model Zoo into ``<root>/.monai-bundles``."""
+        from monai.bundle import download
+
+        dest = self.root / ".monai-bundles"
+        dest.mkdir(parents=True, exist_ok=True)
+        download(name=entry.name, version=entry.version, bundle_dir=str(dest))
+        return dest / entry.name
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Sync MONAI Model Zoo specs")
+    parser.add_argument("command", choices=["sync"])
+    parser.add_argument("--root", type=Path, default=Path(__file__).parent.parent)
+    parser.add_argument(
+        "--whitelist", type=Path,
+        default=Path(__file__).parent / "monai_whitelist.yaml",
+    )
+    args = parser.parse_args(argv)
+
+    mm = MonaiModels(root=args.root, whitelist_path=args.whitelist)
+    written = mm.sync(download_bundle=mm._download)
+    for path in written:
+        print(f"wrote {path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
