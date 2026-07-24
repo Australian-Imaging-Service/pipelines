@@ -52,3 +52,47 @@ def test_spec_path_follows_monai_namespace(tmp_path: Path, whitelist_file: Path)
         / "spleen_ct_segmentation.yaml"
     )
     assert mm.spec_path(entry) == expected
+
+
+def test_filter_whitelist_keeps_available_and_fills_latest(
+    tmp_path: Path, whitelist_file: Path
+):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    available = {"spleen_ct_segmentation": "0.5.3", "other_model": "1.0.0"}
+    kept = mm.filter_whitelist(available)
+    assert len(kept) == 1
+    assert kept[0].name == "spleen_ct_segmentation"
+    assert kept[0].version == "0.5.3"  # pin was None -> latest filled in
+
+
+def test_filter_whitelist_respects_pin(tmp_path: Path):
+    wl = tmp_path / "wl.yaml"
+    wl.write_text(
+        yaml.safe_dump(
+            {
+                "models": {
+                    "spleen_ct_segmentation": {
+                        "version": "0.5.0",
+                        "modality": "ct",
+                        "species": "human",
+                        "region": "abdomen",
+                    }
+                }
+            }
+        )
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=wl)
+    kept = mm.filter_whitelist({"spleen_ct_segmentation": "0.5.3"})
+    assert kept[0].version == "0.5.0"
+
+
+def test_fetch_available_uses_monai_api(tmp_path, whitelist_file, monkeypatch):
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "get_all_bundles_list",
+        lambda **kw: [("spleen_ct_segmentation", "0.5.3")],
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    available = mm.fetch_available()
+    assert available["spleen_ct_segmentation"] == "0.5.3"

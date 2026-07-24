@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import yaml
+from monai.bundle import get_all_bundles_list
 
 
 class WhitelistEntry(ty.NamedTuple):
@@ -36,6 +37,27 @@ class MonaiModels:
                 )
             )
         return entries
+
+    def fetch_available(self) -> Dict[str, str]:
+        """Return ``{bundle_name: latest_version}`` from the MONAI Model Zoo.
+
+        ``get_all_bundles_list`` returns ``(name, version)`` pairs newest-first;
+        the first occurrence of each name is its latest version.
+        """
+        available: Dict[str, str] = {}
+        for name, version in get_all_bundles_list():
+            available.setdefault(name, version)
+        return available
+
+    def filter_whitelist(self, available: Dict[str, str]) -> List[WhitelistEntry]:
+        """Keep whitelist entries present in ``available``; fill unpinned versions."""
+        kept: List[WhitelistEntry] = []
+        for entry in self.whitelist():
+            if entry.name not in available:
+                continue
+            version = entry.version or available[entry.name]
+            kept.append(entry._replace(version=version))
+        return kept
 
     def spec_path(self, entry: WhitelistEntry) -> Path:
         return (
