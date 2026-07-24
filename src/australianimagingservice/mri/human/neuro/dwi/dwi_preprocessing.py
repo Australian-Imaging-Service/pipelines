@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import attrs
 from pydra.compose import python, shell, workflow
 from fileformats.generic import File
 from pydra.tasks.mrtrix3.v3_1 import (
@@ -640,9 +641,9 @@ def DwiPreprocessing(
     dwi_raw_mif: ImageIn,
     pe_dir: str = "AP",
     rpe_mode: str = "rpe_none",
-    rpe_file: ImageIn = None,
-    json_import: File = None,
-    readout_time: float = None,
+    rpe_file: ImageIn = attrs.NOTHING,
+    json_import: File | None = None,
+    readout_time: float | None = None,
     eddy_options: str = f"' --slm=linear --nthr={get_eddy_nthr()}'",
     fod_algorithm: str = "msmt_csd",
     start_time: str = "",
