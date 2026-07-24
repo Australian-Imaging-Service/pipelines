@@ -1,10 +1,14 @@
 """Generate pipeline2app XNAT specs from whitelisted MONAI Model Zoo bundles."""
+import re
 import typing as ty
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import yaml
 from monai.bundle import get_all_bundles_list
+
+BAKED_BUNDLE_ROOT = "/opt/bundles"
+PACKAGE = "australianimagingservice"
 
 
 class WhitelistEntry(ty.NamedTuple):
@@ -84,3 +88,51 @@ class MonaiModels:
             if self.existing_version(entry) != entry.version:
                 changed.append(entry)
         return changed
+
+    def class_name(self, entry: WhitelistEntry) -> str:
+        """CamelCase Python class name derived from the model name."""
+        words = re.split(r"[^a-zA-Z0-9]+", entry.name)
+        return "".join(w.capitalize() for w in words if w)
+
+    def _module_parts(self, entry: WhitelistEntry) -> List[str]:
+        return [PACKAGE, entry.modality, entry.species, entry.region, "monai", entry.name]
+
+    def task_module_path(self, entry: WhitelistEntry) -> Path:
+        parts = self._module_parts(entry)
+        return self.root.joinpath("src", *parts).with_suffix(".py")
+
+    def task_module_ref(self, entry: WhitelistEntry) -> str:
+        dotted = ".".join(self._module_parts(entry))
+        return f"{dotted}:{self.class_name(entry)}"
+
+    def write_task_module(self, entry: WhitelistEntry) -> Path:
+        """Generate a committed per-model task module (define()-built class).
+
+        The class bakes in the in-image bundle path so command.task can
+        reference it directly with no runtime configuration.
+        """
+        path = self.task_module_path(entry)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Ensure every generated package directory from the model's package
+        # dir up to (and including) <root>/src/ is importable.
+        src_root = self.root / "src"
+        pkg_dir = path.parent
+        package_dirs = [pkg_dir]
+        while pkg_dir != src_root:
+            pkg_dir = pkg_dir.parent
+            package_dirs.append(pkg_dir)
+        for pkg_dir in package_dirs:
+            init = pkg_dir / "__init__.py"
+            if not init.exists():
+                init.write_text("")
+
+        bundle_path = f"{BAKED_BUNDLE_ROOT}/{entry.name}"
+        cls = self.class_name(entry)
+        path.write_text(
+            '"""Auto-generated MONAI task module. Do not edit by hand."""\n'
+            "from pydra.compose import monai\n\n"
+            f'BUNDLE_PATH = "{bundle_path}"\n\n'
+            f'{cls} = monai.define(BUNDLE_PATH, name="{cls}")\n'
+        )
+        return path

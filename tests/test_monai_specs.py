@@ -125,3 +125,38 @@ def test_detect_changes_flags_new_and_updated(tmp_path, whitelist_file):
     # Spec at older version -> flagged (updated)
     _write_spec(mm.spec_path(entry), "0.5.0")
     assert mm.detect_changes([entry]) == [entry]
+
+
+def test_class_name_is_camelcase(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]
+    assert mm.class_name(entry) == "SpleenCtSegmentation"
+
+
+def test_task_module_ref_and_path(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]
+    assert mm.task_module_ref(entry) == (
+        "australianimagingservice.ct.human.abdomen.monai."
+        "spleen_ct_segmentation:SpleenCtSegmentation"
+    )
+    assert mm.task_module_path(entry) == (
+        tmp_path / "src" / "australianimagingservice" / "ct" / "human"
+        / "abdomen" / "monai" / "spleen_ct_segmentation.py"
+    )
+
+
+def test_write_task_module_emits_importable_define_call(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]
+    path = mm.write_task_module(entry)
+    assert path == mm.task_module_path(entry)
+    text = path.read_text()
+    # references pydra-compose-monai define, bakes the bundle path, names the class
+    assert "from pydra.compose import monai" in text
+    assert '"/opt/bundles/spleen_ct_segmentation"' in text
+    assert "SpleenCtSegmentation = monai.define(" in text
+    # every generated package dir has an __init__.py so the dotted ref imports
+    assert (path.parent / "__init__.py").is_file()
+    # intermediate directories up to src/ are also importable packages
+    assert (tmp_path / "src" / "australianimagingservice" / "__init__.py").is_file()
