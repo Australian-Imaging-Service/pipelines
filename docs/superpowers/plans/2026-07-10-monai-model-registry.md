@@ -291,13 +291,11 @@ Add methods to `MonaiModels`:
     def fetch_available(self) -> Dict[str, str]:
         """Return ``{bundle_name: latest_version}`` from the MONAI Model Zoo.
 
-        ``get_all_bundles_list`` returns ``(name, version)`` pairs newest-first;
-        the first occurrence of each name is its latest version.
+        ``monai.bundle.get_all_bundles_list()`` returns one
+        ``(bundle_name, latest_version)`` tuple per bundle (already reduced to
+        the latest version per bundle), so we build the mapping directly.
         """
-        available: Dict[str, str] = {}
-        for name, version in get_all_bundles_list():
-            available.setdefault(name, version)
-        return available
+        return {name: version for name, version in get_all_bundles_list()}
 
     def filter_whitelist(self, available: Dict[str, str]) -> List[WhitelistEntry]:
         """Keep whitelist entries present in ``available``; fill unpinned versions."""
