@@ -6,9 +6,22 @@ from typing import Dict, List, Optional
 
 import yaml
 from monai.bundle import get_all_bundles_list
+from pydra.compose.monai import spec_fragment
 
 BAKED_BUNDLE_ROOT = "/opt/bundles"
 PACKAGE = "australianimagingservice"
+OVERLAYS_DIR = Path(__file__).parent / "overlays"
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Recursive merge; ``override`` wins on scalar conflicts."""
+    result = dict(base)
+    for k, v in override.items():
+        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+            result[k] = _deep_merge(result[k], v)
+        else:
+            result[k] = v
+    return result
 
 
 class WhitelistEntry(ty.NamedTuple):
@@ -136,3 +149,46 @@ class MonaiModels:
             f'{cls} = monai.define(BUNDLE_PATH, name="{cls}")\n'
         )
         return path
+
+    def overlay_path(self, entry: WhitelistEntry) -> Path:
+        return OVERLAYS_DIR / f"{entry.name}.yaml"
+
+    def generate_spec(self, entry: WhitelistEntry, bundle_dir: Path) -> dict:
+        """Build a full pipeline2app XNAT spec dict for a model.
+
+        Combines the bundle-derived field fragment with the hand-authored
+        overlay (title/authors/docs/base_image/packages/operates_on).
+        command.task references the committed generated per-model class
+        (see write_task_module); the bundle is baked into that class, so
+        the command needs no configuration.
+        """
+        overlay = yaml.safe_load(self.overlay_path(entry).read_text()) or {}
+        fragment = spec_fragment(bundle_dir)
+
+        # Rewrite sink paths from bundle metadata paths to frametree store paths.
+        sinks = {}
+        for out_name, sink in fragment["sinks"].items():
+            sink = dict(sink)
+            sink["path"] = f"monai/{entry.name}/{out_name}"
+            sinks[out_name] = sink
+
+        operates_on = overlay.get("operates_on", "session")
+        command = {
+            "task": self.task_module_ref(entry),
+            "operates_on": operates_on,
+            "configuration": {},
+            "sources": fragment["sources"],
+            "sinks": sinks,
+            "parameters": fragment["parameters"],
+        }
+
+        spec = {
+            "name": entry.name,
+            "version": entry.version,
+            "commands": [command],
+        }
+        # overlay supplies title/authors/docs/base_image/packages; it must not
+        # override name/version/commands, so merge overlay UNDER the core spec.
+        merged = _deep_merge(overlay, spec)
+        merged.pop("operates_on", None)  # consumed into the command
+        return merged

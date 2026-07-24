@@ -160,3 +160,59 @@ def test_write_task_module_emits_importable_define_call(tmp_path, whitelist_file
     assert (path.parent / "__init__.py").is_file()
     # intermediate directories up to src/ are also importable packages
     assert (tmp_path / "src" / "australianimagingservice" / "__init__.py").is_file()
+
+
+@pytest.fixture
+def overlay_dir(tmp_path: Path, monkeypatch) -> Path:
+    import scripts.monai_specs as ms
+
+    d = tmp_path / "overlays"
+    d.mkdir()
+    (d / "spleen_ct_segmentation.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "title": "MONAI Spleen CT Segmentation",
+                "authors": [{"name": "MONAI Consortium", "email": "x@example.org"}],
+                "docs": {"info_url": "https://monai.io/model-zoo.html"},
+                "base_image": {"name": "projectmonai/monai", "tag": "latest",
+                               "package_manager": "apt"},
+                "packages": {"pip": {"pydra-compose-monai": None}},
+                "operates_on": "session",
+            }
+        )
+    )
+    monkeypatch.setattr(ms, "OVERLAYS_DIR", d)
+    return d
+
+
+def test_generate_spec_shape(tmp_path, whitelist_file, overlay_dir, monkeypatch):
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {
+            "sources": {"image": {"datatype": "medimage/nifti-gz-x",
+                                  "help": "in", "path": "network_data_format/inputs/image"}},
+            "sinks": {"pred": {"datatype": "medimage/nifti-gz-x",
+                               "help": "out", "path": "network_data_format/outputs/pred"}},
+            "parameters": {},
+        },
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    spec = mm.generate_spec(entry, bundle_dir=tmp_path / "bundle")
+
+    assert spec["title"] == "MONAI Spleen CT Segmentation"
+    assert spec["version"] == "0.5.3"
+    assert isinstance(spec["commands"], list) and len(spec["commands"]) == 1
+    cmd = spec["commands"][0]
+    assert cmd["task"] == (
+        "australianimagingservice.ct.human.abdomen.monai."
+        "spleen_ct_segmentation:SpleenCtSegmentation"
+    )
+    # bundle is baked into the generated class, so configuration is empty
+    assert cmd["configuration"] == {}
+    assert cmd["operates_on"] == "session"
+    assert cmd["sources"]["image"]["datatype"] == "medimage/nifti-gz-x"
+    # sink path rewritten to the frametree store path
+    assert cmd["sinks"]["pred"]["path"] == "monai/spleen_ct_segmentation/pred"
