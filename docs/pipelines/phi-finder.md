@@ -10,7 +10,7 @@ weight: 10
 |---|-----|
 |Name|phi-finder|
 |Title|PHI-Finder|
-|Version|0.1.15|
+|Version|0.1.16|
 |Base image|`debian:bookworm-slim`|
 |Maintainer|Pedro Faustini (pedro.faustini@mq.edu.au)|
 |Info URL|https://github.com/Australian-Imaging-Service/phi-finder|
@@ -38,5 +38,5 @@ PHI-Finder is a tool for de-identifying DICOM files. It uses Tesseract OCR to ex
 |`destroy_pixels`|<span data-toggle="tooltip" data-placement="bottom" title="field/boolean" aria-label="field/boolean">field/boolean</span>|`True`||
 |`use_transformers`|<span data-toggle="tooltip" data-placement="bottom" title="field/boolean" aria-label="field/boolean">field/boolean</span>|||
 |`dry_run`|<span data-toggle="tooltip" data-placement="bottom" title="field/boolean" aria-label="field/boolean">field/boolean</span>|||
-|`use_case`|<span data-toggle="tooltip" data-placement="bottom" title="field/text" aria-label="field/text">field/text</span>|`Standard`||
+|`use_case`|<span data-toggle="tooltip" data-placement="bottom" title="field/text" aria-label="field/text">field/text</span>|`dicom_retain_patient_scan_private`||
 

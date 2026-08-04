@@ -74,7 +74,7 @@ version-file = "australianimagingservice/_version.py"
 packages = ["australianimagingservice"]
 
 [tool.black]
-target-version = ['py38']
+target-version = ['py310']
 exclude = "australianimagingservice/_version.py"
 
 [tool.codespell]
