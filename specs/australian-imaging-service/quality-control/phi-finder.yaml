@@ -33,3 +33,8 @@ commands:
     task:
       type: python
       function: phi_finder.dicom_tools.utils:deidentify_dicom_files
+  aggregate-reports:
+    operates_on: medimage/constant
+    task:
+      type: python
+      function: phi_finder.reporting.aggregate:aggregate_reports
