@@ -11,7 +11,9 @@ cd /home/ubuntu/git/pydra-tasks-fsl
 git pull
 pip install -e .
 
+
 cd /home/ubuntu/git/pipelines
+# CHECK WHICH BRANCH YOU ARE ON AND PULL THE LATEST CHANGES
 git pull
 pip install -e .
 pip install -I -r requirements.txt
