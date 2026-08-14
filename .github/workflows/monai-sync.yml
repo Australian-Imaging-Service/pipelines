@@ -29,6 +29,12 @@ jobs:
           title: "Update MONAI model specs"
           commit-message: "chore(monai): sync model specs from Model Zoo"
           body: "Automated MONAI Model Zoo spec sync. Review generated specs and task modules before merge."
+          # NB: must cover the __init__.py files write_task_module creates at
+          # every level from the package root down, not just those under a
+          # `monai` segment — a task module whose parent packages lack
+          # __init__.py cannot be imported via its dotted command.task ref.
+          # Model weights are excluded by .gitignore, so the wide src pattern
+          # cannot stage anything large.
           add-paths: |
             specs/**/monai/**
-            src/australianimagingservice/**/monai/**
+            src/australianimagingservice/**

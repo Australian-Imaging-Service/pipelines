@@ -11,6 +11,20 @@ from pydra.compose.monai import spec_fragment
 PACKAGE = "australianimagingservice"
 OVERLAYS_DIR = Path(__file__).parent / "overlays"
 
+#: Download-provenance artefacts to strip when vendoring a fetched bundle.
+VENDOR_EXCLUDE = (".cache", ".gitattributes", ".git", ".huggingface")
+
+#: Bundle entries committed beside the generated module. Only ``configs`` is
+#: functionally required — ``parse_monai_spec`` reads ``configs/metadata.json``
+#: and nothing else — but the licence and docs are small and make a synced
+#: bundle reviewable. Model weights are deliberately absent: they are large,
+#: re-downloadable, and already versioned in the Model Zoo, so they reach the
+#: image via ``resources`` instead (see notes/monai-weights-plan.md).
+VENDOR_INCLUDE = ("configs", "docs", "LICENSE")
+
+#: Directory inside the built image that model bundles are copied into.
+RUNTIME_BUNDLE_ROOT = "/monai-bundles"
+
 
 def _deep_merge(base: dict, override: dict) -> dict:
     """Recursive merge; ``override`` wins on scalar conflicts."""
@@ -121,6 +135,23 @@ class MonaiModels:
         """Directory where the model's bundle is vendored, beside its module."""
         return self.task_module_path(entry).parent / f"{entry.name}_bundle"
 
+    def resource_name(self, entry: WhitelistEntry) -> str:
+        """Name of the build-time resource carrying the model's full bundle.
+
+        Matches the sub-directory of ``--resources-dir`` that CI downloads the
+        bundle into, which pipeline2app copies into the image.
+        """
+        return f"{entry.name}-bundle"
+
+    def runtime_bundle_path(self, entry: WhitelistEntry) -> str:
+        """Path the full bundle occupies *inside the built image*.
+
+        The committed bundle is configs-only, so the module-relative path baked
+        into the generated class is valid only on the build host. At runtime the
+        task is redirected here via ``configuration.bundle``.
+        """
+        return f"{RUNTIME_BUNDLE_ROOT}/{entry.name}"
+
     def write_task_module(self, entry: WhitelistEntry) -> Path:
         """Generate a committed per-model task module (define()-built class).
 
@@ -134,15 +165,12 @@ class MonaiModels:
         path = self.task_module_path(entry)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Ensure every generated package directory is importable.
+        # Ensure every generated package directory is importable. ``src`` is the
+        # import root rather than a package, so stop before adding one there.
         src_root = self.root / "src"
-        pkg_dirs = []
-        pkg_dir = path.parent
-        while True:
-            pkg_dirs.append(pkg_dir)
-            if pkg_dir == src_root:
-                break
-            pkg_dir = pkg_dir.parent
+        pkg_dirs = list(path.parent.relative_to(src_root).parents)[:-1]
+        pkg_dirs = [src_root / p for p in pkg_dirs]
+        pkg_dirs.append(path.parent)
         for d in pkg_dirs:
             init = d / "__init__.py"
             if not init.exists():
@@ -182,19 +210,34 @@ class MonaiModels:
             sinks[out_name] = sink
 
         operates_on = overlay.get("operates_on", "session")
+        # The generated class bakes in a module-relative bundle path, which is
+        # configs-only and therefore sufficient for build-host introspection but
+        # not for inference. Redirect the task to the full bundle delivered as a
+        # resource. Setting it here (rather than as a parameter) also keeps it
+        # out of the user-facing UI: pipeline2app excludes configuration keys
+        # from both sources and parameters.
         command = {
             "task": self.task_module_ref(entry),
             "operates_on": operates_on,
-            "configuration": {},
+            "configuration": {"bundle": self.runtime_bundle_path(entry)},
             "sources": fragment["sources"],
             "sinks": sinks,
             "parameters": fragment["parameters"],
         }
 
+        # ``commands`` is a mapping keyed by command name, matching the
+        # hand-written specs. pipeline2app accepts either form (its
+        # ObjectListConverter takes the key as the command name), but the
+        # release workflow reads command names via ``yq '.commands | keys'``,
+        # which only works on a mapping.
         spec = {
             "name": entry.name,
             "version": entry.version,
-            "commands": [command],
+            # Declares that the full bundle (weights included) must be supplied
+            # at build time under this name in ``--resources-dir``, and copied
+            # to the path the command's ``configuration.bundle`` points at.
+            "resources": {self.resource_name(entry): self.runtime_bundle_path(entry)},
+            "commands": {entry.name: command},
         }
         # overlay supplies title/authors/docs/base_image/packages; it must not
         # override name/version/commands, so merge overlay UNDER the core spec.
@@ -209,19 +252,42 @@ class MonaiModels:
         return path
 
     def vendor_bundle(self, entry: WhitelistEntry, bundle_dir: Path) -> Path:
-        """Copy the downloaded bundle to sit beside the generated module.
+        """Copy the introspectable part of a downloaded bundle beside its module.
 
         The generated task module reads the bundle via a module-relative path
-        (``Path(__file__).parent / "<model>_bundle"``), so the bundle must be
-        committed there. Idempotent: replaces any existing vendored copy.
+        (``Path(__file__).parent / "<model>_bundle"``), so what is committed
+        there must be enough for pipeline2app to introspect the class at
+        spec-load time — which is ``configs/metadata.json`` and nothing more.
+        Idempotent: replaces any existing vendored copy.
+
+        Only ``VENDOR_INCLUDE`` entries are copied — an allowlist rather than
+        an exclude-list, so a new large directory appearing in a future bundle
+        cannot silently end up committed. In particular model weights are not
+        vendored; they are delivered to the image as a resource at build time
+        and the task is pointed at them via ``configuration.bundle``.
+
+        Download-provenance artefacts left behind by the fetch (the Hugging
+        Face ``.cache`` tree, ``.gitattributes``) are excluded by the same
+        allowlist.
         """
         import shutil
 
         dest = self.bundle_vendor_dir(entry)
         if dest.exists():
             shutil.rmtree(dest)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(bundle_dir, dest)
+        dest.mkdir(parents=True, exist_ok=True)
+        for name in VENDOR_INCLUDE:
+            source = bundle_dir / name
+            if not source.exists():
+                continue
+            if source.is_dir():
+                shutil.copytree(
+                    source,
+                    dest / name,
+                    ignore=shutil.ignore_patterns(*VENDOR_EXCLUDE),
+                )
+            else:
+                shutil.copy2(source, dest / name)
         return dest
 
     def sync(self, download_bundle: Callable[[WhitelistEntry], Path]) -> List[Path]:
