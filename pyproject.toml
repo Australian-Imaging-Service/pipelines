@@ -12,8 +12,8 @@ dependencies = [
     "fileformats-medimage-extras",
     "pydra ==1.0a9",
     "pydra-tasks-fastsurfer >=0.2.2",
-    "pydra-tasks-freesurfer @ git+https://github.com/arkiev/pydra-freesurfer.git@7676119cff4fc4a837488ef436853ebe5fe7c1ce",
-    "pydra-tasks-fsl @ git+https://github.com/arkiev/pydra-tasks-fsl.git@c0eda08",
+    "pydra-tasks-freesurfer,
+    "pydra-tasks-fsl,
     "pydra-tasks-mrtrix3 >=3.1.0a1",
 ]
 license = "CC-BY-4.0"
@@ -44,9 +44,6 @@ test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>
 [project.urls]
 repository = "https://github.com/Australian-Imaging-Service/pipelines"
 
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.hatch.version]
 source = "vcs"
