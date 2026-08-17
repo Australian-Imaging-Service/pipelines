@@ -434,6 +434,95 @@ def test_sync_writes_only_changed(tmp_path, whitelist_file, overlay_dir, monkeyp
     assert written2 == []
 
 
+def test_fetch_resources_reads_specs_and_populates_resources_dir(
+    tmp_path, whitelist_file, overlay_dir, monkeypatch
+):
+    """``fetch-resources`` stages each spec's full bundle for --resources-dir.
+
+    The generated spec declares a resource that nothing supplies, so a build
+    fails until this runs. It must key off the spec on disk (not the
+    whitelist) so it reflects exactly what will be built, and pin to the
+    spec's version so the image cannot drift from the spec describing it.
+    """
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    mm.write_spec(entry, mm.generate_spec(entry, bundle_dir=tmp_path / "b"))
+
+    downloaded: list = []
+
+    def fake_download(name: str, version: str, dest: Path) -> Path:
+        downloaded.append((name, version))
+        bundle = dest / name
+        (bundle / "configs").mkdir(parents=True)
+        (bundle / "configs" / "metadata.json").write_text("{}")
+        (bundle / "models").mkdir(parents=True)
+        (bundle / "models" / "model.pt").write_bytes(b"\x00" * 512)
+        return bundle
+
+    resources_dir = tmp_path / "resources"
+    staged = mm.fetch_resources(resources_dir, download=fake_download)
+
+    # pinned to the spec's version, not "latest"
+    assert downloaded == [("spleen_ct_segmentation", "0.5.3")]
+    # staged under the resource name the spec declares
+    target = resources_dir / "spleen_ct_segmentation-bundle"
+    assert staged == [target]
+    # the full bundle: weights AND configs, since _resolve_bundle_dir needs both
+    assert (target / "models" / "model.pt").is_file()
+    assert (target / "configs" / "metadata.json").is_file()
+
+
+def test_fetch_resources_is_idempotent(
+    tmp_path, whitelist_file, overlay_dir, monkeypatch
+):
+    """Re-running replaces the staged copy rather than merging into it."""
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    mm.write_spec(entry, mm.generate_spec(entry, bundle_dir=tmp_path / "b"))
+
+    def fake_download(name: str, version: str, dest: Path) -> Path:
+        bundle = dest / name
+        (bundle / "configs").mkdir(parents=True, exist_ok=True)
+        (bundle / "configs" / "metadata.json").write_text("{}")
+        return bundle
+
+    resources_dir = tmp_path / "resources"
+    target = resources_dir / "spleen_ct_segmentation-bundle"
+    target.mkdir(parents=True)
+    (target / "stale.txt").write_text("from an older version")
+
+    mm.fetch_resources(resources_dir, download=fake_download)
+    assert not (target / "stale.txt").exists()
+    assert (target / "configs" / "metadata.json").is_file()
+
+
+def test_fetch_resources_ignores_non_monai_specs(tmp_path, whitelist_file):
+    """Only MONAI specs declare a bundle resource; others must be skipped."""
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    other = tmp_path / "specs" / "australian-imaging-service" / "quality-control"
+    other.mkdir(parents=True)
+    (other / "phi-finder.yaml").write_text(
+        yaml.safe_dump({"name": "phi-finder", "version": "1.0", "commands": {}})
+    )
+
+    def fail_download(name, version, dest):  # pragma: no cover - must not run
+        raise AssertionError("should not download for a non-MONAI spec")
+
+    assert mm.fetch_resources(tmp_path / "resources", download=fail_download) == []
+
+
 def _make_synthetic_bundle(dest: Path) -> Path:
     configs = dest / "configs"
     configs.mkdir(parents=True, exist_ok=True)

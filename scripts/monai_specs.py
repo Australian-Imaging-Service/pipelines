@@ -315,27 +315,102 @@ class MonaiModels:
 
     def _download(self, entry: WhitelistEntry) -> Path:
         """Download a bundle from the Model Zoo into ``<root>/.monai-bundles``."""
+        return self._download_bundle(entry.name, entry.version, self.root / ".monai-bundles")
+
+    @staticmethod
+    def _download_bundle(name: str, version: Optional[str], dest: Path) -> Path:
+        """Download ``name`` at ``version`` into ``dest``; return the bundle root."""
         from monai.bundle import download
 
-        dest = self.root / ".monai-bundles"
         dest.mkdir(parents=True, exist_ok=True)
-        download(name=entry.name, version=entry.version, bundle_dir=str(dest))
-        return dest / entry.name
+        download(name=name, version=version, bundle_dir=str(dest))
+        return dest / name
+
+    def monai_specs(self) -> List[Path]:
+        """Every generated MONAI spec on disk, i.e. those under a ``monai`` dir."""
+        specs_root = self.root / "specs" / "australian-imaging-service"
+        if not specs_root.is_dir():
+            return []
+        return sorted(specs_root.glob("**/monai/*.yaml"))
+
+    def fetch_resources(
+        self,
+        resources_dir: Path,
+        download: Optional[Callable[[str, Optional[str], Path], Path]] = None,
+    ) -> List[Path]:
+        """Stage each MONAI spec's full bundle into ``resources_dir``.
+
+        The generated specs declare a ``resources`` entry for their bundle but
+        the weights are deliberately not committed, so a build fails until this
+        has run. Reads the specs on disk rather than the whitelist, so what is
+        staged matches exactly what will be built, and pins the download to the
+        version recorded in the spec so the image cannot drift from it.
+
+        Returns the staged resource directories.
+        """
+        import shutil
+        import tempfile
+
+        if download is None:
+            download = self._download_bundle
+
+        staged: List[Path] = []
+        for spec_path in self.monai_specs():
+            spec = yaml.safe_load(spec_path.read_text()) or {}
+            resources = spec.get("resources") or {}
+            if not resources:
+                continue
+            name = spec["name"]
+            version = spec.get("version")
+            for resource_name in resources:
+                target = resources_dir / resource_name
+                with tempfile.TemporaryDirectory() as tmp:
+                    bundle = download(name, version, Path(tmp))
+                    if target.exists():
+                        shutil.rmtree(target)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    # copytree rather than move: the temp dir is removed on exit
+                    shutil.copytree(bundle, target)
+                staged.append(target)
+        return staged
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="Sync MONAI Model Zoo specs")
-    parser.add_argument("command", choices=["sync"])
+    parser.add_argument(
+        "command",
+        choices=["sync", "fetch-resources"],
+        help=(
+            "sync: regenerate specs/task modules from the Model Zoo. "
+            "fetch-resources: download the full bundles (weights included) "
+            "that the generated specs declare, ready for --resources-dir. "
+            "Required before building, as weights are not committed."
+        ),
+    )
     parser.add_argument("--root", type=Path, default=Path(__file__).parent.parent)
     parser.add_argument(
         "--whitelist", type=Path,
         default=Path(__file__).parent / "monai_whitelist.yaml",
     )
+    parser.add_argument(
+        "--resources-dir", type=Path, default=None,
+        help="destination for fetch-resources (default: <root>/resources)",
+    )
     args = parser.parse_args(argv)
 
     mm = MonaiModels(root=args.root, whitelist_path=args.whitelist)
+
+    if args.command == "fetch-resources":
+        resources_dir = args.resources_dir or (args.root / "resources")
+        staged = mm.fetch_resources(resources_dir)
+        for path in staged:
+            print(f"staged {path}")
+        if not staged:
+            print("no MONAI specs declaring bundle resources found")
+        return 0
+
     written = mm.sync(download_bundle=mm._download)
     for path in written:
         print(f"wrote {path}")
