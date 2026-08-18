@@ -1,0 +1,126 @@
+title: "Preprocess diffusion-weighted MRI" # Short name for the pipeline referenced in the UI
+schema_version: "2.0" # the version of the specification format used for this file
+version: "0.1.0"
+base_image:
+  # Same base image as t1w/preprocess.yaml — provides mri_synthstrip (used by
+  # DwiPreprocessing for brain masking) and a bundled FreeSurfer license
+  # mechanism
+  name: deepmi/fastsurfer
+  package_manager: apt
+  tag: gpu-latest
+packages:
+  pip:
+    setuptools:
+    simplejson:
+    numpy:
+    looseversion:
+    fileformats-datascience:
+    fileformats-medimage:
+    fileformats-vendor-fsl:
+    pydra: 1.0a9
+    pydra-tasks-mrtrix3:
+    pydra-tasks-fsl:
+    fileformats:
+    pydra-tasks-fastsurfer:
+    fileformats-medimage-extras:
+    pydra2app:
+    frametree:
+    frametree-xnat:
+    australianimagingservice:
+  neurodocker:
+    dcm2niix: v1.0.20250506
+    mrtrix3:
+      version: "3.0.4"
+      args:
+        method: source
+        build_processes: "4"
+    fsl: 6.0.5.1
+    ants: "2.5.0"
+    freesurfer:
+      version: &freesurfer_version 7.4.1
+      args:
+        exclude_paths: |
+          average/mult-comp-cor
+          lib/cuda
+          lib/qt
+          subjects/V1_average
+          subjects/bert
+          subjects/cvs_avg35
+          subjects/cvs_avg35_inMNI152
+          subjects/fsaverage3
+          subjects/fsaverage4
+          subjects/fsaverage6
+          subjects/fsaverage_sym
+          trctrain
+authors:
+  - name: Arkiev D'Souza
+    email: arkiev.dsouza@sydney.edu.au
+  - name: Thomas G. Close
+    email: thomas.close@sydney.edu.au
+licenses:
+  freesurfer:
+    destination:
+      &freesurfer_license !join [
+        "/opt/freesurfer-",
+        *freesurfer_version,
+        "/license.txt",
+      ]
+    info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
+    description: >
+      DwiPreprocessing uses mri_synthstrip (a FreeSurfer-distributed tool) for
+      brain masking, which requires a FreeSurfer license to run.
+docs:
+  info_url: "https://placeholder.org" # Link to external documentation for underlying tool
+  description: | # Description of tool for auto-docs
+    Preprocess a diffusion-weighted MRI series: gradient-check, denoise,
+    Gibbs-ringing removal, motion/distortion correction (eddy/topup via
+    dwifslpreproc), bias-field correction, brain-extraction/cropping, and
+    tissue response function estimation (Dhollander). The reverse
+    phase-encode (RPE) image is optional — if not provided, only eddy
+    correction is applied (no topup).
+commands:
+  preprocess:
+    task: australianimagingservice.mri.human.neuro.dwi.dwi_preprocessing:DwiPreprocessing
+    operates_on: medimage/session
+    sources:
+      DWI:
+        field: dwi_raw_mif
+        type: medimage/vnd.mrtrix3.image-format-gz
+        help: "The diffusion-weighted MRI series to preprocess"
+      RPE:
+        field: rpe_file
+        type: medimage/vnd.mrtrix3.image-format-gz
+        help: >-
+          Optional reverse phase-encode (or b0-only) companion image, used
+          for topup distortion correction. If not provided, only eddy motion
+          correction is performed.
+    parameters:
+      PeDir:
+        field: pe_dir
+        help: "Phase-encode direction of the DWI series (e.g. AP, PA, LR, RL, SI, IS)"
+        default: AP
+      RpeMode:
+        field: rpe_mode
+        help: >-
+          Reverse phase-encode mode passed to dwifslpreproc: rpe_none (no RPE
+          image), rpe_pair (RPE is b0-only or unequal volumes to DWI),
+          rpe_all (RPE is a full DWI series with equal volumes), or
+          rpe_header (PE info embedded in the image header)
+        default: rpe_none
+      ReadoutTime:
+        field: readout_time
+        help: "Total readout time (s) of the DWI acquisition, if known"
+      FodAlgorithm:
+        field: fod_algorithm
+        help: "FOD estimation algorithm downstream steps should use: msmt_csd (multi-shell) or ss3t (single-shell)"
+        default: msmt_csd
+    configuration: # Additional args passed to arcana.common:shell_cmd
+      # Matches the --work /work flag passed via pydra2app_flags at launch, so
+      # DwiPreprocessing's own cache_root input (used only for writing the
+      # manifest/execution log) stays consistent with pydra2app's actual
+      # pipeline work directory
+      cache_root: /work
+      # WritePreprocessingLog crashes on an empty start_time (its default);
+      # there's no way to inject a live timestamp from static YAML, so this
+      # is a fixed placeholder — only the log's "Elapsed" line is affected
+      start_time: "2000-01-01T00:00:00"
