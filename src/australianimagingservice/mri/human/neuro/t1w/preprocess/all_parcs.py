@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 from fileformats.generic import File, Directory
 from fileformats.medimage import NiftiGz
-from fileformats.medimage_mrtrix3.image import ImageFormat as Mif, ImageFormatGz
+from fileformats.vendor.mrtrix3.medimage.image import ImageFormat as Mif, ImageFormatGz
 from pydra.compose import workflow, python
 from australianimagingservice.mri.human.neuro.t1w.preprocess.single_parc import (
     SingleParcellation,
@@ -55,7 +55,9 @@ _finalize_inputs.update(
 )
 
 
-def _lut_src(parcellation: str, resources_dir: Path, mrtrix_lut_dir: Path) -> Path | None:
+def _lut_src(
+    parcellation: str, resources_dir: Path, mrtrix_lut_dir: Path
+) -> Path | None:
     """Return the MRtrix3 LUT file path for a given parcellation."""
     neuro = resources_dir / "neuro-parcellations"
     if (
