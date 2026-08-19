@@ -13,5 +13,7 @@ base_image:
   package_manager: apt
 packages:
   pip:
-    pydra-compose-monai:
+    # >=0.1.4 maps NIfTI bundle inputs to NiftiGz rather than NiftiGzX; earlier
+    # versions reject side-car-less .nii.gz, which is what MONAI bundles consume.
+    pydra-compose-monai: ">=0.1.4"
 operates_on: session
