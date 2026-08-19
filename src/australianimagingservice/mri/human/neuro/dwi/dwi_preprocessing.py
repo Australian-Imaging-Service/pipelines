@@ -14,7 +14,9 @@ from pydra.tasks.mrtrix3.v3_1 import (
     MrMath,
     Dwi2Response_Dhollander,
 )
-from pydra.tasks.fastsurfer.mri_synthstrip import MriSynthstrip
+from australianimagingservice.mri.human.neuro.t1w.preprocess.mri_synthstrip import (
+    MriSynthstrip,
+)
 from fileformats.vendor.mrtrix3.medimage import (  # noqa: F401
     ImageIn,
     ImageOut,

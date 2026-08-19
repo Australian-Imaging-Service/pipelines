@@ -21,7 +21,6 @@ packages:
     pydra-tasks-mrtrix3:
     pydra-tasks-fsl:
     fileformats:
-    pydra-tasks-fastsurfer:
     fileformats-medimage-extras:
     pydra2app:
     frametree:
