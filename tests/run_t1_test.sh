@@ -20,3 +20,4 @@ pip install -I -r requirements.txt
 pip install --upgrade pytest
 
 nohup pytest tests/test_t1_preprocess.py > tests/test_t1_preprocess_OUTPUT.txt &
+nohup pytest tests/test_dwi_preprocess.py > tests/test_dwi_preprocess_OUTPUT.txt &
