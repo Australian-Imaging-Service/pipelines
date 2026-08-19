@@ -12,7 +12,6 @@ packages:
   pip:
     setuptools:
     simplejson:
-    numpy:
     looseversion:
     fileformats-datascience:
     fileformats-medimage:
