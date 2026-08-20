@@ -34,8 +34,20 @@ SKIP_BUILD = False
 # directories under tests/data/specs/mri/human/neuro/dwi/preprocess/ (see
 # conftest.py:upload_test_dataset_to_xnat, which derives the XNAT scan "type"
 # from that header).
+#
+# DWI_SCAN_TYPE / RPE_SCAN_TYPE: used for rpe_none (DWI only) and rpe_pair
+#   (DWI + a b0-only or unequal-volume RPE companion).
 DWI_SCAN_TYPE = "dwi_AP"
 RPE_SCAN_TYPE = "dwi_PA"
+# RPE_ALL_SCAN_TYPE: a *full* second DWI series (not just b0) with the same
+#   volume count as DWI_SCAN_TYPE, acquired in the opposite phase-encode
+#   direction — gets concatenated with DWI via DwiCat for rpe_all.
+RPE_ALL_SCAN_TYPE = "dwi_PA_full"
+# DWI_HEADER_SCAN_TYPE: a single DWI series with interleaved AP+PA phase
+#   encoding embedded in its own header (no separate RPE image at all) — used
+#   for rpe_header, where pe_dir/readout_time are read from the header
+#   instead of being passed explicitly.
+DWI_HEADER_SCAN_TYPE = "dwi_interleaved_header"
 
 
 def test_dwi_preprocess_app(
@@ -85,17 +97,36 @@ def test_dwi_preprocess_app(
 
     image_spec = XnatApp.load(SPEC_PATH)
 
-    # Two scenarios exercising the "RPE image may not always be provided" case:
-    # rpe_none (DWI only) and rpe_pair (DWI + reverse phase-encode companion).
+    # Four scenarios covering all of DwiPreprocessing's rpe_mode branches —
+    # exercising the "RPE image may not always be provided" case (rpe_none),
+    # plus the other three real modes (rpe_pair, rpe_all, rpe_header).
+    #
+    # NB: any source left unset must be explicitly passed as "" here rather
+    # than omitted. The XNAT command's build-time default value for an unset
+    # *source* is the literal placeholder "<RPE>" (parameters default to ""
+    # instead), and pydra2app misinterprets "<RPE>" as a reference to an
+    # already-existing column named "RPE" rather than "no value provided",
+    # KeyErroring trying to look it up.
     scenarios = {
         "no_rpe": {
             "DWI": DWI_SCAN_TYPE,
+            "RPE": "",
             "RpeMode": "rpe_none",
         },
         "with_rpe": {
             "DWI": DWI_SCAN_TYPE,
             "RPE": RPE_SCAN_TYPE,
             "RpeMode": "rpe_pair",
+        },
+        "rpe_all": {
+            "DWI": DWI_SCAN_TYPE,
+            "RPE": RPE_ALL_SCAN_TYPE,
+            "RpeMode": "rpe_all",
+        },
+        "rpe_header": {
+            "DWI": DWI_HEADER_SCAN_TYPE,
+            "RPE": "",
+            "RpeMode": "rpe_header",
         },
     }
 
