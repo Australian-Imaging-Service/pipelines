@@ -37,8 +37,8 @@ SKIP_BUILD = False
 #
 # DWI_SCAN_TYPE / RPE_SCAN_TYPE: used for rpe_none (DWI only) and rpe_pair
 #   (DWI + a b0-only or unequal-volume RPE companion).
-DWI_SCAN_TYPE = "dwi_AP"
-RPE_SCAN_TYPE = "dwi_PA"
+DWI_SCAN_TYPE = "DWI_MSMT_2.5mm_full_AP"
+RPE_SCAN_TYPE = "DTI b0 only 2.5mm_96_PA"
 # RPE_ALL_SCAN_TYPE: a *full* second DWI series (not just b0) with the same
 #   volume count as DWI_SCAN_TYPE, acquired in the opposite phase-encode
 #   direction — gets concatenated with DWI via DwiCat for rpe_all.
