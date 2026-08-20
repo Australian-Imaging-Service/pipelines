@@ -83,11 +83,11 @@ commands:
     sources:
       DWI:
         field: dwi_raw_mif
-        type: medimage/vnd.mrtrix3.image-format-gz
+        type: medimage/dicom-dir
         help: "The diffusion-weighted MRI series to preprocess"
       RPE:
         field: rpe_file
-        type: medimage/vnd.mrtrix3.image-format-gz
+        type: medimage/dicom-dir
         help: >-
           Optional reverse phase-encode (or b0-only) companion image, used
           for topup distortion correction. If not provided, only eddy motion
