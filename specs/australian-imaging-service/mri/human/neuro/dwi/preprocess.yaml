@@ -82,12 +82,10 @@ commands:
     operates_on: medimage/session
     sources:
       DWI:
-        field: dwi_raw_mif
-        type: medimage/dicom-dir
+        field: dwi_raw
         help: "The diffusion-weighted MRI series to preprocess"
       RPE:
         field: rpe_file
-        type: medimage/dicom-dir
         help: >-
           Optional reverse phase-encode (or b0-only) companion image, used
           for topup distortion correction. If not provided, only eddy motion

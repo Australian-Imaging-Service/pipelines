@@ -2,6 +2,7 @@ from pathlib import Path
 
 from pydra.compose import python, shell, workflow
 from fileformats.generic import File
+from fileformats.medimage import NiftiGzBvec
 from pydra.tasks.mrtrix3.v3_1 import (
     DwiGradcheck,
     DwiDenoise,
@@ -517,7 +518,7 @@ def resolve_dwi_inputs(subject_dir: str) -> dict:
         else:
             untagged.append(f)
 
-    dwi_raw_mif = None
+    dwi_raw = None
     rpe_file = None
     pe_dir = "AP"
     rpe_mode = "rpe_none"
@@ -559,19 +560,19 @@ def resolve_dwi_inputs(subject_dir: str) -> dict:
             if not _has_nonzero_bvals(str(fwd_path)):
                 continue
             rpe_mode = _classify_rpe_companion(fwd_path, rpe_path)
-            dwi_raw_mif = str(fwd_path)
+            dwi_raw = str(fwd_path)
             rpe_file = str(rpe_path)
             pe_dir = fwd_pe
             break
 
     # Phase 2: untagged DWI + optional RPE-tagged companion
-    if dwi_raw_mif is None and untagged:
+    if dwi_raw is None and untagged:
         main_dwi = (
             max(untagged, key=lambda f: _get_nvols(str(f)) or 0)
             if len(untagged) > 1
             else untagged[0]
         )
-        dwi_raw_mif = str(main_dwi)
+        dwi_raw = str(main_dwi)
         all_rpe = [
             (pe, p) for sm in stem_map.values() for pe, p in sm.items() if pe in _RPE
         ]
@@ -579,9 +580,9 @@ def resolve_dwi_inputs(subject_dir: str) -> dict:
             _rpe_pe, _rpe_path = all_rpe[0]
             rpe_file = str(_rpe_path)
             rpe_mode = _classify_rpe_companion(str(main_dwi), str(_rpe_path))
-            pe_dir, _ = detect_dwi_pe_and_mode(dwi_raw_mif)
+            pe_dir, _ = detect_dwi_pe_and_mode(dwi_raw)
         else:
-            pe_dir, rpe_mode = detect_dwi_pe_and_mode(dwi_raw_mif)
+            pe_dir, rpe_mode = detect_dwi_pe_and_mode(dwi_raw)
             label = (
                 "interleaved AP+PA — rpe_header"
                 if rpe_mode == "rpe_header"
@@ -590,28 +591,28 @@ def resolve_dwi_inputs(subject_dir: str) -> dict:
             print(f"  Untagged DWI ({label}): {main_dwi.name}")
 
     # Phase 3: fallback — single PE-tagged file
-    if dwi_raw_mif is None:
+    if dwi_raw is None:
         for stem, pe_map in stem_map.items():
             fwds = {pe: p for pe, p in pe_map.items() if pe in _FWD}
             rpes = {pe: p for pe, p in pe_map.items() if pe in _RPE}
             if fwds:
                 fwd_pe, fwd_path = next(iter(fwds.items()))
                 print(f"  Single FWD DWI (rpe_none): {fwd_path.name}")
-                dwi_raw_mif = str(fwd_path)
+                dwi_raw = str(fwd_path)
                 pe_dir = fwd_pe
                 break
             if rpes:
                 rpe_pe, rpe_path = next(iter(rpes.items()))
                 print(f"  Single RPE DWI (rpe_none): {rpe_path.name}")
-                dwi_raw_mif = str(rpe_path)
+                dwi_raw = str(rpe_path)
                 pe_dir = rpe_pe
                 break
 
-    if dwi_raw_mif is None:
+    if dwi_raw is None:
         raise FileNotFoundError(f"Could not identify a main DWI in {subject_dir}")
 
     return {
-        "dwi_raw_mif": dwi_raw_mif,
+        "dwi_raw": dwi_raw,
         "rpe_file": rpe_file,
         "pe_dir": pe_dir,
         "rpe_mode": rpe_mode,
@@ -639,10 +640,10 @@ def get_eddy_nthr() -> int:
     ]
 )
 def DwiPreprocessing(
-    dwi_raw_mif: File,
+    dwi_raw: NiftiGzBvec,
     pe_dir: str = "AP",
     rpe_mode: str = "rpe_none",
-    rpe_file: str | None = None,
+    rpe_file: NiftiGzBvec | None = None,
     readout_time: float | None = None,
     eddy_options: str = f"' --slm=linear --nthr={get_eddy_nthr()}'",
     fod_algorithm: str = "msmt_csd",
@@ -656,7 +657,7 @@ def DwiPreprocessing(
     if rpe_mode == "rpe_all":
         dwicat_task = workflow.add(
             DwiCat(
-                in_file1=dwi_raw_mif,
+                in_file1=dwi_raw,
                 in_file2=rpe_file,
                 out_file="dwi_AP_PA_concat.mif.gz",
             ),
@@ -666,7 +667,7 @@ def DwiPreprocessing(
 
     elif rpe_mode == "rpe_pair":
         fwd_b0_extract = workflow.add(
-            DwiExtract(in_file=dwi_raw_mif, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
+            DwiExtract(in_file=dwi_raw, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
             name="DwiExtract_fwd_b0",
         )
         fwd_meanb0 = workflow.add(
@@ -703,10 +704,10 @@ def DwiPreprocessing(
             name="MrCat_se_epi",
         )
         se_epi_task_out = se_epi_task.out_file
-        dwi_prepared = dwi_raw_mif
+        dwi_prepared = dwi_raw
 
     else:
-        dwi_prepared = dwi_raw_mif
+        dwi_prepared = dwi_raw
 
     # ── Step 1: Gradient check ─────────────────────────────────────────────────
     DWIgradcheck_task = workflow.add(
@@ -936,7 +937,7 @@ if __name__ == "__main__":
     subject_dir = "/Users/adso8337/Desktop/000044v2/Data/scans/"
     output_path = "/Users/adso8337/Desktop/000044v2/outputs/Outputs/"
     inputs = resolve_dwi_inputs(subject_dir)
-    dwi_path = inputs["dwi_raw_mif"]
+    dwi_path = inputs["dwi_raw"]
 
     nthr = get_eddy_nthr()
     wf = DwiPreprocessing(
