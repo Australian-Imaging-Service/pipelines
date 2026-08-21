@@ -1,19 +1,20 @@
 from pathlib import Path
-from click.testing import CliRunner
-from pydra2app.core.cli import make
-from frametree.core.utils import show_cli_trace
-import xnat4tests
-import pytest
-from pydra2app.xnat.deploy import install_cs_command, launch_cs_command
-import yaml
 
+import pytest
+import xnat4tests
+import yaml
+from click.testing import CliRunner
+from frametree.core.utils import show_cli_trace
+from pydra2app.core.cli import make
+from pydra2app.xnat.deploy import install_cs_command, launch_cs_command
+from xnat.session import XNATSession
 
 PKG_PATH = Path(__file__).parent.parent.absolute()
 
 runner = CliRunner()
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_phi_finder():
     yaml_spec_path = (
         f"{PKG_PATH}/specs/australian-imaging-service/quality-control/phi-finder.yaml"
@@ -41,7 +42,7 @@ def test_phi_finder():
 
     assert not result.exit_code, show_cli_trace(result)
 
-    xlogin = xnat4tests.connect()
+    xlogin: XNATSession = xnat4tests.connect()
 
     cmd_id = install_cs_command(
         f"ghcr.io/australian-imaging-service/quality-control.phi-finder:{yaml_spec['version']}",
@@ -56,12 +57,28 @@ def test_phi_finder():
         cmd_id,
         xlogin=xlogin,
         inputs={
-           "score_threshold": 0.5,
-           "spacy_model_name": "en_core_web_md",
-           "destroy_pixels": True,
-           "use_transformers": False,
-           "dry_run": False
+            "score_threshold": 0.5,
+            "spacy_model_name": "en_core_web_md",
+            "destroy_pixels": True,
+            "use_transformers": False,
+            "dry_run": False,
         },
         project_id="dummydicomproject",
         session_id="dummydicomsession",
+    )
+
+    agg_reports_cmd_id = install_cs_command(
+        f"ghcr.io/australian-imaging-service/quality-control.phi-finder:{yaml_spec['version']}",
+        xlogin,
+        enable=True,
+        projects_to_enable=["dummydicomproject"],
+        replace_existing=True,
+        command_name="phi-finder-agg-reports",
+    )
+
+    launch_cs_command(
+        agg_reports_cmd_id,
+        xlogin=xlogin,
+        inputs={},
+        project_id="dummydicomproject",
     )
