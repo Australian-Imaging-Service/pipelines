@@ -131,6 +131,17 @@ class MrCat(shell.Task):
 # ── Python task definitions ────────────────────────────────────────────────────
 
 
+@python.define(outputs=["bvec_file", "bval_file"])
+def SplitBvecBval(dwi: NiftiXBvec) -> tuple[File, File]:
+    """Pull the adjacent FSL-style .bvec/.bval sidecar paths out of a
+    NiftiXBvec bundle so they can be passed explicitly to MrConvert's
+    fslgrad=(bvec, bval) input, rather than relying on tools that only
+    auto-detect them by co-located, same-basename convention."""
+    bvec = dwi.encoding
+    bval = bvec.b_values_file
+    return bvec, bval
+
+
 @python.define(outputs=["grad_warning"])
 def CheckGradientCorrection(in_file: File, corrected_grad_file: File) -> str:
     """Compare original DWI gradients with DwiGradcheck-corrected export.
@@ -651,14 +662,40 @@ def DwiPreprocessing(
     cache_root: str = "",
 ) -> tuple[File, File, File, File, File, str]:
 
+    # ── Import NIfTI+bvec/bval into .mif with an embedded gradient table ────────
+    # dwi_raw/rpe_file are DICOM-converted NiftiXBvec bundles (nii+bval+bvec+json),
+    # not .mif — none of the mrtrix3 tools below discover gradients automatically
+    # unless they're embedded in a .mif header, so import explicitly here rather
+    # than relying on co-located-file auto-detection.
+    dwi_grad = workflow.add(SplitBvecBval(dwi=dwi_raw), name="SplitBvecBval_dwi")
+    dwi_raw_mif = workflow.add(
+        MrConvert(
+            in_file=dwi_raw,
+            fslgrad=(dwi_grad.bvec_file, dwi_grad.bval_file),
+            out_file="dwi_raw.mif.gz",
+            config=[],
+        ),
+        name="MrConvert_dwi_import",
+    ).out_file
+
     # ── AP/PA preparation ──────────────────────────────────────────────────────
     se_epi_task_out = None
 
     if rpe_mode == "rpe_all":
+        rpe_grad = workflow.add(SplitBvecBval(dwi=rpe_file), name="SplitBvecBval_rpe")
+        rpe_file_mif = workflow.add(
+            MrConvert(
+                in_file=rpe_file,
+                fslgrad=(rpe_grad.bvec_file, rpe_grad.bval_file),
+                out_file="rpe_raw.mif.gz",
+                config=[],
+            ),
+            name="MrConvert_rpe_import",
+        ).out_file
         dwicat_task = workflow.add(
             DwiCat(
-                in_file1=dwi_raw,
-                in_file2=rpe_file,
+                in_file1=dwi_raw_mif,
+                in_file2=rpe_file_mif,
                 out_file="dwi_AP_PA_concat.mif.gz",
             ),
             name="DwiCat_rpe_all",
@@ -666,8 +703,18 @@ def DwiPreprocessing(
         dwi_prepared = dwicat_task.out_file
 
     elif rpe_mode == "rpe_pair":
+        rpe_grad = workflow.add(SplitBvecBval(dwi=rpe_file), name="SplitBvecBval_rpe")
+        rpe_file_mif = workflow.add(
+            MrConvert(
+                in_file=rpe_file,
+                fslgrad=(rpe_grad.bvec_file, rpe_grad.bval_file),
+                out_file="rpe_raw.mif.gz",
+                config=[],
+            ),
+            name="MrConvert_rpe_import",
+        ).out_file
         fwd_b0_extract = workflow.add(
-            DwiExtract(in_file=dwi_raw, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
+            DwiExtract(in_file=dwi_raw_mif, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
             name="DwiExtract_fwd_b0",
         )
         fwd_meanb0 = workflow.add(
@@ -681,7 +728,7 @@ def DwiPreprocessing(
             name="MrMath_fwd_meanb0",
         )
         rpe_b0_extract = workflow.add(
-            DwiExtract(in_file=rpe_file, out_file="rpe_bzero.mif.gz", bzero=True, config=[]),
+            DwiExtract(in_file=rpe_file_mif, out_file="rpe_bzero.mif.gz", bzero=True, config=[]),
             name="DwiExtract_rpe_b0",
         )
         rpe_meanb0 = workflow.add(
@@ -704,10 +751,10 @@ def DwiPreprocessing(
             name="MrCat_se_epi",
         )
         se_epi_task_out = se_epi_task.out_file
-        dwi_prepared = dwi_raw
+        dwi_prepared = dwi_raw_mif
 
     else:
-        dwi_prepared = dwi_raw
+        dwi_prepared = dwi_raw_mif
 
     # ── Step 1: Gradient check ─────────────────────────────────────────────────
     DWIgradcheck_task = workflow.add(
