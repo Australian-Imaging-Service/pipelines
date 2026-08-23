@@ -131,12 +131,15 @@ class MrCat(shell.Task):
 # ── Python task definitions ────────────────────────────────────────────────────
 
 
-@python.define(outputs=["bvec_file", "bval_file"])
+@python.define(outputs=["fslgrad"])
 def SplitBvecBval(dwi: NiftiXBvec) -> tuple[File, File]:
     """Pull the adjacent FSL-style .bvec/.bval sidecar paths out of a
-    NiftiXBvec bundle so they can be passed explicitly to MrConvert's
-    fslgrad=(bvec, bval) input, rather than relying on tools that only
-    auto-detect them by co-located, same-basename convention."""
+    NiftiXBvec bundle as a single (bvec, bval) tuple output, so they can be
+    passed explicitly to MrConvert's fslgrad input, rather than relying on
+    tools that only auto-detect them by co-located, same-basename convention.
+    Must be a single combined output (not two separate ones) so downstream
+    connects to one lazy field whose resolved value is the tuple itself,
+    rather than a tuple of two still-unresolved lazy fields."""
     bvec = dwi.encoding
     bval = bvec.b_values_file
     return bvec, bval
@@ -671,7 +674,7 @@ def DwiPreprocessing(
     dwi_raw_mif = workflow.add(
         MrConvert(
             in_file=dwi_raw,
-            fslgrad=(dwi_grad.bvec_file, dwi_grad.bval_file),
+            fslgrad=dwi_grad.fslgrad,
             out_file="dwi_raw.mif.gz",
             config=[],
         ),
@@ -686,7 +689,7 @@ def DwiPreprocessing(
         rpe_file_mif = workflow.add(
             MrConvert(
                 in_file=rpe_file,
-                fslgrad=(rpe_grad.bvec_file, rpe_grad.bval_file),
+                fslgrad=rpe_grad.fslgrad,
                 out_file="rpe_raw.mif.gz",
                 config=[],
             ),
@@ -707,7 +710,7 @@ def DwiPreprocessing(
         rpe_file_mif = workflow.add(
             MrConvert(
                 in_file=rpe_file,
-                fslgrad=(rpe_grad.bvec_file, rpe_grad.bval_file),
+                fslgrad=rpe_grad.fslgrad,
                 out_file="rpe_raw.mif.gz",
                 config=[],
             ),
