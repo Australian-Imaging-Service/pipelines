@@ -633,13 +633,6 @@ def resolve_dwi_inputs(subject_dir: str) -> dict:
     }
 
 
-def get_eddy_nthr() -> int:
-    """Return threads to pass to eddy --nthr: all CPUs minus one, minimum 1."""
-    import os
-
-    return max(1, (os.cpu_count() or 1) - 1)
-
-
 # ── Main workflow ──────────────────────────────────────────────────────────────
 
 
@@ -659,7 +652,7 @@ def DwiPreprocessing(
     rpe_mode: str = "rpe_none",
     rpe_file: NiftiXBvec | None = None,
     readout_time: float | None = None,
-    eddy_options: str = f"' --slm=linear --nthr={get_eddy_nthr()}'",
+    eddy_options: str = "' --slm=linear'",
     fod_algorithm: str = "msmt_csd",
     start_time: str = "",
     cache_root: str = "",
@@ -989,10 +982,9 @@ if __name__ == "__main__":
     inputs = resolve_dwi_inputs(subject_dir)
     dwi_path = inputs["dwi_raw"]
 
-    nthr = get_eddy_nthr()
     wf = DwiPreprocessing(
         **inputs,
-        eddy_options=f"' --slm=linear --nthr={nthr}'",
+        eddy_options="' --slm=linear'",
         fod_algorithm=detect_shell_structure(dwi_path),
         start_time=datetime.datetime.now().isoformat(timespec="seconds"),
         cache_root=output_path,
