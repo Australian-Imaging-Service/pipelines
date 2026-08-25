@@ -39,22 +39,28 @@ from fileformats.vendor.mrtrix3.medimage import (  # noqa: F401
 # Optional here only affects how frametree/pydra2app see the *declared* type for
 # validation/conversion purposes; the actual pydra task field (and its real
 # None-when-absent runtime behaviour) is untouched.
-import types as _types
-import typing as _ty
+#
+# pydra2app is a test/XNAT-only extra, not a base dependency - only patch it
+# if it's actually installed (e.g. running via pydra2app/frametree/XNAT), so
+# this module still imports fine for local, non-XNAT batch runs that only
+# call DwiPreprocessing() directly and never touch frametree's Pipeline at all.
+try:
+    import types as _types
+    import typing as _ty
 
-from pydra2app.core.command.components import ContainerCommandSource as _CmdSource
+    from pydra2app.core.command.components import ContainerCommandSource as _CmdSource
 
+    def _unwrap_optional_field_type(self: "_CmdSource") -> type:
+        field_type = self._field_object.type
+        if _ty.get_origin(field_type) in (_ty.Union, _types.UnionType):
+            non_none = [a for a in _ty.get_args(field_type) if a is not type(None)]
+            if len(non_none) == 1:
+                return non_none[0]
+        return field_type
 
-def _unwrap_optional_field_type(self: "_CmdSource") -> type:
-    field_type = self._field_object.type
-    if _ty.get_origin(field_type) in (_ty.Union, _types.UnionType):
-        non_none = [a for a in _ty.get_args(field_type) if a is not type(None)]
-        if len(non_none) == 1:
-            return non_none[0]
-    return field_type
-
-
-_CmdSource.field_type = property(_unwrap_optional_field_type)
+    _CmdSource.field_type = property(_unwrap_optional_field_type)
+except ImportError:
+    pass
 
 
 # ── Custom shell task wrappers ─────────────────────────────────────────────────
