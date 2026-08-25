@@ -86,7 +86,7 @@ commands:
       T1w:
         field: t1w
         help: "The T1-weighted MRI dataset to preprocess"
-    outputs:
+    sinks:
       t1w_preprocess:
         field: out_dir
     parameters:
@@ -116,7 +116,7 @@ commands:
       T1w:
         field: t1w
         help: "The T1-weighted MRI dataset to preprocess"
-    outputs:
+    sinks:
       t1w_preprocess:
         field: out_dir
     parameters:
