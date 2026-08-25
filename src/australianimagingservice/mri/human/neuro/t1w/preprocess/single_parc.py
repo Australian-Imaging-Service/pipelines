@@ -1,6 +1,8 @@
 import logging
+import shutil
+import subprocess
 
-from pydra.compose import workflow
+from pydra.compose import workflow, python
 from pydra.tasks.fsl.v6 import Reorient2Std, Threshold
 from pydra.tasks.freesurfer.v8 import (
     SurfaceTransform,
@@ -21,7 +23,7 @@ from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif, ImageFormatG
 from pydra.environments.docker import Docker
 from pydra.environments.native import Native
 from pydra.tasks.fastsurfer.latest import Fastsurfer
-from .helpers import JoinTaskCatalogue
+from .helpers import JoinTaskCatalogue, _lut_src
 from .mri_synthstrip import MriSynthstrip
 
 # from pydra.engine.task import FunctionTask
@@ -455,3 +457,127 @@ def SingleParcellation(
         fTTgen_task_hsvs_out,
         fastsurfer.subjects_dir_output,
     )
+
+
+@python.define(outputs=["out_dir"])
+def FinalizeSingleParcOutputs(
+    parcellation: str,
+    parc_image: "Mif | ImageFormatGz",
+    ftt_fsl: "Mif | None" = None,
+    vis_fsl: "Mif | None" = None,
+    ftt_freesurfer: "Mif | None" = None,
+    vis_freesurfer: "Mif | None" = None,
+    ftt_hsvs: "Mif | None" = None,
+    vis_hsvs: "Mif | None" = None,
+    fastsurfer_dir: "Directory | None" = None,
+    out_dir: Path | None = None,
+    resources_dir: Path = Path("."),
+    mrtrix_lut_dir: "Directory | None" = None,
+) -> "Directory":
+    """Collect single-parcellation pipeline outputs into a structured output directory."""
+    if out_dir is None:
+        out_dir = Path("./t1w_preprocess").absolute()
+    out_dir = Path(out_dir)
+
+    atlases_dir = out_dir / "Atlases"
+    ftt_dir = out_dir / "5TTimages"
+    lut_dir = out_dir / "LUT"
+    fs_dest = out_dir / "FS_outputs"
+    for d in (atlases_dir, ftt_dir, lut_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    subprocess.run(
+        [
+            "mrconvert",
+            str(parc_image),
+            str(atlases_dir / f"Atlas_{parcellation}.mif.gz"),
+            "-quiet",
+            "-force",
+        ],
+        check=True,
+    )
+
+    ftt_images = {
+        "5TT_fsl": ftt_fsl,
+        "5TTvis_fsl": vis_fsl,
+        "5TT_freesurfer": ftt_freesurfer,
+        "5TTvis_freesurfer": vis_freesurfer,
+        "5TT_hsvs": ftt_hsvs,
+        "5TTvis_hsvs": vis_hsvs,
+    }
+    for name, img in ftt_images.items():
+        if img is not None:
+            subprocess.run(
+                ["mrconvert", str(img), str(ftt_dir / f"{name}.mif.gz"), "-quiet", "-force"],
+                check=True,
+            )
+
+    mrtrix_lut_path = (
+        Path(str(mrtrix_lut_dir))
+        if mrtrix_lut_dir is not None
+        else Path("/usr/local/mrtrix3/share/mrtrix3/labelconvert")
+    )
+    src = _lut_src(parcellation, Path(str(resources_dir)), mrtrix_lut_path)
+    if src is not None and src.exists():
+        shutil.copy(src, lut_dir / f"{parcellation}_LUT.txt")
+
+    if fastsurfer_dir is not None:
+        if fs_dest.exists():
+            shutil.rmtree(fs_dest)
+        shutil.copytree(str(fastsurfer_dir), str(fs_dest))
+
+    return Directory(out_dir)
+
+
+@workflow.define(outputs=["out_dir"])
+def SingleParcellationBundle(
+    t1w: NiftiGz,
+    parcellation: str,
+    freesurfer_home: Directory,
+    mrtrix_lut_dir: Directory,
+    fs_license: File,
+    subjects_dir: Path,
+    resources_dir: Path,
+    output_dir: Path | None = None,
+    in_fastsurfer_container: bool = False,
+    fastsurfer_python: str = "python3",
+    fastsurfer_batch: int = 16,
+    labelsgmfirst_executable: str = "labelsgmfix",
+    fastsurfer_nthreads: int = 24,
+) -> Directory:
+
+    single = workflow.add(
+        SingleParcellation(
+            t1w=t1w,
+            parcellation=parcellation,
+            freesurfer_home=freesurfer_home,
+            mrtrix_lut_dir=mrtrix_lut_dir,
+            fs_license=fs_license,
+            subjects_dir=subjects_dir,
+            resources_dir=resources_dir,
+            in_fastsurfer_container=in_fastsurfer_container,
+            fastsurfer_python=fastsurfer_python,
+            fastsurfer_batch=fastsurfer_batch,
+            labelsgmfirst_executable=labelsgmfirst_executable,
+            fastsurfer_nthreads=fastsurfer_nthreads,
+        )
+    )
+
+    finalize = workflow.add(
+        FinalizeSingleParcOutputs(
+            out_dir=output_dir,
+            parcellation=parcellation,
+            parc_image=single.parc_image,
+            ftt_fsl=single.ftt_image_fsl,
+            vis_fsl=single.vis_image_fsl,
+            ftt_freesurfer=single.ftt_image_freesurfer,
+            vis_freesurfer=single.vis_image_freesurfer,
+            ftt_hsvs=single.ftt_image_hsvs,
+            vis_hsvs=single.vis_image_hsvs,
+            fastsurfer_dir=single.fastsurfer_output,
+            resources_dir=resources_dir,
+            mrtrix_lut_dir=mrtrix_lut_dir,
+        )
+    )
+
+    return finalize.out_dir

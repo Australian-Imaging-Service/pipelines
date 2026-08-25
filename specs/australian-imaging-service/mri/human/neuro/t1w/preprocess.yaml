@@ -80,12 +80,15 @@ docs:
     the input requirements for FastSurfer
 commands:
   single_parc:
-    task: australianimagingservice.mri.human.neuro.t1w.preprocess:SingleParcellation
+    task: australianimagingservice.mri.human.neuro.t1w.preprocess:SingleParcellationBundle
     operates_on: medimage/session
     sources:
       T1w:
         field: t1w
         help: "The T1-weighted MRI dataset to preprocess"
+    outputs:
+      t1w_preprocess:
+        field: out_dir
     parameters:
       Parcellation:
         field: parcellation
@@ -113,6 +116,9 @@ commands:
       T1w:
         field: t1w
         help: "The T1-weighted MRI dataset to preprocess"
+    outputs:
+      t1w_preprocess:
+        field: out_dir
     parameters:
       FastSurferBatchSize:
         field: fastsurfer_batch
