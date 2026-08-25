@@ -11,7 +11,7 @@ packages:
     pip:
   # Install dependencies for DICOM->NIfTI conversion
   pip:
-    setuptools:
+    setuptools: 81.0.0
     simplejson:
     acres:
     looseversion:
