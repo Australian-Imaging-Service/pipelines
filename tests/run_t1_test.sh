@@ -26,14 +26,17 @@ PYENV_PYTHON="$(pyenv which python)"
 # Re-pin last, since the installs above (esp. `pip install -I`) can silently drag these
 # back to latest — which has broken things twice now:
 #   - setuptools>=82 removed pkg_resources, which pydra2app still imports.
-#   - frametree only got picked up here because it happens to be declared in
-#     preprocess.yaml's packages: list. pydra2app itself hardcodes its OWN companion
-#     versions for the internal xnat-cs-entrypoint tooling env — frametree-xnat==0.6.15
-#     and pydra2app-xnat==0.8.5 (not declared anywhere in this repo, not affected by
-#     anything pinned on this host) — and 0.8.5 still hardcodes MedImage.constant, an
-#     enum member frametree renamed to MedImage.dataset in 0.17. So frametree here MUST
-#     stay <=0.16.x to match pydra2app's own hardcoded pydra2app-xnat==0.8.5, regardless
-#     of what any locally-installed pydra2app-xnat reports.
+#   - pydra2app hardcodes its OWN companion versions for the internal xnat-cs-entrypoint
+#     tooling env (frametree-xnat, pydra2app-xnat — not declared anywhere in this repo,
+#     not affected by anything pinned on this host), and different pydra2app releases can
+#     hardcode mutually-incompatible pairings (observed: pydra2app==0.20.7 pairs
+#     pydra2app-xnat==0.8.5, which still hardcodes MedImage.constant, with
+#     frametree-xnat==0.6.15 — but frametree>=0.17 renamed that enum member to
+#     MedImage.dataset, breaking that pairing). Rather than chase pydra2app's internal
+#     table release by release, pydra2app/frametree are pinned here to 0.20.4/0.16.3 — the
+#     exact combo (alongside pydra2app-xnat==0.8.5) already confirmed to run end-to-end
+#     successfully on this host before (see git history / bash history for the manual
+#     `pip install "frametree==0.16.3" "pydra2app==0.20.4" "pydra2app-xnat==0.8.5"` pins).
 #
 # On this host, re-installing over a newer version has left stale duplicate .dist-info
 # dirs sitting alongside the pinned one (e.g. setuptools-84.0.0.dist-info next to
@@ -44,7 +47,7 @@ PYENV_PYTHON="$(pyenv which python)"
 declare -A PINNED_VERSIONS=(
     [setuptools]="81.0.0"
     [frametree]="0.16.3"
-    [pydra2app]="0.20.7"
+    [pydra2app]="0.20.4"
 )
 SITE_PACKAGES="$("$PYENV_PYTHON" -c "import sysconfig; print(sysconfig.get_path('purelib'))")"
 for pkg in "${!PINNED_VERSIONS[@]}"; do

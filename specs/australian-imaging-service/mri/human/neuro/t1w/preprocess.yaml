@@ -25,7 +25,7 @@ packages:
     pydra-tasks-fastsurfer:
     pydra-tasks-freesurfer:
     fileformats-medimage-extras:
-    pydra2app: 0.20.7
+    pydra2app: 0.20.4
     frametree: 0.16.3
     frametree-xnat:
     australianimagingservice:
