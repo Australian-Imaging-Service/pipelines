@@ -15,16 +15,21 @@ pip install -e .
 cd /home/ubuntu/git/pipelines
 # CHECK WHICH BRANCH YOU ARE ON AND PULL THE LATEST CHANGES
 git pull
-pip install -e .
-pip install -I -r requirements.txt
-pip install --upgrade pytest
+# NB: was previously `pip install -e .` + `pip install -I -r requirements.txt` +
+# `pip install --upgrade pytest`. The `-I` (--ignore-installed) requirements.txt install
+# force-reinstalled pydra2app/pydra2app-xnat fresh from PyPI on every single run (loose
+# `>=` bounds there), which is the direct, repeatable cause of the drift chased all
+# night. `.[test]` installs the same test-only deps but from pyproject.toml's now
+# exactly-pinned `test` extra (matching the diffusion-testing branch's proven combo),
+# with no -I forcing a fresh re-resolution each time.
+pip install -e ".[test]"
 
 PYENV_PYTHON="$(pyenv which python)"
 
 # --use-local-packages bakes each package's *locally installed* version into the built
 # image, so this host's installed versions must exactly match the pins in preprocess.yaml.
-# Re-pin last, since the installs above (esp. `pip install -I`) can silently drag these
-# back to latest — which has broken things twice now:
+# Re-pin and verify last as a belt-and-suspenders check on top of pyproject.toml's own
+# exact `.[test]` pins above — this has broken things twice now:
 #   - setuptools>=82 removed pkg_resources, which pydra2app still imports.
 #   - pydra2app hardcodes its OWN companion versions for the internal xnat-cs-entrypoint
 #     tooling env (frametree-xnat, pydra2app-xnat — not declared anywhere in this repo,
