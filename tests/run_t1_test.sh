@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-pyenv activate pipelines
+pyenv activate t1w
 
 cd /home/ubuntu/git/pydra-tasks-freesurfer
 git pull
