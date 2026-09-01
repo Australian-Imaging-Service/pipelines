@@ -80,15 +80,35 @@ docs:
     the input requirements for FastSurfer
 commands:
   single_parc:
-    task: australianimagingservice.mri.human.neuro.t1w.preprocess:SingleParcellationBundle
+    task: australianimagingservice.mri.human.neuro.t1w.preprocess:SingleParcellation
     operates_on: medimage/session
     sources:
       T1w:
         field: t1w
         help: "The T1-weighted MRI dataset to preprocess"
     sinks:
-      t1w_preprocess:
-        field: out_dir
+      t1w_preprocess_parc_image:
+        field: parc_image
+      t1w_preprocess_vis_image_fsl:
+        field: vis_image_fsl
+        type: medimage/vnd.mrtrix3.image-format+gzip
+      t1w_preprocess_ftt_image_fsl:
+        field: ftt_image_fsl
+        type: medimage/vnd.mrtrix3.image-format+gzip
+      t1w_preprocess_vis_image_freesurfer:
+        field: vis_image_freesurfer
+        type: medimage/vnd.mrtrix3.image-format+gzip
+      t1w_preprocess_ftt_image_freesurfer:
+        field: ftt_image_freesurfer
+        type: medimage/vnd.mrtrix3.image-format+gzip
+      t1w_preprocess_vis_image_hsvs:
+        field: vis_image_hsvs
+        type: medimage/vnd.mrtrix3.image-format+gzip
+      t1w_preprocess_ftt_image_hsvs:
+        field: ftt_image_hsvs
+        type: medimage/vnd.mrtrix3.image-format+gzip
+      t1w_preprocess_fastsurfer_output:
+        field: fastsurfer_output
     parameters:
       Parcellation:
         field: parcellation
