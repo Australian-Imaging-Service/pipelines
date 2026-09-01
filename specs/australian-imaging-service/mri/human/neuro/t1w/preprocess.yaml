@@ -91,22 +91,22 @@ commands:
         field: parc_image
       t1w_preprocess_vis_image_fsl:
         field: vis_image_fsl
-        type: medimage/vnd.mrtrix3.image-format+gzip
+        type: medimage/vnd.mrtrix3.image-format-gz
       t1w_preprocess_ftt_image_fsl:
         field: ftt_image_fsl
-        type: medimage/vnd.mrtrix3.image-format+gzip
+        type: medimage/vnd.mrtrix3.image-format-gz
       t1w_preprocess_vis_image_freesurfer:
         field: vis_image_freesurfer
-        type: medimage/vnd.mrtrix3.image-format+gzip
+        type: medimage/vnd.mrtrix3.image-format-gz
       t1w_preprocess_ftt_image_freesurfer:
         field: ftt_image_freesurfer
-        type: medimage/vnd.mrtrix3.image-format+gzip
+        type: medimage/vnd.mrtrix3.image-format-gz
       t1w_preprocess_vis_image_hsvs:
         field: vis_image_hsvs
-        type: medimage/vnd.mrtrix3.image-format+gzip
+        type: medimage/vnd.mrtrix3.image-format-gz
       t1w_preprocess_ftt_image_hsvs:
         field: ftt_image_hsvs
-        type: medimage/vnd.mrtrix3.image-format+gzip
+        type: medimage/vnd.mrtrix3.image-format-gz
       t1w_preprocess_fastsurfer_output:
         field: fastsurfer_output
     parameters:

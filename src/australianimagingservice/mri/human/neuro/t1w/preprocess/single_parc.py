@@ -63,12 +63,12 @@ def SingleParcellation(
     fastsurfer_nthreads: int = 24,
 ) -> tuple[
     ImageFormatGz,
-    Mif | None,
-    Mif | None,
-    Mif | None,
-    Mif | None,
-    Mif | None,
-    Mif | None,
+    Mif,
+    Mif,
+    Mif,
+    Mif,
+    Mif,
+    Mif,
     Directory,
 ]:
 
