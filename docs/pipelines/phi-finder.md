@@ -34,7 +34,7 @@ PHI-Finder is a tool for de-identifying DICOM files. It uses Tesseract OCR to ex
 |Name|Data-type(s)|Default|Description|
 |----|------------|-------|-----------|
 |`score_threshold`|<span data-toggle="tooltip" data-placement="bottom" title="field/decimal" aria-label="field/decimal">field/decimal</span>|`0.5`||
-|`spacy_model_name`|<span data-toggle="tooltip" data-placement="bottom" title="field/text" aria-label="field/text">field/text</span>|`en_core_web_md`||
+|`spacy_model_name`|<span data-toggle="tooltip" data-placement="bottom" title="field/text" aria-label="field/text">field/text</span>|`en_core_web_lg`||
 |`destroy_pixels`|<span data-toggle="tooltip" data-placement="bottom" title="field/boolean" aria-label="field/boolean">field/boolean</span>|`True`||
 |`use_transformers`|<span data-toggle="tooltip" data-placement="bottom" title="field/boolean" aria-label="field/boolean">field/boolean</span>|||
 |`dry_run`|<span data-toggle="tooltip" data-placement="bottom" title="field/boolean" aria-label="field/boolean">field/boolean</span>|||
