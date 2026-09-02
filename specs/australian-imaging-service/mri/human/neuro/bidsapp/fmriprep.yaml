@@ -12,13 +12,18 @@ packages:
     - pydra-compose-bidsapp
   neurodocker:
     dcm2niix: v1.0.20250506
-    mrtrix3: "3.0.4"
+    mrtrix3:
+      version: "3.0.4"
+      args:
+        method: source
+        build_processes: "4"
 licenses:
   freesurfer:
     destination: /opt/freesurfer/license.txt
     info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
     description: >
       `fMRIPRep` uses FreeSurfer tools, which require a license to run.
+
 authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au
@@ -115,9 +120,7 @@ commands:
           type: medimage/nifti-gz-x
           path: fmap/epi
           help: >-
-            Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding
-            directions to estimate the distortion map corresponding to the nonuniformities
-            of the B0 field
+            Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field
       outputs:
         fmriprep:
           type: generic/directory
