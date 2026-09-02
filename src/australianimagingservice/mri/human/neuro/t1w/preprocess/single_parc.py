@@ -133,7 +133,7 @@ def SingleParcellation(
         fTTgen_task_hsvs = workflow.add(
             FivettGen_Hsvs(
                 in_file=fastsurfer.subjects_dir_output,
-                # out_file="5TT_hsvs.mif.gz",
+                out_file="5TT_hsvs.mif",
                 nocrop=True,
                 sgm_amyg_hipp=True,
                 nocleanup=True,
@@ -146,7 +146,7 @@ def SingleParcellation(
         fTTvis_task_hsvs = workflow.add(
             Fivett2Vis(
                 in_file=fTTgen_task_hsvs.out_file,
-                # out_file="5TTvis_hsvs.mif.gz",
+                out_file="5TTvis_hsvs.mif",
                 config=[],
             ),
             name="fTTvis_task_hsvs",
@@ -157,7 +157,7 @@ def SingleParcellation(
         fTTgen_task_freesurfer = workflow.add(
             FivettGen_Freesurfer(
                 in_file=fastsurfer.aparcaseg_img,
-                # out_file="5TT_freesurfer.mif.gz",
+                out_file="5TT_freesurfer.mif",
                 nocrop=True,
                 sgm_amyg_hipp=True,
                 nocleanup=True,
@@ -169,7 +169,7 @@ def SingleParcellation(
         fTTvis_task_freesurfer = workflow.add(
             Fivett2Vis(
                 in_file=fTTgen_task_freesurfer.out_file,
-                # out_file="5TTvis_freesurfer.mif.gz",
+                out_file="5TTvis_freesurfer.mif",
                 config=[],
             ),
             name="fTTvis_task_freesurfer",
@@ -180,7 +180,7 @@ def SingleParcellation(
         fTTgen_task_fsl = workflow.add(
             FivettGen_Fsl(
                 in_file=fastsurfer.norm_img,
-                # out_file="5TT_fsl.mif.gz",
+                out_file="5TT_fsl.mif",
                 nocrop=True,
                 sgm_amyg_hipp=True,
                 nocleanup=True,
@@ -193,7 +193,7 @@ def SingleParcellation(
         fTTvis_task_fsl = workflow.add(
             Fivett2Vis(
                 in_file=fTTgen_task_fsl.out_file,
-                #    out_file="5TTvis_fsl.mif.gz",
+                out_file="5TTvis_fsl.mif",
                 config=[],
             ),
             name="fTTvis_task_fsl",
