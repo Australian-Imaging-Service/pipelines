@@ -5,6 +5,31 @@ from pathlib import Path
 from pydra.compose import python, shell
 
 
+def _lut_src(
+    parcellation: str, resources_dir: Path, mrtrix_lut_dir: Path
+) -> Path | None:
+    """Return the MRtrix3 LUT file path for a given parcellation."""
+    neuro = resources_dir / "neuro-parcellations"
+    if (
+        "schaefer" in parcellation
+        or "aparc" in parcellation
+        or "vosdewael" in parcellation
+        or parcellation in ("economo", "glasser360")
+    ):
+        return neuro / f"{parcellation}_reordered_LUT.txt"
+    elif parcellation == "desikan":
+        return mrtrix_lut_dir / "fs_default.txt"
+    elif parcellation == "destrieux":
+        return mrtrix_lut_dir / "fs_a2009s.txt"
+    elif parcellation == "hcpmmp1":
+        return neuro / "hcpmmp1_ordered.txt"
+    elif parcellation == "Yeo7":
+        return neuro / "Yeo2011_7N_split.txt"
+    elif parcellation == "Yeo17":
+        return neuro / "Yeo2011_17N_split.txt"
+    return None
+
+
 @python.define(
     outputs={
         "fsavg_dir": str,

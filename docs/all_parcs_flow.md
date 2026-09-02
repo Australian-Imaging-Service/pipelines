@@ -45,7 +45,7 @@ flowchart TD
 
     FIN --> OUT
 
-    subgraph OUT["final_outputs/"]
+    subgraph OUT["t1w_preprocess/"]
         direction LR
         ATL["Atlases/<br/>Atlas_&lt;name&gt;.mif.gz ×23"]
         TTI["5TTimages/<br/>5TT_hsvs/fsl/freesurfer<br/>5TTvis_hsvs/fsl/freesurfer"]

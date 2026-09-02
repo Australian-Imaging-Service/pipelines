@@ -38,14 +38,14 @@ the input requirements for FastSurfer
 #### Outputs
 |Name|Data-type(s)|Always generated|Description|
 |----|------------|----------------|-----------|
-|`parc_image`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format-gz" aria-label="medimage/vnd.mrtrix3.image-format-gz">medimage/vnd.mrtrix3.image-format-gz</span>|Y||
-|`vis_image_fsl`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|N||
-|`ftt_image_fsl`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|N||
-|`vis_image_freesurfer`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|N||
-|`ftt_image_freesurfer`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|N||
-|`vis_image_hsvs`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|N||
-|`ftt_image_hsvs`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format" aria-label="medimage/vnd.mrtrix3.image-format">medimage/vnd.mrtrix3.image-format</span>|N||
-|`fastsurfer_output`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Y||
+|`t1w_preprocess_parc_image`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format-gz" aria-label="medimage/vnd.mrtrix3.image-format-gz">medimage/vnd.mrtrix3.image-format-gz</span>|Y||
+|`t1w_preprocess_vis_image_fsl`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format-gz" aria-label="medimage/vnd.mrtrix3.image-format-gz">medimage/vnd.mrtrix3.image-format-gz</span>|Y||
+|`t1w_preprocess_ftt_image_fsl`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format-gz" aria-label="medimage/vnd.mrtrix3.image-format-gz">medimage/vnd.mrtrix3.image-format-gz</span>|Y||
+|`t1w_preprocess_vis_image_freesurfer`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format-gz" aria-label="medimage/vnd.mrtrix3.image-format-gz">medimage/vnd.mrtrix3.image-format-gz</span>|Y||
+|`t1w_preprocess_ftt_image_freesurfer`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format-gz" aria-label="medimage/vnd.mrtrix3.image-format-gz">medimage/vnd.mrtrix3.image-format-gz</span>|Y||
+|`t1w_preprocess_vis_image_hsvs`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format-gz" aria-label="medimage/vnd.mrtrix3.image-format-gz">medimage/vnd.mrtrix3.image-format-gz</span>|Y||
+|`t1w_preprocess_ftt_image_hsvs`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/vnd.mrtrix3.image-format-gz" aria-label="medimage/vnd.mrtrix3.image-format-gz">medimage/vnd.mrtrix3.image-format-gz</span>|Y||
+|`t1w_preprocess_fastsurfer_output`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Y||
 
 #### Parameters
 |Name|Data-type(s)|Default|Description|
@@ -66,7 +66,7 @@ the input requirements for FastSurfer
 #### Outputs
 |Name|Data-type(s)|Always generated|Description|
 |----|------------|----------------|-----------|
-|`out_dir`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Y||
+|`t1w_preprocess`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Y||
 
 #### Parameters
 |Name|Data-type(s)|Default|Description|
