@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: monai-test
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -25,7 +25,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           branch: monai-spec-sync
-          base: monai-test
+          base: main
           title: "Update MONAI model specs"
           commit-message: "chore(monai): sync model specs from Model Zoo"
           body: "Automated MONAI Model Zoo spec sync. Review generated specs and task modules before merge."
