@@ -1,0 +1,19 @@
+title: MONAI Spleen CT Segmentation
+authors:
+  - name: MONAI Consortium
+    email: monai.contact@gmail.com
+docs:
+  info_url: https://monai.io/model-zoo.html
+  description: >
+    Spleen CT segmentation MONAI bundle from the MONAI Model Zoo, wrapped as a
+    Pydra task and packaged for the Australian Imaging Service.
+base_image:
+  name: projectmonai/monai
+  tag: latest
+  package_manager: apt
+packages:
+  pip:
+    # >=0.1.4 maps NIfTI bundle inputs to NiftiGz rather than NiftiGzX; earlier
+    # versions reject side-car-less .nii.gz, which is what MONAI bundles consume.
+    pydra-compose-monai: ">=0.1.4"
+operates_on: session

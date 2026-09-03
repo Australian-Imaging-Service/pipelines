@@ -13,3 +13,10 @@ test-data
 *.build*
 *.venv
 _version.py
+.monai-bundles
+# MONAI model weights are never committed: they are large, re-downloadable and
+# already versioned in the Model Zoo. Only the configs-only bundle is vendored;
+# weights are supplied at build time via --resources-dir. This is a backstop in
+# case a local sync ever writes them (see notes/monai-weights-plan.md).
+/src/**/*_bundle/models/
+/resources/*-bundle/
