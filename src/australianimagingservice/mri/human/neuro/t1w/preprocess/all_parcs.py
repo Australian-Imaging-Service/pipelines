@@ -8,6 +8,7 @@ from pydra.compose import workflow, python
 from australianimagingservice.mri.human.neuro.t1w.preprocess.single_parc import (
     SingleParcellation,
 )
+from .helpers import _lut_src
 
 parcellation_list = [
     "aparca2009s",
@@ -55,31 +56,6 @@ _finalize_inputs.update(
 )
 
 
-def _lut_src(
-    parcellation: str, resources_dir: Path, mrtrix_lut_dir: Path
-) -> Path | None:
-    """Return the MRtrix3 LUT file path for a given parcellation."""
-    neuro = resources_dir / "neuro-parcellations"
-    if (
-        "schaefer" in parcellation
-        or "aparc" in parcellation
-        or "vosdewael" in parcellation
-        or parcellation in ("economo", "glasser360")
-    ):
-        return neuro / f"{parcellation}_reordered_LUT.txt"
-    elif parcellation == "desikan":
-        return mrtrix_lut_dir / "fs_default.txt"
-    elif parcellation == "destrieux":
-        return mrtrix_lut_dir / "fs_a2009s.txt"
-    elif parcellation == "hcpmmp1":
-        return neuro / "hcpmmp1_ordered.txt"
-    elif parcellation == "Yeo7":
-        return neuro / "Yeo2011_7N_split.txt"
-    elif parcellation == "Yeo17":
-        return neuro / "Yeo2011_17N_split.txt"
-    return None
-
-
 @python.define(inputs=_finalize_inputs, outputs=["out_dir"])
 def FinalizeOutputs(
     out_dir: Path | None = None,
@@ -96,7 +72,7 @@ def FinalizeOutputs(
 ) -> "Directory":
     """Collect all pipeline outputs into a structured output directory."""
     if out_dir is None:
-        out_dir = Path("./final_outputs").absolute()
+        out_dir = Path("./t1w_preprocess").absolute()
     out_dir = Path(out_dir)
 
     atlases_dir = out_dir / "Atlases"
@@ -253,7 +229,7 @@ if __name__ == "__main__":
     fastsurfer_python = get_arg(7, None, "python3")
     _default_resources = str(Path(__file__).parents[7] / "resources")
     resources_dir = Path(get_arg(8, "RESOURCES_DIR", _default_resources))
-    output_dir = Path(get_arg(9, "OUTPUT_DIR", str(cache_dir / "final_outputs")))
+    output_dir = Path(get_arg(9, "OUTPUT_DIR", str(cache_dir / "t1w_preprocess")))
 
     try:
         n_threads = len(os.sched_getaffinity(0))
