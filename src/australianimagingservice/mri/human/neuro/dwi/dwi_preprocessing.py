@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pydra.compose import python, shell, workflow
 from fileformats.generic import File, Directory
-from fileformats.medimage import NiftiBvec, NiftiGzBvec, NiftiXBvec, NiftiGzXBvec
+from fileformats.medimage import NiftiXBvec
 from pydra.tasks.mrtrix3.v3_1 import (
     DwiGradcheck,
     DwiDenoise,
@@ -25,49 +25,44 @@ from fileformats.vendor.mrtrix3.medimage import (  # noqa: F401
     ImageOut,
 )
 
-# DICOM-converted (dcm2niix produces uncompressed .nii) or directly-supplied
-# (may already be .nii.gz) NIfTI+bvec/bval - deliberately excludes DicomDir/
-# DicomImage so frametree still triggers a DICOM->NIfTI conversion for real
-# DICOM data rather than passing it straight through (SplitBvecBval needs an
-# actual .encoding/.bvec sidecar, which DICOM doesn't have).
-DwiInputImage = NiftiBvec | NiftiGzBvec | NiftiXBvec | NiftiGzXBvec
-
-# ── Workaround for a frametree Pipeline.inputs_validator bug ───────────────────
-# dwi_raw/rpe_file need to accept several NIfTI+bvec variants: dcm2niix's
-# DICOM->NIfTI conversion produces uncompressed .nii (NiftiXBvec), while
-# directly-supplied test/production data may already be compressed .nii.gz
-# (NiftiGzBvec) - so both need a genuine multi-member Union type. rpe_file
-# additionally needs `| None` for "RPE not provided". But frametree's
-# Pipeline.inputs_validator (frametree/core/pipeline.py) does a bare
-# `issubclass(inpt.datatype, column.datatype)` on a pipeline input's raw
-# declared type - issubclass()'s first argument must be an actual class,
-# never a Union, so this crashes with "issubclass() arg 1 must be a class"
-# for ANY Union-typed input (Optional or not) - confirmed present, unfixed,
-# in frametree 0.16.3 through 0.17.1 (we can't avoid it by picking a version;
-# it's never been fixed). Patch `issubclass` itself, but only within
-# frametree.core.pipeline's own module namespace (Python resolves a bare
-# name like `issubclass` from the enclosing module's globals before falling
-# back to builtins, so injecting our own module-level binding there doesn't
-# touch the real builtin or any other module) — treating a Union first
-# argument as "true if ANY of its non-None members relate to classinfo",
-# which is what frametree's check is actually trying to express. Verified
-# offline against the real frametree/pydra2app classes before relying on it.
+# ── Workaround for frametree 0.16.x-0.17.x Pipeline.inputs_validator bug ───────
+# rpe_file is genuinely optional (rpe_file: NiftiXBvec | None = None), which is
+# required at the pydra level so the field can default to None when RPE isn't
+# provided. But frametree's Pipeline.inputs_validator (frametree/core/pipeline.py)
+# does a bare `issubclass(inpt.datatype, column.datatype)` on the pipeline input's
+# raw declared type, which crashes with "issubclass() arg 1 must be a class" for
+# any Optional/Union-typed input — it was never updated to unwrap Optional before
+# calling issubclass. Worse, frametree's is_coercible() (used to decide whether a
+# runtime format converter needs to be built) is hardcoded to return False
+# whenever either side is a Union, which unconditionally forces construction of a
+# RuntimeConverterWorkflow(datatype=<the Union>) — and that function's own
+# `datatype` field only accepts a single class, not a Union, so a genuinely
+# multi-member Union (tried and reverted - see git history) crashes there too,
+# regardless of whether the actual data would have matched a member without any
+# conversion at all. So a Union-typed pipeline input can never work here, in any
+# form, including Optional[X]. dwi_raw (a plain, non-Optional NiftiXBvec) is
+# unaffected; only rpe_file needs this. Rather than letting frametree see a
+# Union at all, patch the one place that leaks the Optional type into it:
+# ContainerCommandSource.field_type, which is what pydra2app hands to frametree
+# as a pipeline input's datatype. Stripping the Optional here only affects how
+# frametree/pydra2app see the *declared* type for validation/conversion
+# purposes; the actual pydra task field (and its real None-when-absent runtime
+# behaviour) is untouched. Verified against the real pydra2app/frametree classes.
 try:
     import types as _types
     import typing as _ty
 
-    import frametree.core.pipeline as _ft_pipeline
+    from pydra2app.core.command.components import ContainerCommandSource as _CmdSource
 
-    _builtin_issubclass = issubclass
+    def _unwrap_optional_field_type(self: "_CmdSource") -> type:
+        field_type = self._field_object.type
+        if _ty.get_origin(field_type) in (_ty.Union, _types.UnionType):
+            non_none = [a for a in _ty.get_args(field_type) if a is not type(None)]
+            if len(non_none) == 1:
+                return non_none[0]
+        return field_type
 
-    def _issubclass_union_safe(cls: type, classinfo: type) -> bool:
-        origin = _ty.get_origin(cls)
-        if origin is _ty.Union or origin is _types.UnionType:
-            members = [a for a in _ty.get_args(cls) if a is not type(None)]
-            return any(_builtin_issubclass(m, classinfo) for m in members)
-        return _builtin_issubclass(cls, classinfo)
-
-    _ft_pipeline.issubclass = _issubclass_union_safe
+    _CmdSource.field_type = property(_unwrap_optional_field_type)
 except ImportError:
     pass
 
@@ -181,9 +176,9 @@ class MrCat(shell.Task):
 
 
 @python.define(outputs=["fslgrad"])
-def SplitBvecBval(dwi: DwiInputImage) -> tuple[File, File]:
+def SplitBvecBval(dwi: NiftiXBvec) -> tuple[File, File]:
     """Pull the adjacent FSL-style .bvec/.bval sidecar paths out of a
-    DwiInputImage bundle as a single (bvec, bval) tuple output, so they can be
+    NiftiXBvec bundle as a single (bvec, bval) tuple output, so they can be
     passed explicitly to MrConvert's fslgrad input, rather than relying on
     tools that only auto-detect them by co-located, same-basename convention.
     Must be a single combined output (not two separate ones) so downstream
@@ -737,10 +732,10 @@ def FinalizeDwiOutputs(
     ]
 )
 def DwiPreprocessing(
-    dwi_raw: DwiInputImage,
+    dwi_raw: NiftiXBvec,
     pe_dir: str = "AP",
     rpe_mode: str = "rpe_none",
-    rpe_file: DwiInputImage | None = None,
+    rpe_file: NiftiXBvec | None = None,
     readout_time: float | None = None,
     eddy_options: str = "' --slm=linear'",
     fod_algorithm: str = "msmt_csd",
@@ -749,7 +744,7 @@ def DwiPreprocessing(
 ) -> Directory:
 
     # ── Import NIfTI+bvec/bval into .mif with an embedded gradient table ────────
-    # dwi_raw/rpe_file are NiftiXBvec/NiftiGzBvec-family bundles (nii(.gz)+bval+bvec+json),
+    # dwi_raw/rpe_file are DICOM-converted NiftiXBvec bundles (nii+bval+bvec+json),
     # not .mif — none of the mrtrix3 tools below discover gradients automatically
     # unless they're embedded in a .mif header, so import explicitly here rather
     # than relying on co-located-file auto-detection.
