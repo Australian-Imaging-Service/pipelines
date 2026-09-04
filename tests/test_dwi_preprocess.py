@@ -30,24 +30,21 @@ RESOURCES_DIR = PKG_DIR / "resources"
 
 SKIP_BUILD = False
 
-# These must match the DICOM SeriesDescription of the corresponding scan
-# directories under tests/data/specs/mri/human/neuro/dwi/preprocess/ (see
-# conftest.py:upload_test_dataset_to_xnat, which derives the XNAT scan "type"
-# from that header).
+# For DICOM test data these must match the DICOM SeriesDescription; for
+# non-DICOM (e.g. NIfTI+bvec/bval) resources, conftest.py:upload_test_dataset_to_xnat
+# derives the XNAT scan "type" directly from the scan directory's own name
+# instead (there's no header to read it from).
 #
 # DWI_SCAN_TYPE / RPE_SCAN_TYPE: used for rpe_none (DWI only) and rpe_pair
-#   (DWI + a b0-only or unequal-volume RPE companion).
-DWI_SCAN_TYPE = "DWI_MSMT_2.5mm_full_AP"
-RPE_SCAN_TYPE = "DTI b0 only 2.5mm_96_PA"
-# RPE_ALL_SCAN_TYPE: a *full* second DWI series (not just b0) with the same
-#   volume count as DWI_SCAN_TYPE, acquired in the opposite phase-encode
-#   direction — gets concatenated with DWI via DwiCat for rpe_all.
-RPE_ALL_SCAN_TYPE = "dwi_PA_full"
-# DWI_HEADER_SCAN_TYPE: a single DWI series with interleaved AP+PA phase
-#   encoding embedded in its own header (no separate RPE image at all) — used
-#   for rpe_header, where pe_dir/readout_time are read from the header
-#   instead of being passed explicitly.
-DWI_HEADER_SCAN_TYPE = "dwi_interleaved_header"
+#   (DWI + a b0-only or unequal-volume RPE companion). Currently pointing at
+#   NIfTI test data (tests/data/specs/mri/human/neuro/dwi/preprocess/DWI_AP,
+#   DWI_PA/NIFTI/dwi.{nii.gz,bvec,bval,json}).
+DWI_SCAN_TYPE = "DWI_AP"
+RPE_SCAN_TYPE = "DWI_PA"
+# RPE_ALL_SCAN_TYPE / DWI_HEADER_SCAN_TYPE: no matching test data yet -
+# rpe_all/rpe_header scenarios are commented out below until it's added.
+# RPE_ALL_SCAN_TYPE = "dwi_PA_full"
+# DWI_HEADER_SCAN_TYPE = "dwi_interleaved_header"
 
 
 def test_dwi_preprocess_app(
@@ -97,9 +94,11 @@ def test_dwi_preprocess_app(
 
     image_spec = XnatApp.load(SPEC_PATH)
 
-    # Four scenarios covering all of DwiPreprocessing's rpe_mode branches —
+    # Two of DwiPreprocessing's four rpe_mode branches are currently exercised —
     # exercising the "RPE image may not always be provided" case (rpe_none),
-    # plus the other three real modes (rpe_pair, rpe_all, rpe_header).
+    # plus rpe_pair/rpe_all (see RpeMode below - determine which from the
+    # actual bval content before running). rpe_all/rpe_header are commented
+    # out below until matching test data is added.
     #
     # NB: any source left unset must be explicitly passed as "" here rather
     # than omitted. The XNAT command's build-time default value for an unset
@@ -118,16 +117,16 @@ def test_dwi_preprocess_app(
             "RPE": RPE_SCAN_TYPE,
             "RpeMode": "rpe_pair",
         },
-        "rpe_all": {
-            "DWI": DWI_SCAN_TYPE,
-            "RPE": RPE_ALL_SCAN_TYPE,
-            "RpeMode": "rpe_all",
-        },
-        "rpe_header": {
-            "DWI": DWI_HEADER_SCAN_TYPE,
-            "RPE": "",
-            "RpeMode": "rpe_header",
-        },
+        # "rpe_all": {
+        #     "DWI": DWI_SCAN_TYPE,
+        #     "RPE": RPE_ALL_SCAN_TYPE,
+        #     "RpeMode": "rpe_all",
+        # },
+        # "rpe_header": {
+        #     "DWI": DWI_HEADER_SCAN_TYPE,
+        #     "RPE": "",
+        #     "RpeMode": "rpe_header",
+        # },
     }
 
     with xnat_connect() as xlogin:
