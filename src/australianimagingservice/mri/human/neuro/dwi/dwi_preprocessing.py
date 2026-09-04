@@ -684,8 +684,8 @@ def FinalizeDwiOutputs(
     response_wm: File,
     response_gm: File,
     response_csf: File,
-    fa: File,
-    adc: File,
+    fa: ImageOut | bool | None,
+    adc: ImageOut | bool | None,
     execution_log: str,
     cache_root: str = "",
 ) -> Directory:
