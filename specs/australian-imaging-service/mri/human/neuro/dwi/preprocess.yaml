@@ -90,6 +90,9 @@ commands:
           Optional reverse phase-encode (or b0-only) companion image, used
           for topup distortion correction. If not provided, only eddy motion
           correction is performed.
+    sinks:
+      dwi_preprocess:
+        field: out_dir
     parameters:
       PeDir:
         field: pe_dir

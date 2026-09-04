@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from pydra.compose import python, shell, workflow
-from fileformats.generic import File
+from fileformats.generic import File, Directory
 from fileformats.medimage import NiftiXBvec
 from pydra.tasks.mrtrix3.v3_1 import (
     DwiGradcheck,
@@ -14,6 +14,8 @@ from pydra.tasks.mrtrix3.v3_1 import (
     DwiExtract,
     MrMath,
     Dwi2Response_Dhollander,
+    Dwi2Tensor,
+    Tensor2Metric,
 )
 from australianimagingservice.mri.human.neuro.t1w.preprocess.mri_synthstrip import (
     MriSynthstrip,
@@ -667,17 +669,58 @@ def resolve_dwi_inputs(subject_dir: str) -> dict:
     }
 
 
+@python.define(outputs=["out_dir"])
+def FinalizeDwiOutputs(
+    dwi_preprocessed: File,
+    dwimask_preprocessed: File,
+    response_wm: File,
+    response_gm: File,
+    response_csf: File,
+    fa: File,
+    adc: File,
+    execution_log: str,
+    cache_root: str = "",
+) -> Directory:
+    """Collect all DwiPreprocessing outputs into one structured output
+    directory, mirroring all_parcs.py's FinalizeOutputs for the T1w pipeline
+    (a single namespaced XNAT sink instead of flat, un-namespaced resources).
+
+    execution_log is WritePreprocessingLog's log_file output: already a path
+    to a written text file on disk (a plain str, not a File-typed field), so
+    it's copied like the other outputs rather than needing write_text()."""
+    import shutil
+    from pathlib import Path
+
+    out_dir = (
+        Path(cache_root) / "dwi_preprocess"
+        if cache_root
+        else Path("./dwi_preprocess").absolute()
+    )
+    dwi_dir = out_dir / "DWI"
+    response_dir = out_dir / "Response"
+    for d in (dwi_dir, response_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    shutil.copy(str(dwi_preprocessed), dwi_dir / "dwi_preprocessed.mif.gz")
+    shutil.copy(str(dwimask_preprocessed), dwi_dir / "dwimask_preprocessed.mif.gz")
+    shutil.copy(str(fa), dwi_dir / "FA.mif.gz")
+    shutil.copy(str(adc), dwi_dir / "ADC.mif.gz")
+
+    shutil.copy(str(response_wm), response_dir / "response_wm.txt")
+    shutil.copy(str(response_gm), response_dir / "response_gm.txt")
+    shutil.copy(str(response_csf), response_dir / "response_csf.txt")
+
+    shutil.copy(str(execution_log), out_dir / "execution_log.txt")
+
+    return Directory(out_dir)
+
+
 # ── Main workflow ──────────────────────────────────────────────────────────────
 
 
 @workflow.define(
     outputs=[
-        "dwi_preprocessed",
-        "dwimask_preprocessed",
-        "response_wm",
-        "response_gm",
-        "response_csf",
-        "execution_log",
+        "out_dir",
     ]
 )
 def DwiPreprocessing(
@@ -690,7 +733,7 @@ def DwiPreprocessing(
     fod_algorithm: str = "msmt_csd",
     start_time: str = "",
     cache_root: str = "",
-) -> tuple[File, File, File, File, File, str]:
+) -> Directory:
 
     # ── Import NIfTI+bvec/bval into .mif with an embedded gradient table ────────
     # dwi_raw/rpe_file are DICOM-converted NiftiXBvec bundles (nii+bval+bvec+json),
@@ -964,6 +1007,25 @@ def DwiPreprocessing(
         )
     )
 
+    # ── Step 11: Diffusion tensor + FA/ADC maps ────────────────────────────────
+    dwi2tensor_task = workflow.add(
+        Dwi2Tensor(
+            dwi=crop_task_dwi.out_file,
+            mask=crop_task_mask.out_file,
+            dt="dwi_tensor.mif.gz",
+            config=[],
+        )
+    )
+    tensor2metric_task = workflow.add(
+        Tensor2Metric(
+            tensor=dwi2tensor_task.dt,
+            mask=crop_task_mask.out_file,
+            fa="FA.mif.gz",
+            adc="ADC.mif.gz",
+            config=[],
+        )
+    )
+
     # ── Write manifest (paths consumed by tractography_connectomics.py) ───────
     workflow.add(
         WritePreprocessingManifest(
@@ -996,14 +1058,21 @@ def DwiPreprocessing(
         )
     )
 
-    return (
-        crop_task_dwi.out_file,
-        crop_task_mask.out_file,
-        EstimateResponseFcn_task.out_sfwm,
-        EstimateResponseFcn_task.out_gm,
-        EstimateResponseFcn_task.out_csf,
-        log_task.log_file,
+    finalize = workflow.add(
+        FinalizeDwiOutputs(
+            dwi_preprocessed=crop_task_dwi.out_file,
+            dwimask_preprocessed=crop_task_mask.out_file,
+            response_wm=EstimateResponseFcn_task.out_sfwm,
+            response_gm=EstimateResponseFcn_task.out_gm,
+            response_csf=EstimateResponseFcn_task.out_csf,
+            fa=tensor2metric_task.fa,
+            adc=tensor2metric_task.adc,
+            execution_log=log_task.log_file,
+            cache_root=cache_root,
+        )
     )
+
+    return finalize.out_dir
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
