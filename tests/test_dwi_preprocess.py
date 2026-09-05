@@ -59,15 +59,9 @@ def test_dwi_preprocess_app(
 
     build_dir.mkdir(exist_ok=True, parents=True)
 
-    project_id = f"{run_prefix}mrihumanneurodwipreprocess"
-
     test_data = (
         test_data_dir / "specs" / "mri" / "human" / "neuro" / "dwi" / "preprocess"
     )
-    upload_test_dataset_to_xnat(project_id, test_data, xnat_connect)
-
-    frameset = xnat_repository.define_frameset(project_id)
-    frameset.install_license("freesurfer", PlainText(FREESURFER_LICENSE_PATH))
 
     if SKIP_BUILD:
         build_arg = "--generate-only"
@@ -129,17 +123,37 @@ def test_dwi_preprocess_app(
         # },
     }
 
+    # Each scenario gets its own XNAT project (and therefore its own session/
+    # row), rather than sharing one project+session across all scenarios.
+    # DwiPreprocessing now writes a single bundled 'dwi_preprocess' sink: if
+    # two scenarios were launched against the same session, frametree's
+    # ToProcess (frametree/core/pipeline.py) would see that sink cell already
+    # fully populated after the first launch and silently exclude the row
+    # from processing on every subsequent launch, instead of re-running the
+    # pipeline with the new inputs — the second "run" would report Complete
+    # without ever actually executing.
+    project_ids = {}
+    for scenario_name in scenarios:
+        project_id = (
+            f"{run_prefix}mrihumanneurodwipreprocess{scenario_name.replace('_', '')}"
+        )
+        upload_test_dataset_to_xnat(project_id, test_data, xnat_connect)
+        frameset = xnat_repository.define_frameset(project_id)
+        frameset.install_license("freesurfer", PlainText(FREESURFER_LICENSE_PATH))
+        project_ids[scenario_name] = project_id
+
     with xnat_connect() as xlogin:
 
         for command_obj in image_spec.commands:
             with open(build_dir / "xnat_commands" / (command_obj.name + ".json")) as f:
                 command_json_template = json.load(f)
 
-            test_xsession = next(
-                iter(xlogin.projects[project_id].experiments.values())
-            )
-
             for scenario_name, scenario_inputs in scenarios.items():
+                project_id = project_ids[scenario_name]
+                test_xsession = next(
+                    iter(xlogin.projects[project_id].experiments.values())
+                )
+
                 command_json = dict(command_json_template)
                 command_json["name"] = command_json["label"] = (
                     image_spec.name + command_obj.name + scenario_name + run_prefix
