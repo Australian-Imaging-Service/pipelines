@@ -222,6 +222,44 @@ def CheckGradientCorrection(in_file: File, corrected_grad_file: File) -> str:
     return "DwiGradcheck: gradient orientations verified, no correction applied."
 
 
+@python.define(outputs=["out_file"])
+def MeanBzero(in_file: File, out_file: str = "meanb0.mif.gz") -> File:
+    """Return a single 3D mean-b0 volume from in_file, which may already be
+    just one b0 volume (a bare 3D image, e.g. an rpe_pair companion that is
+    itself b0-only) or a genuine multi-volume series containing a mix of b0
+    and diffusion-weighted volumes. dwiextract -bzero requires >=4 dimensions
+    and errors ("Expected input image to contain more than three dimensions")
+    on a plain 3D volume, so branch on ndim rather than assuming multi-volume
+    input -- confirmed by reproducing the real crash locally against real
+    single-volume rpe_pair test data."""
+    import subprocess
+    import shutil
+    from pathlib import Path
+
+    ndim = int(
+        subprocess.run(
+            ["mrinfo", str(in_file), "-ndim"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    )
+    out_path = Path(out_file).absolute()
+    if ndim < 4:
+        shutil.copy(str(in_file), str(out_path))
+    else:
+        bzero_path = out_path.with_name(out_path.stem + "_bzero.mif.gz")
+        subprocess.run(
+            ["dwiextract", str(in_file), str(bzero_path), "-bzero", "-force", "-quiet"],
+            check=True,
+        )
+        subprocess.run(
+            ["mrmath", str(bzero_path), "mean", str(out_path), "-axis", "3", "-force", "-quiet"],
+            check=True,
+        )
+    return out_path
+
+
 @python.define(outputs=["manifest_file"])
 def WritePreprocessingManifest(
     output_dir: str,
@@ -808,19 +846,9 @@ def DwiPreprocessing(
             ),
             name="MrMath_fwd_meanb0",
         )
-        rpe_b0_extract = workflow.add(
-            DwiExtract(in_file=rpe_file_mif, out_file="rpe_bzero.mif.gz", bzero=True, config=[]),
-            name="DwiExtract_rpe_b0",
-        )
         rpe_meanb0 = workflow.add(
-            MrMath(
-                in_file=rpe_b0_extract.out_file,
-                out_file="rpe_meanb0.mif.gz",
-                operation="mean",
-                axis=3,
-                config=[],
-            ),
-            name="MrMath_rpe_meanb0",
+            MeanBzero(in_file=rpe_file_mif, out_file="rpe_meanb0.mif.gz"),
+            name="MeanBzero_rpe",
         )
         se_epi_task = workflow.add(
             MrCat(
