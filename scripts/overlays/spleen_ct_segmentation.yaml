@@ -13,7 +13,10 @@ base_image:
   package_manager: apt
 packages:
   pip:
-    # >=0.1.4 maps NIfTI bundle inputs to NiftiGz rather than NiftiGzX; earlier
-    # versions reject side-car-less .nii.gz, which is what MONAI bundles consume.
-    pydra-compose-monai: ">=0.1.4"
+packages:
+  pip:
+    # Pinned, not >=: pydra2app renders pip specs as `name==version` and does
+    # not support PEP 440 operators. 0.1.4 maps NIfTI bundle inputs to NiftiGz
+    # rather than NiftiGzX; earlier versions reject side-car-less .nii.gz.
+    pydra-compose-monai: "0.1.4"
 operates_on: session
