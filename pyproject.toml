@@ -11,11 +11,20 @@ dependencies = [
     "fileformats",
     "fileformats-medimage-extras",
     "pydra ==1.0a9",
+    # imported at module level by the generated MONAI task modules committed
+    # under src/australianimagingservice/**/monai/, so it is needed to import
+    # this package at all -- both on the build host when pipeline2app resolves
+    # command.task, and inside the built image at run time.
+    # >=0.1.4 maps NIfTI bundle inputs to NiftiGz rather than NiftiGzX; earlier
+    # versions generate specs that reject side-car-less .nii.gz data.
+    "pydra-compose-monai >=0.1.4",
+    # arrives transitively via pydra-compose-monai, but scripts/monai_specs.py
+    # imports monai.bundle directly, so declare it rather than rely on that.
+    "monai >=1.4.0",
     "pydra-tasks-fastsurfer >=0.2.2",
     "pydra-tasks-freesurfer",
     "pydra-tasks-fsl",
     "pydra-tasks-mrtrix3 >=3.1.0a1",
-    "pydra-compose-monai",
     "pydra-compose-bidsapp",
 ]
 license = "CC-BY-4.0"
@@ -40,8 +49,9 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
-test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.20.7", "pydra2app-xnat>=0.8.7"]
-
+# huggingface_hub is only needed by the sync/fetch tooling, via
+# monai.bundle.download's monaihosting path, not by the installed package.
+test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.20.7", "pydra2app-xnat>=0.8.7","huggingface_hub"]
 
 
 [project.urls]

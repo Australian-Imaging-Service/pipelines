@@ -1,0 +1,8 @@
+# MONAI Model Zoo models to publish as AIS pipelines.
+# Each entry: version pin (null = latest) and anatomy placement in specs/ tree.
+models:
+  spleen_ct_segmentation:
+    version: null
+    modality: ct
+    species: human
+    region: abdomen
