@@ -1,0 +1,38 @@
+title: MONAI Spleen CT Segmentation
+authors:
+- name: MONAI Consortium
+  email: monai.contact@gmail.com
+docs:
+  info_url: https://monai.io/model-zoo.html
+  description: 'Spleen CT segmentation MONAI bundle from the MONAI Model Zoo, wrapped
+    as a Pydra task and packaged for the Australian Imaging Service.
+
+    '
+base_image:
+  name: projectmonai/monai
+  tag: latest
+  package_manager: apt
+packages:
+  pip:
+    pydra-compose-monai: '>=0.1.4'
+name: spleen_ct_segmentation
+version: 0.6.1
+resources:
+  spleen_ct_segmentation-bundle: /monai-bundles/spleen_ct_segmentation
+commands:
+  spleen_ct_segmentation:
+    task: australianimagingservice.ct.human.abdomen.monai.spleen_ct_segmentation:SpleenCtSegmentation
+    operates_on: session
+    configuration:
+      bundle: /monai-bundles/spleen_ct_segmentation
+    sources:
+      image:
+        datatype: medimage/nifti-gz
+        help: 'CT image, format: hounsfield, 1 channel(s), patch size: [96, 96, 96]'
+        path: network_data_format/inputs/image
+    sinks:
+      pred:
+        datatype: medimage/nifti-gz
+        help: 'format: segmentation, 2 channel(s), patch size: [96, 96, 96]'
+        path: monai/spleen_ct_segmentation/pred
+    parameters: {}
