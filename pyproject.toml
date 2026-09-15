@@ -51,7 +51,7 @@ dynamic = ["version"]
 dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
 # huggingface_hub is only needed by the sync/fetch tooling, via
 # monai.bundle.download's monaihosting path, not by the installed package.
-test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.20.7", "pydra2app-xnat>=0.8.7","huggingface_hub"]
+test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.21.2", "pydra2app-xnat>=0.8.7","huggingface_hub"]
 
 
 [project.urls]
