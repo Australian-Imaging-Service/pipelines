@@ -13,7 +13,10 @@ base_image:
   package_manager: apt
 packages:
   pip:
-    # >=0.1.4 maps NIfTI bundle inputs to NiftiGz rather than NiftiGzX; earlier
-    # versions reject side-car-less .nii.gz, which is what MONAI bundles consume.
-    pydra-compose-monai: ">=0.1.4"
+    # >=0.1.5 loads the bundle's checkpoint via ConfigWorkflow. Earlier
+    # versions never ran the bundle's `initialize` section, so inference
+    # ran with randomly-initialised weights and produced plausible-looking
+    # but meaningless segmentations (Dice 0.0025 vs 0.9772 on MSD spleen_10).
+    pydra-compose-monai: ">=0.1.5"
+
 operates_on: session

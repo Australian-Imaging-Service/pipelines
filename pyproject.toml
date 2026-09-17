@@ -15,9 +15,11 @@ dependencies = [
     # under src/australianimagingservice/**/monai/, so it is needed to import
     # this package at all -- both on the build host when pipeline2app resolves
     # command.task, and inside the built image at run time.
-    # >=0.1.4 maps NIfTI bundle inputs to NiftiGz rather than NiftiGzX; earlier
-    # versions generate specs that reject side-car-less .nii.gz data.
-    "pydra-compose-monai >=0.1.4",
+    # >=0.1.5 loads the bundle checkpoint via ConfigWorkflow; earlier versions
+    # never ran the bundle's `initialize` section, so inference ran with random
+    # weights and produced plausible but meaningless output (Dice 0.0025 vs
+    # 0.9772 on MSD spleen_10).
+    "pydra-compose-monai >=0.1.5",
     # arrives transitively via pydra-compose-monai, but scripts/monai_specs.py
     # imports monai.bundle directly, so declare it rather than rely on that.
     "monai >=1.4.0",
