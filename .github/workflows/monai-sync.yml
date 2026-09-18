@@ -2,8 +2,16 @@ name: Sync MONAI model specs
 
 on:
   schedule:
-    - cron: "0 3 * * 1"   # 03:00 UTC every Monday
+    # 16:00 UTC Sunday = 02:00 Monday in Sydney during AEST (UTC+10). Cron has
+    # no timezone, so this lands at 03:00 Monday over AEDT (UTC+11) -- fine for
+    # a weekly background sync, and not worth chasing with two schedules.
+    - cron: "0 16 * * 0"
   workflow_dispatch: {}
+
+permissions:
+  contents: write       # create-pull-request pushes the sync branch
+  pull-requests: write  # ...and opens the PR
+  issues: write         # the triage step opens an issue
 
 jobs:
   sync:
@@ -38,3 +46,22 @@ jobs:
           add-paths: |
             specs/**/monai/**
             src/australianimagingservice/**
+
+      # Triage runs after the sync PR so the report reflects decisions already
+      # recorded. It reports models needing a human decision -- new Zoo bundles,
+      # declined models whose version has moved on, and approved models that have
+      # disappeared from the Zoo (which `filter_whitelist` otherwise skips
+      # silently, leaving a spec building against a model that no longer exists).
+      - name: Report models awaiting triage
+        id: triage
+        run: python -m scripts.monai_specs triage --output triage-report.md
+      - name: Open triage issue
+        if: steps.triage.outputs.needs-triage == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh issue create \
+            --title "MONAI model triage — $(date -u +%Y-%m-%d)" \
+            --body-file triage-report.md \
+            --label S4
