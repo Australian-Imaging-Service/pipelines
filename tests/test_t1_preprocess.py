@@ -94,15 +94,18 @@ def test_t1_preprocess_app(
         },
     }
 
-    with xnat_connect() as xlogin:
+    for command_obj in image_spec.commands:
+        with open(build_dir / "xnat_commands" / (command_obj.name + ".json")) as f:
+            command_json = json.load(f)
+        command_json["name"] = command_json["label"] = (
+            image_spec.name + command_obj.name + run_prefix
+        )
 
-        for command_obj in image_spec.commands:
-            with open(build_dir / "xnat_commands" / (command_obj.name + ".json")) as f:
-                command_json = json.load(f)
-            command_json["name"] = command_json["label"] = (
-                image_spec.name + command_obj.name + run_prefix
-            )
-
+        # Open a fresh connection for each command rather than sharing one across
+        # both multi-hour CS launches — XNAT sessions have a finite server-side
+        # lifetime, and a connection opened before the first command's launch can
+        # expire by the time the second command needs it.
+        with xnat_connect() as xlogin:
             test_xsession = next(iter(xlogin.projects[project_id].experiments.values()))
 
             inputs_json = command_inputs[command_obj.name]
