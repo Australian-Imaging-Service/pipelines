@@ -573,3 +573,120 @@ def test_generated_spec_loads_as_xnatapp(tmp_path, whitelist_file, overlay_dir, 
     assert image_spec.commands[0].name
     # command.task resolved to an actual class (not left as an unresolved string)
     assert not isinstance(image_spec.commands[0].task, str)
+
+
+# ---------------------------------------------------------------------------
+# Triage: candidates / declined / withdrawn (#485)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def triage_whitelist_file(tmp_path: Path) -> Path:
+    """Whitelist exercising every triage state at once."""
+    p = tmp_path / "monai_whitelist.yaml"
+    p.write_text(
+        yaml.safe_dump(
+            {
+                "models": {
+                    "spleen_ct_segmentation": {
+                        "version": None,
+                        "modality": "ct",
+                        "species": "human",
+                        "region": "abdomen",
+                    },
+                    "withdrawn_model": {
+                        "version": None,
+                        "modality": "mri",
+                        "species": "human",
+                        "region": "neuro",
+                    },
+                },
+                "declined": {
+                    "mednist_gan": {
+                        "reason": "synthetic image GAN, not a clinical pipeline",
+                        "at_version": "0.4.4",
+                    },
+                    "classification_template": {
+                        "reason": "a template, not a model",
+                    },
+                },
+            }
+        )
+    )
+    return p
+
+
+AVAILABLE = {
+    "spleen_ct_segmentation": "0.6.1",
+    "mednist_gan": "0.5.0",           # declined at 0.4.4 -> stale
+    "classification_template": "0.0.4",  # declined with no at_version -> never stale
+    "brand_new_model": "1.0.0",       # neither approved nor declined -> candidate
+}
+
+
+def test_declined_parses_entries(tmp_path: Path, triage_whitelist_file: Path):
+    mm = MonaiModels(root=tmp_path, whitelist_path=triage_whitelist_file)
+    by_name = {e.name: e for e in mm.declined()}
+    assert set(by_name) == {"mednist_gan", "classification_template"}
+    assert by_name["mednist_gan"].at_version == "0.4.4"
+    assert by_name["classification_template"].at_version is None
+
+
+def test_declined_absent_is_empty(tmp_path: Path, whitelist_file: Path):
+    """A whitelist with no `declined:` block is valid, not an error."""
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    assert mm.declined() == []
+
+
+def test_candidates_excludes_approved_and_declined(
+    tmp_path: Path, triage_whitelist_file: Path
+):
+    mm = MonaiModels(root=tmp_path, whitelist_path=triage_whitelist_file)
+    assert mm.candidates(AVAILABLE) == [("brand_new_model", "1.0.0")]
+
+
+def test_stale_declines_detects_newer_version(
+    tmp_path: Path, triage_whitelist_file: Path
+):
+    mm = MonaiModels(root=tmp_path, whitelist_path=triage_whitelist_file)
+    stale = mm.stale_declines(AVAILABLE)
+    assert [s.name for s in stale] == ["mednist_gan"]
+    assert stale[0].at_version == "0.4.4"
+    assert stale[0].available_version == "0.5.0"
+
+
+def test_decline_without_at_version_never_goes_stale(
+    tmp_path: Path, triage_whitelist_file: Path
+):
+    mm = MonaiModels(root=tmp_path, whitelist_path=triage_whitelist_file)
+    assert "classification_template" not in {s.name for s in mm.stale_declines(AVAILABLE)}
+
+
+def test_withdrawn_reports_approved_models_missing_from_zoo(
+    tmp_path: Path, triage_whitelist_file: Path
+):
+    mm = MonaiModels(root=tmp_path, whitelist_path=triage_whitelist_file)
+    assert mm.withdrawn(AVAILABLE) == ["withdrawn_model"]
+
+
+def test_triage_report_covers_all_three_sections(
+    tmp_path: Path, triage_whitelist_file: Path
+):
+    mm = MonaiModels(root=tmp_path, whitelist_path=triage_whitelist_file)
+    needs_attention, body = mm.triage_report(AVAILABLE)
+    assert needs_attention
+    assert "brand_new_model" in body
+    assert "mednist_gan" in body and "0.4.4" in body and "0.5.0" in body
+    assert "withdrawn_model" in body
+    # candidates are emitted paste-ready, with the anatomy fields to fill in
+    assert "modality:" in body and "species:" in body and "region:" in body
+
+
+def test_triage_report_quiet_when_nothing_to_do(
+    tmp_path: Path, whitelist_file: Path
+):
+    """Nothing to triage is a normal outcome, not a failure."""
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    needs_attention, body = mm.triage_report({"spleen_ct_segmentation": "0.6.1"})
+    assert not needs_attention
+    assert "No MONAI models need triage" in body
