@@ -62,24 +62,34 @@ jobs:
 
     - name: Discover selected specs
       env:
-        # Specs deliberately NOT built, one per line, each with a reason -- an
-        # exclusion list records what is skipped but not why, and without the
-        # reason these get silently re-enabled or silently left forever.
+        # Specs deliberately NOT built. One spec path per line, each followed by
+        # a `#` comment saying why -- an exclusion list records what is skipped
+        # but not why, and without the reason these get either silently
+        # re-enabled or silently left forever. Everything after the first `#` on
+        # a line is stripped before matching, so the reason can be as long as it
+        # needs to be.
+        #
+        #   EXCLUDED: |
+        #     path/to/spec        # why it is not built, and what would change that
+        #
+        # To re-enable a pipeline, delete its line. Blank lines are ignored, and
+        # a path that matches no spec fails the job rather than silently
+        # excluding nothing.
         EXCLUDED: |
-          mri/human/neuro/bidsapp/fmriprep
-          mri/human/neuro/bidsapp/mriqc
-          mri/human/neuro/bidsapp/smriprep
-        # fmriprep / mriqc / smriprep: BIDS app pipelines, not currently
-        #   maintained or verified against the present pipeline2app schema.
-        #   Re-enabling them is a separate decision -- remove the line when one
-        #   is ready to build.
+          mri/human/neuro/bidsapp/fmriprep   # BIDS app, unverified against the current pipeline2app schema
+          mri/human/neuro/bidsapp/mriqc      # BIDS app, unverified against the current pipeline2app schema
+          mri/human/neuro/bidsapp/smriprep   # BIDS app, unverified against the current pipeline2app schema
       run: |
         set -euo pipefail
         find specs/australian-imaging-service -name '*.yaml' \
           | sed 's|^specs/australian-imaging-service/||; s|\.yaml$||' \
           | sort -u > all-specs.txt
 
-        printf '%s\n' "$EXCLUDED" | sed '/^[[:space:]]*$/d' | sort -u > excluded-specs.txt
+        # Strip the trailing `# reason` from each line, then surrounding space,
+        # then drop blank and comment-only lines.
+        printf '%s\n' "$EXCLUDED" \
+          | sed 's/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//; /^$/d' \
+          | sort -u > excluded-specs.txt
 
         # grep -f on an empty pattern file matches nothing, which would exclude
         # everything, so only filter when there is something to filter by.
