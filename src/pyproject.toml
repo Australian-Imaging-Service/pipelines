@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
     "fileformats",
     "fileformats-medimage",
-    "pydra >=1.0a9",
+    "pydra >=1.0a10",
     "pydra-tasks-mrtrix3",
     "pydra-tasks-fsl",
     "pydra-tasks-freesurfer",
