@@ -25,48 +25,6 @@ from fileformats.vendor.mrtrix3.medimage import (  # noqa: F401
     ImageOut,
 )
 
-# ── Workaround for frametree 0.16.x-0.17.x Pipeline.inputs_validator bug ───────
-# rpe_file is genuinely optional (rpe_file: NiftiXBvec | None = None), which is
-# required at the pydra level so the field can default to None when RPE isn't
-# provided. But frametree's Pipeline.inputs_validator (frametree/core/pipeline.py)
-# does a bare `issubclass(inpt.datatype, column.datatype)` on the pipeline input's
-# raw declared type, which crashes with "issubclass() arg 1 must be a class" for
-# any Optional/Union-typed input — it was never updated to unwrap Optional before
-# calling issubclass. Worse, frametree's is_coercible() (used to decide whether a
-# runtime format converter needs to be built) is hardcoded to return False
-# whenever either side is a Union, which unconditionally forces construction of a
-# RuntimeConverterWorkflow(datatype=<the Union>) — and that function's own
-# `datatype` field only accepts a single class, not a Union, so a genuinely
-# multi-member Union (tried and reverted - see git history) crashes there too,
-# regardless of whether the actual data would have matched a member without any
-# conversion at all. So a Union-typed pipeline input can never work here, in any
-# form, including Optional[X]. dwi_raw (a plain, non-Optional NiftiXBvec) is
-# unaffected; only rpe_file needs this. Rather than letting frametree see a
-# Union at all, patch the one place that leaks the Optional type into it:
-# ContainerCommandSource.field_type, which is what pydra2app hands to frametree
-# as a pipeline input's datatype. Stripping the Optional here only affects how
-# frametree/pydra2app see the *declared* type for validation/conversion
-# purposes; the actual pydra task field (and its real None-when-absent runtime
-# behaviour) is untouched. Verified against the real pydra2app/frametree classes.
-try:
-    import types as _types
-    import typing as _ty
-
-    from pydra2app.core.command.components import ContainerCommandSource as _CmdSource
-
-    def _unwrap_optional_field_type(self: "_CmdSource") -> type:
-        field_type = self._field_object.type
-        if _ty.get_origin(field_type) in (_ty.Union, _types.UnionType):
-            non_none = [a for a in _ty.get_args(field_type) if a is not type(None)]
-            if len(non_none) == 1:
-                return non_none[0]
-        return field_type
-
-    _CmdSource.field_type = property(_unwrap_optional_field_type)
-except ImportError:
-    pass
-
-
 # ── Custom shell task wrappers ─────────────────────────────────────────────────
 
 
