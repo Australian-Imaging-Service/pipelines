@@ -1,8 +1,22 @@
-# MONAI Model Zoo models to publish as AIS pipelines.
+# MONAI Model Zoo triage. This file records human decisions only -- models
+# awaiting a decision are derived as (Zoo listing - models - declined) and
+# reported by `python -m scripts.monai_specs triage`, so nothing here needs
+# editing when the Zoo changes.
+
+# Approved: generate and publish a spec.
 # Each entry: version pin (null = latest) and anatomy placement in specs/ tree.
+# The anatomy fields are human classification -- they are not present in bundle
+# metadata, and they determine where the generated spec lands in the tree.
 models:
   spleen_ct_segmentation:
     version: null
     modality: ct
     species: human
     region: abdomen
+
+# Reviewed and deliberately not published.
+#   reason:     why, for whoever reads the triage report later
+#   at_version: the version reviewed. The model resurfaces in triage once the
+#               Zoo moves past it -- bump to re-decline. Omit to decline every
+#               version, for a reason that will never change.
+declined: {}

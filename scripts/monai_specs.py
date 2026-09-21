@@ -1,4 +1,5 @@
 """Generate pipeline2app XNAT specs from whitelisted MONAI Model Zoo bundles."""
+import os
 import re
 import typing as ty
 from pathlib import Path
@@ -45,6 +46,28 @@ class WhitelistEntry(ty.NamedTuple):
     region: str
 
 
+class DeclinedEntry(ty.NamedTuple):
+    """A model reviewed and deliberately not published.
+
+    ``at_version`` scopes the decision to what was actually reviewed, so a
+    model declined as immature resurfaces once the Zoo moves past it. A
+    decision that will never change is re-declined by bumping ``at_version``.
+    """
+
+    name: str
+    reason: str
+    at_version: Optional[str]
+
+
+class StaleDecline(ty.NamedTuple):
+    """A declined model whose Zoo version has moved past the declined one."""
+
+    name: str
+    reason: str
+    at_version: Optional[str]
+    available_version: str
+
+
 class MonaiModels:
     """Fetch, filter, generate and write MONAI-bundle pipeline specs."""
 
@@ -77,6 +100,28 @@ class MonaiModels:
         """
         return {name: version for name, version in get_all_bundles_list()}
 
+    def declined(self) -> List[DeclinedEntry]:
+        """Models reviewed and deliberately not published.
+
+        Sibling of ``models:`` in the whitelist file rather than nested within
+        it: the two carry different fields (anatomy placement vs a reason) and
+        are read independently.
+        """
+        data = yaml.safe_load(self.whitelist_path.read_text()) or {}
+        declined: Dict[str, dict] = data.get("declined") or {}
+        entries: List[DeclinedEntry] = []
+        for name, cfg in declined.items():
+            cfg = cfg or {}
+            at_version = cfg.get("at_version")
+            entries.append(
+                DeclinedEntry(
+                    name=name,
+                    reason=cfg.get("reason", ""),
+                    at_version=str(at_version) if at_version is not None else None,
+                )
+            )
+        return entries
+
     def filter_whitelist(self, available: Dict[str, str]) -> List[WhitelistEntry]:
         """Keep whitelist entries present in ``available``; fill unpinned versions."""
         kept: List[WhitelistEntry] = []
@@ -86,6 +131,49 @@ class MonaiModels:
             version = entry.version or available[entry.name]
             kept.append(entry._replace(version=version))
         return kept
+
+    def candidates(self, available: Dict[str, str]) -> List[ty.Tuple[str, str]]:
+        """Zoo bundles that are neither approved nor declined, as (name, version).
+
+        Derived rather than stored, so the whitelist file only ever records
+        human decisions and needs no edit when the Zoo changes.
+        """
+        known = {e.name for e in self.whitelist()} | {e.name for e in self.declined()}
+        return sorted(
+            (name, version)
+            for name, version in available.items()
+            if name not in known
+        )
+
+    def stale_declines(self, available: Dict[str, str]) -> List[StaleDecline]:
+        """Declined models whose Zoo version differs from the one declined.
+
+        An entry with no ``at_version`` is a decline for all versions and never
+        goes stale.
+        """
+        stale: List[StaleDecline] = []
+        for entry in self.declined():
+            if entry.at_version is None or entry.name not in available:
+                continue
+            current = available[entry.name]
+            if current != entry.at_version:
+                stale.append(
+                    StaleDecline(
+                        name=entry.name,
+                        reason=entry.reason,
+                        at_version=entry.at_version,
+                        available_version=current,
+                    )
+                )
+        return sorted(stale)
+
+    def withdrawn(self, available: Dict[str, str]) -> List[str]:
+        """Approved models no longer present in the Zoo.
+
+        ``filter_whitelist`` drops these silently, which would otherwise leave a
+        spec in the tree building against a model that no longer exists.
+        """
+        return sorted(e.name for e in self.whitelist() if e.name not in available)
 
     def spec_path(self, entry: WhitelistEntry) -> Path:
         return (
@@ -333,6 +421,61 @@ class MonaiModels:
             return []
         return sorted(specs_root.glob("**/monai/*.yaml"))
 
+    def triage_report(self, available: Dict[str, str]) -> ty.Tuple[bool, str]:
+        """Markdown summary of everything needing a human decision.
+
+        Returns ``(needs_attention, body)``. ``needs_attention`` is False when
+        there is nothing to triage, so the caller can skip opening an issue.
+        """
+        candidates = self.candidates(available)
+        stale = self.stale_declines(available)
+        withdrawn = self.withdrawn(available)
+
+        lines: List[str] = []
+        if candidates:
+            lines.append(f"### New bundles to triage ({len(candidates)})\n")
+            lines.append(
+                "Add to `models:` with `modality`/`species`/`region` to publish, "
+                "or to `declined:` with a reason. Paste-ready:\n"
+            )
+            lines.append("```yaml")
+            for name, version in candidates:
+                lines.append(f"  {name}:")
+                lines.append(f"    version: null  # latest is {version}")
+                lines.append("    modality:  # ct | mri | ...")
+                lines.append("    species:   # human | ...")
+                lines.append("    region:    # abdomen | neuro | ...")
+            lines.append("```\n")
+
+        if stale:
+            lines.append(f"### Declined models with a newer version ({len(stale)})\n")
+            for entry in stale:
+                lines.append(
+                    f"- **{entry.name}** {entry.at_version} → {entry.available_version}"
+                    f" — _declined: {entry.reason or 'no reason recorded'}_"
+                )
+            lines.append(
+                "\nStill not wanted? Bump `at_version` to re-decline at the new "
+                "version.\n"
+            )
+
+        if withdrawn:
+            lines.append(f"### Approved models missing from the Zoo ({len(withdrawn)})\n")
+            for name in withdrawn:
+                lines.append(f"- **{name}** — its spec will build against a model "
+                             "that is no longer published")
+            lines.append("")
+
+        if not lines:
+            return False, "No MONAI models need triage."
+
+        lines.append("---")
+        lines.append(
+            "Generated by `scripts/monai_specs.py triage`. Edit "
+            "`scripts/monai_whitelist.yaml` to record a decision."
+        )
+        return True, "\n".join(lines)
+
     def fetch_resources(
         self,
         resources_dir: Path,
@@ -381,12 +524,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Sync MONAI Model Zoo specs")
     parser.add_argument(
         "command",
-        choices=["sync", "fetch-resources"],
+        choices=["sync", "fetch-resources", "triage"],
         help=(
             "sync: regenerate specs/task modules from the Model Zoo. "
             "fetch-resources: download the full bundles (weights included) "
             "that the generated specs declare, ready for --resources-dir. "
-            "Required before building, as weights are not committed."
+            "Required before building, as weights are not committed. "
+            "triage: report Zoo bundles awaiting a publish/decline decision."
         ),
     )
     parser.add_argument("--root", type=Path, default=Path(__file__).parent.parent)
@@ -398,9 +542,27 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--resources-dir", type=Path, default=None,
         help="destination for fetch-resources (default: <root>/resources)",
     )
+    parser.add_argument(
+        "--output", type=Path, default=None,
+        help="write the triage report here instead of stdout",
+    )
     args = parser.parse_args(argv)
 
     mm = MonaiModels(root=args.root, whitelist_path=args.whitelist)
+
+    if args.command == "triage":
+        needs_attention, body = mm.triage_report(mm.fetch_available())
+        if args.output:
+            args.output.write_text(body)
+        else:
+            print(body)
+        # exit 0 either way: nothing to triage is a normal outcome, not a failure.
+        # The workflow reads NEEDS_TRIAGE to decide whether to open an issue.
+        github_output = os.environ.get("GITHUB_OUTPUT")
+        if github_output:
+            with open(github_output, "a") as f:
+                f.write(f"needs-triage={'true' if needs_attention else 'false'}\n")
+        return 0
 
     if args.command == "fetch-resources":
         resources_dir = args.resources_dir or (args.root / "resources")
