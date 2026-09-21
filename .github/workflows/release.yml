@@ -189,7 +189,7 @@ jobs:
     - name: Fetch MONAI bundle resources
       if: contains(matrix.spec, '/monai/')
       run: |
-        pip install -e ".[test]"
+        pip install -e ".[monai]"
         python -m scripts.monai_specs fetch-resources --resources-dir ./resources
 
     - name: Login to Docker registry
