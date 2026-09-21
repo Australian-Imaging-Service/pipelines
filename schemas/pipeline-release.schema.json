@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Australian-Imaging-Service/pipelines/schemas/pipeline-release.schema.json",
+  "title": "Immutable pipeline release catalogue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release", "source", "pipelines"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "release": {"$ref": "#/$defs/release"},
+    "source": {"$ref": "#/$defs/source"},
+    "previous_release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag", "commit"],
+      "properties": {
+        "tag": {"$ref": "#/$defs/text"},
+        "commit": {"$ref": "#/$defs/commit"}
+      }
+    },
+    "pipelines": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {"$ref": "#/$defs/pipeline"}
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[^\\u0000-\\u0020\\u007f]+$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag"],
+      "properties": {"tag": {"$ref": "#/$defs/text"}}
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "commit"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$"},
+        "commit": {"$ref": "#/$defs/commit"}
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "path", "sha256", "url"],
+      "properties": {
+        "name": {"type": "string", "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"},
+        "path": {"type": "string", "pattern": "^command-[0-9a-f]{64}\\.json$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "url": {"type": "string", "maxLength": 2048, "pattern": "^https://github\\.com/[^\\s]+$"}
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "spec", "version", "image_tag", "image", "commands"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"},
+        "spec": {"type": "string", "maxLength": 512, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(/[A-Za-z0-9][A-Za-z0-9_.-]*)*$"},
+        "version": {"$ref": "#/$defs/text"},
+        "image_tag": {"type": "string", "maxLength": 512, "pattern": "^ghcr\\.io/[a-z0-9][a-z0-9._/-]*:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$"},
+        "image": {"type": "string", "maxLength": 600, "pattern": "^ghcr\\.io/[a-z0-9][a-z0-9._/-]*@sha256:[0-9a-f]{64}$"},
+        "commands": {"type": "array", "minItems": 1, "maxItems": 1000, "items": {"$ref": "#/$defs/command"}}
+      }
+    }
+  }
+}
