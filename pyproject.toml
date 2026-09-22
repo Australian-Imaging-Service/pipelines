@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
     "fileformats",
     "fileformats-medimage-extras",
-    "pydra ==1.0a9",
+    "pydra >=1.0a11",
     # NB: monai and pydra-compose-monai are NOT here -- see the `monai` extra.
     "pydra-tasks-fastsurfer >=0.2.2",
     "pydra-tasks-freesurfer",
