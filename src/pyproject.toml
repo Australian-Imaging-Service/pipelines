@@ -4,19 +4,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "australianimagingservice"
-description = "Curated analysis pipelienes for the Australian Imaging Service"
-readme="README.md"
+description = "Analysis pipelines library of the Australian Imaging Service"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fileformats",
-    "fileformats-medimage",
-    "pydra >=1.0a9",
-    "pydra-tasks-mrtrix3",
-    "pydra-tasks-fsl",
+    "fileformats-medimage-extras",
+    "pydra >=1.0a11",
+    # NB: monai and pydra-compose-monai are NOT here -- see the `monai` extra.
+    "pydra-tasks-fastsurfer >=0.2.2",
     "pydra-tasks-freesurfer",
-    "pydra-tasks-fastsurfer",
-    "pydra-tasks-monai",
-    "pydra-tasks-bidsapp",
+    "pydra-tasks-fsl",
+    "pydra-tasks-mrtrix3 >=3.1.0a1",
+    "pydra-compose-bidsapp",
 ]
 license = "CC-BY-4.0"
 authors = [{ name = "Thomas G. Close", email = "tom.g.close@gmail.com" }]
@@ -30,35 +30,61 @@ classifiers = [
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
-test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1"]
+
+# Build tooling for MONAI specs, needed only by scripts/monai_specs.py (sync,
+# fetch-resources, triage) -- not by the installed package, and not by any
+# pipeline that is not a MONAI one.
+#
+# Kept out of [project] dependencies because monai pulls in torch and the whole
+# CUDA stack: with it declared there, `pip install ./src` fetched torch 2.14
+# (554MB) on EVERY spec build, and a spec pinning a different torch then downloaded its
+# own and downgraded it -- 1.3GB of torch per build for pipelines that use
+# neither, leaving monai itself unsatisfied ("monai 1.6.0 requires torch>=2.8.0,
+# but you have torch 2.6.0"). Harmless only because nothing imported monai.
+#
+# huggingface_hub: monai.bundle.download's monaihosting path dereferences it
+# inside an `except` clause, so the fallback cannot fire without it.
+#
+# pydra-compose-monai >=0.1.5 loads the bundle checkpoint via ConfigWorkflow;
+# earlier versions never ran the bundle's `initialize` section, so inference ran
+# with randomly-initialised weights and produced plausible but meaningless
+# output (Dice 0.0025 vs 0.9772 on MSD spleen_10).
+monai = ["monai >=1.4.0", "pydra-compose-monai >=0.1.5", "huggingface_hub"]
+
+test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.21.2", "pydra2app-xnat>=0.8.7", "australianimagingservice[monai]"]
 
 
 [project.urls]
-repository = "https://github.com/Australian-Imaging-Service/pipelines-community"
+repository = "https://github.com/Australian-Imaging-Service/pipelines"
 
 
 [tool.hatch.version]
 source = "vcs"
+# src/pyproject.toml isn't the git root -- .. is, so hatch-vcs needs telling
+# where to look for tags/describe info.
 raw-options = { root = ".." }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "australianimagingservice/_version.py"
 
+[tool.pyright]
+reportAssignmentType = false
+
 [tool.hatch.build.targets.wheel]
 packages = ["australianimagingservice"]
 
 [tool.black]
-target-version = ['py310']
+target-version = ['py311', 'py312', 'py313', 'py314']
 exclude = "australianimagingservice/_version.py"
 
 [tool.codespell]
@@ -70,3 +96,12 @@ per-file-ignores = ["__init__.py:F401"]
 max-line-length = 88
 select = "C,E,F,W,B,B950"
 extend-ignore = ['E203', 'E501', 'E129', 'W503']
+
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+strict = true
+namespace_packages = true
+explicit_package_bases = true
+exclude = ["tests", "scripts", "docs", "build", "dist"]
