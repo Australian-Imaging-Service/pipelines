@@ -144,7 +144,7 @@ jobs:
             release-plan.json
             release-inventory.json
           if-no-files-found: error
-  build_and_deploy:
+  build-and-deploy:
     needs: discover-specs
     if: needs.discover-specs.outputs.has-builds == 'true'
     runs-on: ubuntu-24.04
@@ -270,9 +270,9 @@ jobs:
   # have actually built successfully (or there was nothing new to build) -- stale
   # or wrong docs must never go out for a release that failed.
   docs:
-    needs: [discover-specs, build_and_deploy]
+    needs: [discover-specs, build-and-deploy]
     if: >-
-      always() && !cancelled() && needs.discover-specs.result == 'success' && (needs.build_and_deploy.result == 'success' || needs.build_and_deploy.result == 'skipped')
+      always() && !cancelled() && needs.discover-specs.result == 'success' && (needs.build-and-deploy.result == 'success' || needs.build-and-deploy.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write # peaceiris/actions-gh-pages pushes the 'docs' branch
@@ -296,7 +296,7 @@ jobs:
       - name: Generate baseline pipeline docs
         run: pydra2app make-docs ./specs/australian-imaging-service docs/pipelines --flatten --default-axes medimage
       # Overlays docs generated from inside each spec's just-built image (see
-      # 'Generate pipeline docs from built image' in build_and_deploy) on top of
+      # 'Generate pipeline docs from built image' in build-and-deploy) on top of
       # the baseline -- those have correctly introspected inputs/outputs/
       # parameters regardless of what's installed on this runner. Specs that
       # weren't in this run's build matrix (e.g. currently-excluded ones) keep
@@ -346,9 +346,9 @@ jobs:
           GH_REPO: ${{ matrix.page.repo }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
   publish-catalogue:
-    needs: [discover-specs, build_and_deploy]
+    needs: [discover-specs, build-and-deploy]
     if: >-
-      always() && !cancelled() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.discover-specs.result == 'success' && (needs.build_and_deploy.result == 'success' || needs.build_and_deploy.result == 'skipped')
+      always() && !cancelled() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.discover-specs.result == 'success' && (needs.build-and-deploy.result == 'success' || needs.build-and-deploy.result == 'skipped')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
