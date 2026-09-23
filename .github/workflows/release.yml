@@ -179,16 +179,6 @@ jobs:
         run: |
           pip install -r requirements/build.txt
           pip install ./src
-      - name: Install spec-specific requirements if they exist
-        env:
-          SPEC: ${{ matrix.spec }}
-        run: |
-          if [ -f "./requirements/$SPEC.txt" ]; then
-            echo "Installing spec-specific requirements for $SPEC"
-            pip install -r "./requirements/$SPEC.txt"
-          else
-            echo "No spec-specific requirements found for $SPEC"
-          fi
       # MONAI model weights are not committed (they are large, re-downloadable
       # and already versioned in the Model Zoo), so the bundle each generated
       # spec declares as a resource must be fetched before the build. Pinned to
@@ -238,6 +228,26 @@ jobs:
           name: xnat-commands-${{ strategy.job-index }}
           path: ./xnat_commands/*.json
           if-no-files-found: error
+      # Runs 'pydra2app make-docs' against the spec baked into the image itself
+      # (/pydra2app-spec.yaml), using the image's own environment -- so task
+      # inputs/outputs/parameters are always correctly introspected, without
+      # needing every pipeline's task package (e.g. phi-finder) importable on
+      # the CI runner. Mirrors how the XNAT command JSON above is generated.
+      - name: Generate pipeline docs from built image
+        run: |
+          set -euo pipefail
+          mkdir -p generated-docs
+          docker run --rm \
+            --entrypoint /bin/bash \
+            -v "$PWD/generated-docs:/generated-docs" \
+            "$IMAGE_TAG" \
+            -c "conda run -n pydra2app pydra2app make-docs /pydra2app-spec.yaml /generated-docs --flatten --default-axes medimage --spec-root /"
+      - name: Upload generated pipeline docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-docs-${{ strategy.job-index }}
+          path: ./generated-docs/*.md
+          if-no-files-found: error
       - name: Push built Docker image
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         run: docker push "$IMAGE_TAG"
@@ -280,8 +290,27 @@ jobs:
         run: |
           pip install -r requirements/build.txt
           pip install -e ./src
-      - name: Generate pipeline docs
+      # Baseline: works for every spec, including ones excluded from this run's
+      # build matrix, but degrades to generic input/output/parameter info for
+      # any task whose package isn't installed here on the runner.
+      - name: Generate baseline pipeline docs
         run: pydra2app make-docs ./specs/australian-imaging-service docs/pipelines --flatten --default-axes medimage
+      # Overlays docs generated from inside each spec's just-built image (see
+      # 'Generate pipeline docs from built image' in build_and_deploy) on top of
+      # the baseline -- those have correctly introspected inputs/outputs/
+      # parameters regardless of what's installed on this runner. Specs that
+      # weren't in this run's build matrix (e.g. currently-excluded ones) keep
+      # the baseline docs generated above instead of being left out entirely.
+      - name: Download docs generated from built images
+        if: needs.discover-specs.outputs.has-builds == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: spec-docs-*
+          path: built-image-docs
+          merge-multiple: true
+      - name: Overlay docs generated from built images
+        if: needs.discover-specs.outputs.has-builds == 'true'
+        run: cp built-image-docs/*.md docs/pipelines/
       - name: Remove /docs/pipelines/ from .gitignore
         run: sed -i 's%^/docs/pipelines/\*$%%' .gitignore
       - name: Deploy to docs branch
