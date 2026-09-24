@@ -1,0 +1,2 @@
+pydra2app >=0.22.2
+pydra2app-xnat >= 0.8.7

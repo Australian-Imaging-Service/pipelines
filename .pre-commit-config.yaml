@@ -13,25 +13,28 @@ repos:
     hooks:
       - id: black
         language_version: python3.13
-        exclude: ^(fileformats/core/_version\.py)$
+        exclude: ^(src/australianimagingservice/_version\.py)$
         args:
           - -l 88
+          - --config=src/pyproject.toml
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:
       - id: codespell
-        exclude: ^(fileformats/core/_version\.py)$
+        exclude: ^(src/australianimagingservice/_version\.py)$
         args:
           - --ignore-words=.codespell-ignorewords
   - repo: https://github.com/PyCQA/flake8
     rev: 7.3.0
     hooks:
       - id: flake8
+        args:
+          - --extend-ignore=E203,E501,E129,W503,E701
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
     hooks:
       - id: mypy
-        args: [--strict, --install-types, --non-interactive, --no-warn-unused-ignores]
+        args: [--strict, --install-types, --non-interactive, --no-warn-unused-ignores, --config-file=src/pyproject.toml]
         exclude: tests
         additional_dependencies: [pytest, attrs, imageio, pydicom]
   - repo: https://github.com/google/yamlfmt
