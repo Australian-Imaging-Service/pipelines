@@ -1,6 +1,6 @@
 ---
-source_file: /home/runner/work/pipelines/pipelines/specs/australian-imaging-service/mri/human/neuro/t1w/preprocess.yaml
-title: human.neuro.t1w.preprocess
+source_file: /pydra2app-spec.yaml
+title: mri.human.neuro.t1w.preprocess
 weight: 10
 
 ---
@@ -8,7 +8,7 @@ weight: 10
 ## Package Info
 |Key|Value|
 |---|-----|
-|Name|human.neuro.t1w.preprocess|
+|Name|mri.human.neuro.t1w.preprocess|
 |Title|Preprocess T1-weighted MRI|
 |Version|1.1.5post1|
 |Base image|`deepmi/fastsurfer:gpu-latest`|
