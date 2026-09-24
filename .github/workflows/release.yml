@@ -211,8 +211,12 @@ jobs:
           SPEC: ${{ matrix.spec }}
         run: |
           pydra2app make xnat "./specs/australian-imaging-service/$SPEC.yaml" \
-            --registry ghcr.io --loglevel info \
-            --resources-dir ./resources --spec-root ./specs --dont-check-registry --source-package ./src
+            --registry ghcr.io \
+            --loglevel info \
+            --resources-dir ./resources \
+            --spec-root ./specs \
+            --dont-check-registry \
+            --source-package ./src
       - name: Dump XNAT command JSON to file
         run: |
           set -euo pipefail
