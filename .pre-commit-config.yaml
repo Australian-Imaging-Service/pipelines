@@ -9,8 +9,8 @@ repos:
       - id: check-added-large-files
   - repo: local
     hooks:
-      - id: check-yaml
-        name: check-yaml (tolerating repo's custom tags, e.g. '!join')
+      - id: check-spec
+        name: check-spec (check spec can be loaded by pydra2app)
         entry: python scripts/check_yaml.py
         language: python
         additional_dependencies: [pydra2app>=0.22.2]
