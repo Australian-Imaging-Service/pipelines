@@ -1,6 +1,6 @@
 title: "Preprocess T1-weighted MRI" # Short name for the pipeline referenced in the UI
 schema_version: "2.0" # the version of the specification format used for this file
-version: "1.1.5"
+version: "1.1.5post1"
 base_image:
   # Chose a NeuroDesk FSL container as the base
   name: deepmi/fastsurfer
@@ -18,7 +18,7 @@ packages:
     fileformats-datascience:
     fileformats-medimage:
     fileformats-vendor-fsl:
-    pydra: 1.0a10
+    pydra: '>=1.0a11'
     pydra-tasks-mrtrix3:
     pydra-tasks-fsl:
     fileformats:
@@ -62,16 +62,11 @@ authors:
     email: thomas.close@sydney.edu.au
 licenses:
   freesurfer:
-    destination:
-      &freesurfer_license !join [
-        "/opt/freesurfer-",
-        *freesurfer_version,
-        "/license.txt",
-      ]
+    destination: &freesurfer_license !join ["/opt/freesurfer-", *freesurfer_version, "/license.txt"]
     info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
     description: >
-      FastSurfer, which is used to perform segmentation and surface recon, requires a
-      FreeSurfer license to run.
+      FastSurfer, which is used to perform segmentation and surface recon, requires a FreeSurfer license to run.
+
 docs:
   info_url: "https://placeholder.org" # Link to external documentation for underlying tool
   description: | # Description of tool for auto-docs

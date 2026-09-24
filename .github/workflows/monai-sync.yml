@@ -1,5 +1,4 @@
 name: Sync MONAI model specs
-
 on:
   schedule:
     # 16:00 UTC Sunday = 02:00 Monday in Sydney during AEST (UTC+10). Cron has
@@ -7,12 +6,10 @@ on:
     # a weekly background sync, and not worth chasing with two schedules.
     - cron: "0 16 * * 0"
   workflow_dispatch: {}
-
 permissions:
-  contents: write       # create-pull-request pushes the sync branch
-  pull-requests: write  # ...and opens the PR
-  issues: write         # the triage step opens an issue
-
+  contents: write # create-pull-request pushes the sync branch
+  pull-requests: write # ...and opens the PR
+  issues: write # the triage step opens an issue
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -26,7 +23,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[test]"
+          python -m pip install -e "./src[test]"
       - name: Generate/update MONAI specs
         run: python -m scripts.monai_specs sync
       - name: Open PR with changes
@@ -46,7 +43,6 @@ jobs:
           add-paths: |
             specs/**/monai/**
             src/australianimagingservice/**
-
       # Triage runs after the sync PR so the report reflects decisions already
       # recorded. It reports models needing a human decision -- new Zoo bundles,
       # declined models whose version has moved on, and approved models that have
