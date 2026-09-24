@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T1 Pipeline Sample Size Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f4f4f2; --bg3: #e9e9e6;
+    --text: #1a1a18; --text2: #5f5e5a; --border: rgba(0,0,0,0.12);
+    --radius: 8px; --font: system-ui, -apple-system, sans-serif;
+    --accent: #378ADD; --warn: #BA7517; --bad: #D85A30; --good: #1D9E75;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+      --text: #e8e8e4; --text2: #888780; --border: rgba(255,255,255,0.10);
+    }
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); padding: 24px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 19px; font-weight: 600; margin-bottom: 4px; }
+  h2 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .subtitle { font-size: 13px; color: var(--text2); margin-bottom: 22px; }
+  .card {
+    background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: 12px; padding: 18px; margin-bottom: 18px;
+  }
+  .card-step { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff;
+    font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  label { font-size: 12px; color: var(--text2); font-weight: 500; display: block; margin-bottom: 4px; }
+  input[type=text], input[type=number], select {
+    font-family: var(--font); font-size: 13px; padding: 6px 8px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); width: 100%;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; }
+  .field { min-width: 130px; flex: 1; }
+  .field.wide { flex: 3; min-width: 260px; }
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: 10px; padding: 22px; text-align: center;
+    color: var(--text2); font-size: 13px; cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .dropzone.drag { border-color: var(--accent); background: var(--bg3); }
+  .dropzone input { display: none; }
+  .pk-btn {
+    padding: 4px 12px; font-size: 12px; border: 1px solid var(--border);
+    border-radius: 99px; background: transparent; color: var(--text2);
+    cursor: pointer; transition: background .1s, color .1s, border-color .1s; line-height: 1.5;
+  }
+  .pk-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pk-btn:hover:not(.active) { border-color: #888; color: var(--text); }
+  .pk-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .summary-line { font-size: 12.5px; color: var(--text2); margin-top: 10px; line-height: 1.6; }
+  .summary-line b { color: var(--text); font-weight: 600; }
+  .warn-box {
+    margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 12px;
+    background: rgba(186,117,23,0.12); color: var(--warn); border: 1px solid rgba(186,117,23,0.3);
+  }
+  .combobox { position: relative; }
+  #varList {
+    max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;
+    margin-top: 6px; background: var(--bg); display: none;
+  }
+  #varList.open { display: block; }
+  .var-group-header {
+    position: sticky; top: 0; background: var(--bg3); color: var(--text2); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: .04em; padding: 5px 10px; font-weight: 600;
+  }
+  .var-option { padding: 6px 10px; font-size: 12.5px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+  .var-option:hover, .var-option.hl { background: var(--bg3); }
+  .var-option .badge { color: var(--text2); font-size: 11px; flex-shrink: 0; }
+  .selected-var { font-size: 13px; font-weight: 600; margin-top: 10px; }
+  .selected-var .units { font-weight: 400; color: var(--text2); }
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 12px; }
+  .stats-table th { text-align: left; padding: 5px 10px; background: var(--bg3); color: var(--text2); font-weight: 500; border-bottom: 0.5px solid var(--border); }
+  .stats-table td { padding: 5px 10px; border-bottom: 0.5px solid var(--border); }
+  .chart-wrap { position: relative; width: 100%; height: 260px; margin-top: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+  .result-box {
+    background: var(--bg); border: 0.5px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; margin-top: 10px;
+  }
+  .result-box .big { font-size: 22px; font-weight: 700; color: var(--accent); }
+  .result-box .sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .caveat-banner {
+    font-size: 12px; padding: 8px 12px; border-radius: 8px; margin-bottom: 14px;
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+  }
+  .caveat-banner.low-n { background: rgba(186,117,23,0.12); color: var(--warn); border-color: rgba(186,117,23,0.3); }
+  button.action {
+    font-family: var(--font); font-size: 12.5px; padding: 7px 14px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer;
+  }
+  button.action:hover { border-color: var(--accent); color: var(--accent); }
+  .footer-note { font-size: 11.5px; color: var(--text2); margin-top: 24px; line-height: 1.6; }
+  .disabled-panel { opacity: 0.4; pointer-events: none; }
+  @media print {
+    .no-print { display: none !important; }
+    .card { break-inside: avoid; border: 1px solid #ccc; }
+    body { padding: 0; }
+  }
+</style>
+</head>
+<body>
+
+<h1>T1 Pipeline Sample Size Calculator</h1>
+<div class="subtitle">Point this at a T1 pipeline outputs directory, pick a FreeSurfer structure/metric, and get a required-sample-size estimate grounded in this lab's own pilot variance.</div>
+
+<div class="card no-print">
+  <div class="card-step"><span class="step-num">1</span><h2>Load pilot outputs</h2></div>
+  <div class="dropzone" id="dropzone">
+    <div id="dropzoneLabel">Drop a T1 pipeline outputs folder here, or click to choose one.<br>Any folder containing one or more <code>FS_outputs/stats/</code> directories works &mdash; nesting depth doesn't matter.</div>
+    <input type="file" id="dirInput" webkitdirectory multiple>
+  </div>
+  <div id="scanSummary" class="summary-line" style="display:none;"></div>
+  <div id="scanWarnings"></div>
+</div>
+
+<div class="card no-print disabled-panel" id="varCard">
+  <div class="card-step"><span class="step-num">2</span><h2>Choose a variable of interest</h2></div>
+  <div class="combobox">
+    <input type="text" id="varSearch" placeholder="Search structures &amp; metrics, e.g. &quot;hippocampus&quot;, &quot;thickness&quot;, &quot;lh bankssts&quot;&hellip;" autocomplete="off">
+    <div id="varList" role="listbox"></div>
+  </div>
+  <div id="selectedVarLabel" class="selected-var"></div>
+</div>
+
+<div class="card no-print disabled-panel" id="statsCard">
+  <div class="card-step"><span class="step-num">3</span><h2>Pilot descriptive statistics</h2></div>
+  <div id="pilotCaveat"></div>
+  <div class="grid2">
+    <div>
+      <table class="stats-table" id="statsTable"></table>
+    </div>
+    <div>
+      <div class="chart-wrap"><canvas id="stripChart"></canvas></div>
+      <div class="summary-line">Click a point to include/exclude it (e.g. a likely segmentation failure) from the statistics below. Triangles are flagged by the 1.5&times;IQR rule; grey points are manually excluded.</div>
+    </div>
+  </div>
+</div>
+
+<div class="card no-print disabled-panel" id="calcCard">
+  <div class="card-step"><span class="step-num">4</span><h2>Sample size &amp; power</h2></div>
+
+  <div class="row">
+    <div class="field">
+      <label>Significance level (&alpha;)</label>
+      <input type="number" id="alphaInput" value="0.05" step="0.01" min="0.0001" max="0.5">
+    </div>
+    <div class="field">
+      <label>Tails</label>
+      <select id="tailsInput">
+        <option value="two" selected>Two-tailed</option>
+        <option value="one">One-tailed</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Power (1&minus;&beta;)</label>
+      <input type="number" id="powerInput" value="0.8" step="0.05" min="0.5" max="0.999">
+    </div>
+    <div class="field">
+      <label>Bonferroni &mdash; planned comparisons</label>
+      <input type="number" id="bonferroniInput" value="1" step="1" min="1">
+    </div>
+  </div>
+  <div class="summary-line" id="alphaEffLine"></div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="result-box">
+      <h2 style="margin-bottom:8px;">Required N per group</h2>
+      <div class="row" style="margin-bottom:8px;">
+        <div class="field wide">
+          <label>Target difference between the two groups</label>
+          <div class="pk-group" style="margin-bottom:6px;">
+            <button class="pk-btn active" data-mode="%">% of pilot mean</button>
+            <button class="pk-btn" data-mode="raw">Raw units</button>
+            <button class="pk-btn" data-mode="d">Cohen's d</button>
+          </div>
+          <input type="number" id="targetValue" value="10" step="1">
+        </div>
+      </div>
+      <div id="nResult"></div>
+    </div>
+
+    <div class="result-box">
+      <h2 style="margin-bottom:8px;">What can N per group detect?</h2>
+      <div class="row" style="margin-bottom:8px;">
+        <div class="field">
+          <label>N per group</label>
+          <input type="number" id="nPerGroupInput" value="20" step="1" min="2">
+        </div>
+      </div>
+      <div id="mddResult"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px; background: var(--bg);">
+    <div class="pk-group" style="margin-bottom:6px;">
+      <span style="font-size:11px;color:var(--text2);margin-right:4px;">Power curve:</span>
+      <button class="pk-btn active" data-curve="diff">Detectable % difference vs. N</button>
+      <button class="pk-btn" data-curve="power">Achieved power vs. N (at target difference)</button>
+    </div>
+    <div class="chart-wrap"><canvas id="powerChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card no-print disabled-panel" id="exportCard">
+  <div class="card-step"><span class="step-num">5</span><h2>Share with the researcher</h2></div>
+  <div class="pk-group">
+    <button class="action" id="copyBtn">Copy summary</button>
+    <button class="action" id="printBtn">Print / save as PDF</button>
+  </div>
+  <div id="copyStatus" class="summary-line"></div>
+</div>
+
+<div class="footer-note">
+  v1 scope: independent two-group comparisons only, using standard FreeSurfer tabular <code>.stats</code> files
+  (subcortical/global volumes, cortical parcellation across the DKT/Desikan/Destrieux atlases, cerebellum, hypothalamus,
+  white-matter parcellation, Brodmann areas, w-g.pct). <code>curv.stats</code> and corpus-callosum JSON files are not
+  parsed in this version. Sample-size formulas use a normal (z) approximation and a t-distribution-adjusted iterative
+  estimate (Cornish&ndash;Fisher approximation for small pilot N) &mdash; treat the t-adjusted number as the more
+  conservative estimate for small pilot cohorts.
+</div>
+
+<script>
+"use strict";
+
+/* ---------------------------------------------------------------------- */
+/* Constants                                                               */
+/* ---------------------------------------------------------------------- */
+
+const PALETTE = ["#378ADD","#D85A30","#1D9E75","#D4537E","#7F77DD","#BA7517","#639922","#888780","#185FA5","#993C1D"];
+
+// Explicit allowlist of in-scope FreeSurfer/FastSurfer tabular stats files.
+// Keys are the filename with any lh./rh. hemisphere prefix already stripped.
+const FILE_TABLE = {
+  "aseg.stats":                   { fileBase: "aseg",         atlas: null,                 kind: "subcortical" },
+  "aseg+DKT.stats":               { fileBase: "aseg",         atlas: "DKT",                kind: "subcortical" },
+  "aseg+DKT.VINN.stats":          { fileBase: "aseg",         atlas: "DKT-VINN",           kind: "subcortical" },
+  "aseg+DKT.VINN.withCC.stats":   { fileBase: "aseg",         atlas: "DKT-VINN-withCC",    kind: "subcortical" },
+  "aseg.VINN.stats":              { fileBase: "aseg",         atlas: "VINN",               kind: "subcortical" },
+  "aseg.presurf.hypos.stats":     { fileBase: "aseg",         atlas: "presurf-hypos",      kind: "subcortical" },
+  "brainvol.stats":               { fileBase: "brainvol",     atlas: null,                 kind: "global" },
+  "cerebellum.CerebNet.stats":    { fileBase: "cerebellum",   atlas: "CerebNet",           kind: "subcortical" },
+  "hypothalamus.HypVINN.stats":   { fileBase: "hypothalamus", atlas: "HypVINN",            kind: "subcortical" },
+  "wmparc.stats":                 { fileBase: "wmparc",       atlas: null,                 kind: "subcortical" },
+  "wmparc.DKTatlas.mapped.stats": { fileBase: "wmparc",       atlas: "DKTatlas-mapped",    kind: "subcortical" },
+  "aparc.stats":                  { fileBase: "aparc",        atlas: null,                 kind: "cortical" },
+  "aparc.DKTatlas.stats":         { fileBase: "aparc",        atlas: "DKTatlas",           kind: "cortical" },
+  "aparc.DKTatlas.mapped.stats":  { fileBase: "aparc",        atlas: "DKTatlas-mapped",    kind: "cortical" },
+  "aparc.a2009s.stats":           { fileBase: "aparc",        atlas: "a2009s",             kind: "cortical" },
+  "aparc.pial.stats":             { fileBase: "aparc",        atlas: "pial",               kind: "cortical" },
+  "BA_exvivo.stats":              { fileBase: "BA_exvivo",    atlas: null,                 kind: "cortical" },
+  "BA_exvivo.thresh.stats":       { fileBase: "BA_exvivo",    atlas: "thresh",             kind: "cortical" },
+  "w-g.pct.stats":                { fileBase: "w-g.pct",      atlas: null,                 kind: "cortical" },
+};
+
+const STATS_PATH_RE = /^(?:(.*)\/)?FS_outputs\/stats\/([^/]+)$/;
+
+/* ---------------------------------------------------------------------- */
+/* State                                                                   */
+/* ---------------------------------------------------------------------- */
+
+const state = {
+  records: [],
+  byVarKey: new Map(),
+  leaves: [],
+  participants: new Set(),
+  filesScanned: 0,
+  skippedCount: 0,
+  warnings: [],
+  selectedKey: null,
+  excluded: new Set(),
+  currentStats: null,
+  targetMode: "%",
+  curveMode: "diff",
+};
+
+/* ---------------------------------------------------------------------- */
+/* Parsing                                                                 */
+/* ---------------------------------------------------------------------- */
+
+function classifyStatsFile(name) {
+  let hemisphere = null, rest = name;
+  if (name.startsWith("lh.") || name.startsWith("rh.")) {
+    hemisphere = name.slice(0, 2);
+    rest = name.slice(3);
+  }
+  const meta = FILE_TABLE[rest];
+  if (!meta) return null;
+  return { ...meta, hemisphere };
+}
+
+function parseStatsText(text) {
+  const measures = [];
+  let colHeaders = null;
+  const rows = [];
+  for (const line of text.split("\n")) {
+    if (line.startsWith("# Measure")) {
+      const m = line.match(/^#\s*Measure\s+([^,]+),\s*([^,]+),\s*([^,]+),\s*([\-+0-9.eE]+),\s*(\S+)/);
+      if (m) {
+        measures.push({
+          shortName: m[1].trim(), colHeader: m[2].trim(), description: m[3].trim(),
+          value: parseFloat(m[4]), units: m[5].trim(),
+        });
+      }
+      continue;
+    }
+    if (line.startsWith("# ColHeaders")) {
+      colHeaders = line.replace("# ColHeaders", "").trim().split(/\s+/).filter(Boolean);
+      continue;
+    }
+    if (line.startsWith("#") || !line.trim()) continue;
+    rows.push(line.trim().split(/\s+/));
+  }
+  const structRows = [];
+  if (colHeaders) {
+    for (const cols of rows) {
+      const obj = {};
+      colHeaders.forEach((h, i) => { obj[h] = cols[i]; });
+      structRows.push(obj);
+    }
+  }
+  return { measures, colHeaders, structRows };
+}
+
+function buildRecords(participant, meta, parsed) {
+  const records = [];
+  for (const ms of parsed.measures) {
+    records.push({
+      participant, fileKind: "global", fileBase: meta.fileBase, atlas: meta.atlas, hemisphere: meta.hemisphere,
+      structName: null, metric: ms.colHeader, value: ms.value, units: ms.units,
+      varKey: ["global", meta.fileBase, meta.atlas || "_", meta.hemisphere || "_", ms.colHeader].join("|"),
+    });
+  }
+  if (parsed.colHeaders && meta.kind !== "global" && parsed.colHeaders.includes("StructName")) {
+    const metricCols = parsed.colHeaders.filter(h => !["StructName", "Index", "SegId"].includes(h));
+    for (const row of parsed.structRows) {
+      const structName = row.StructName;
+      for (const metric of metricCols) {
+        const value = Number(row[metric]);
+        if (!Number.isFinite(value)) continue;
+        records.push({
+          participant, fileKind: meta.kind, fileBase: meta.fileBase, atlas: meta.atlas, hemisphere: meta.hemisphere,
+          structName, metric, value, units: null,
+          varKey: [meta.kind, meta.fileBase, meta.atlas || "_", meta.hemisphere || "_", structName, metric].join("|"),
+        });
+      }
+    }
+  }
+  return records;
+}
+
+function findStatsFiles(files) {
+  const hits = [];
+  for (const f of files) {
+    const rel = f.webkitRelativePath || f._relPath || f.name;
+    const m = rel.match(STATS_PATH_RE);
+    if (m) hits.push({ file: f, prefix: m[1] || "", statsName: m[2] });
+  }
+  return hits;
+}
+
+function assignParticipants(hits, topFolderName) {
+  const groups = new Map();
+  for (const h of hits) {
+    if (!groups.has(h.prefix)) groups.set(h.prefix, []);
+    groups.get(h.prefix).push(h);
+  }
+  const prefixes = [...groups.keys()];
+  const partsArrays = prefixes.map(p => p.split("/").filter(Boolean));
+  // Strip whatever's common to every participant's prefix, whether it's a shared
+  // LEADING chain (e.g. a selected root folder name) or a shared TRAILING chain
+  // (e.g. a repeated "t1w_preprocess/t1w_preprocess" nesting) — only what actually
+  // varies between participants should end up in the label.
+  let commonLead = 0, commonTrail = 0;
+  if (partsArrays.length > 1) {
+    const minLen = Math.min(...partsArrays.map(a => a.length));
+    outerLead: for (let i = 0; i < minLen; i++) {
+      const val = partsArrays[0][i];
+      for (const arr of partsArrays) if (arr[i] !== val) break outerLead;
+      commonLead++;
+    }
+    outerTrail: for (let i = 0; i < minLen - commonLead; i++) {
+      const val = partsArrays[0][partsArrays[0].length - 1 - i];
+      for (const arr of partsArrays) if (arr[arr.length - 1 - i] !== val) break outerTrail;
+      commonTrail++;
+    }
+  }
+  const participantOf = new Map();
+  prefixes.forEach((p, idx) => {
+    const parts = partsArrays[idx];
+    let id;
+    if (prefixes.length === 1) {
+      id = topFolderName || parts[parts.length - 1] || "subject";
+    } else {
+      const rem = parts.slice(commonLead, parts.length - commonTrail);
+      id = rem.length ? rem.join("/") : (p || topFolderName || `subject-${idx + 1}`);
+    }
+    participantOf.set(p, id);
+  });
+  return { groups, participantOf };
+}
+
+async function ingestAll(fileList) {
+  const files = Array.from(fileList);
+  if (!files.length) return;
+  const topFolderName = (files[0].webkitRelativePath || files[0]._relPath || "").split("/")[0] || null;
+  const hits = findStatsFiles(files);
+
+  if (!hits.length) {
+    document.getElementById("scanSummary").style.display = "block";
+    document.getElementById("scanSummary").innerHTML =
+      "<b>No FS_outputs/stats files found</b> in the selected folder. Point this at a T1 pipeline outputs directory (it can contain one participant or many).";
+    return;
+  }
+
+  const { groups, participantOf } = assignParticipants(hits, topFolderName);
+
+  state.records = [];
+  state.participants = new Set();
+  state.skippedCount = 0;
+  state.warnings = [];
+  let scanned = 0;
+
+  for (const [prefix, group] of groups) {
+    const participant = participantOf.get(prefix);
+    state.participants.add(participant);
+    for (const hit of group) {
+      scanned++;
+      const meta = classifyStatsFile(hit.statsName);
+      if (!meta) { state.skippedCount++; continue; }
+      let text;
+      try { text = await hit.file.text(); }
+      catch (e) { state.warnings.push(`Could not read ${hit.statsName} for ${participant}`); continue; }
+      const parsed = parseStatsText(text);
+      state.records.push(...buildRecords(participant, meta, parsed));
+    }
+  }
+  state.filesScanned = scanned;
+  buildVariableIndex();
+  renderSummary();
+  document.getElementById("varCard").classList.remove("disabled-panel");
+}
+
+/* ---------------------------------------------------------------------- */
+/* Statistics                                                              */
+/* ---------------------------------------------------------------------- */
+
+function percentile(sorted, p) {
+  const n = sorted.length;
+  if (n === 0) return NaN;
+  if (n === 1) return sorted[0];
+  const idx = p * (n - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+function computeStats(values) {
+  // values: [{participant, value}]
+  const n = values.length;
+  if (n === 0) return { n: 0 };
+  const vals = values.map(v => v.value);
+  const mean = vals.reduce((a, b) => a + b, 0) / n;
+  const sd = n > 1 ? Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1)) : NaN;
+  const sorted = [...vals].sort((a, b) => a - b);
+  const median = percentile(sorted, 0.5), q1 = percentile(sorted, 0.25), q3 = percentile(sorted, 0.75);
+  const iqr = q3 - q1;
+  const lowFence = q1 - 1.5 * iqr, highFence = q3 + 1.5 * iqr;
+  const cv = mean !== 0 ? 100 * sd / Math.abs(mean) : NaN;
+  const flagged = new Map();
+  for (const v of values) {
+    const isIQR = v.value < lowFence || v.value > highFence;
+    const isSD3 = n > 2 && Math.abs(v.value - mean) > 3 * sd;
+    if (isIQR || isSD3) flagged.set(v.participant, { iqr: isIQR, sd3: isSD3 });
+  }
+  return { n, mean, sd, cv, median, q1, q3, iqr, lowFence, highFence, min: sorted[0], max: sorted[n - 1], flagged };
+}
+
+// Peter Acklam's rational approximation to the inverse standard normal CDF.
+function invNormCDF(p) {
+  if (p <= 0) return -Infinity;
+  if (p >= 1) return Infinity;
+  const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+  const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+  const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+  const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+  const plow = 0.02425, phigh = 1 - plow;
+  let q, r;
+  if (p < plow) {
+    q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+           ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  if (p <= phigh) {
+    q = p - 0.5; r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+           (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+  q = Math.sqrt(-2 * Math.log(1 - p));
+  return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+          ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+}
+
+// Abramowitz & Stegun 7.1.26 approximation to erf, used for the normal CDF.
+function erf(x) {
+  const sign = x < 0 ? -1 : 1;
+  x = Math.abs(x);
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const t = 1 / (1 + p * x);
+  const y = 1 - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t) * Math.exp(-x * x);
+  return sign * y;
+}
+function normCDF(z) { return 0.5 * (1 + erf(z / Math.SQRT2)); }
+
+// Cornish-Fisher expansion: approximate a Student-t quantile from the matching normal quantile.
+function tQuantile(p, df) {
+  const z = invNormCDF(p);
+  if (!Number.isFinite(z) || df <= 0) return z;
+  const z2 = z * z, z3 = z2 * z, z5 = z3 * z2, z7 = z5 * z2, z9 = z7 * z2;
+  const g1 = (z3 + z) / 4;
+  const g2 = (5 * z5 + 16 * z3 + 3 * z) / 96;
+  const g3 = (3 * z7 + 19 * z5 + 17 * z3 - 15 * z) / 384;
+  const g4 = (79 * z9 + 776 * z7 + 1482 * z5 - 1920 * z3 - 945 * z) / 92160;
+  return z + g1 / df + g2 / df ** 2 + g3 / df ** 3 + g4 / df ** 4;
+}
+
+function effectiveAlpha(alpha, m) { return alpha / Math.max(1, m); }
+function upperTailAlpha(alphaEff, tails) { return tails === "one" ? alphaEff : alphaEff / 2; }
+
+function requiredN(sigma, delta, alpha, tails, power, m) {
+  const aUpper = upperTailAlpha(effectiveAlpha(alpha, m), tails);
+  const zA = invNormCDF(1 - aUpper), zB = invNormCDF(power);
+  const nZraw = 2 * ((zA + zB) * sigma / delta) ** 2;
+  let n = Math.max(2, nZraw);
+  for (let i = 0; i < 25; i++) {
+    const df = Math.max(1, 2 * (Math.round(n) - 1));
+    const tA = tQuantile(1 - aUpper, df), tB = tQuantile(power, df);
+    const nNew = 2 * ((tA + tB) * sigma / delta) ** 2;
+    if (Math.abs(nNew - n) < 0.05) { n = nNew; break; }
+    n = nNew;
+  }
+  return { nZ: Math.ceil(nZraw), nT: Math.ceil(n), zA, zB };
+}
+
+function mddForN(sigma, n, alpha, tails, power, m) {
+  const aUpper = upperTailAlpha(effectiveAlpha(alpha, m), tails);
+  const zA = invNormCDF(1 - aUpper), zB = invNormCDF(power);
+  const deltaZ = (zA + zB) * sigma * Math.sqrt(2 / n);
+  const df = Math.max(1, 2 * (n - 1));
+  const tA = tQuantile(1 - aUpper, df), tB = tQuantile(power, df);
+  const deltaT = (tA + tB) * sigma * Math.sqrt(2 / n);
+  return { deltaZ, deltaT };
+}
+
+function achievedPower(sigma, n, delta, alpha, tails, m) {
+  const aUpper = upperTailAlpha(effectiveAlpha(alpha, m), tails);
+  const zA = invNormCDF(1 - aUpper);
+  const ncp = delta / (sigma * Math.sqrt(2 / n));
+  return normCDF(ncp - zA);
+}
+
+function targetToDelta(mode, value, mean, sigma) {
+  const v = Math.abs(value);
+  if (mode === "%") return (v / 100) * Math.abs(mean);
+  if (mode === "d") return v * sigma;
+  return v;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Rendering                                                               */
+/* ---------------------------------------------------------------------- */
+
+function fmt(v, sig = 4) {
+  if (!Number.isFinite(v)) return "—";
+  return new Intl.NumberFormat(undefined, { maximumSignificantDigits: sig }).format(v);
+}
+
+function renderSummary() {
+  const el = document.getElementById("scanSummary");
+  el.style.display = "block";
+  el.innerHTML =
+    `<b>${state.participants.size}</b> participant(s) found &middot; ` +
+    `<b>${state.filesScanned}</b> stats files scanned &middot; ` +
+    `<b>${state.skippedCount}</b> file(s) skipped (out of v1 scope, e.g. curv.stats / CC json)`;
+  const wEl = document.getElementById("scanWarnings");
+  wEl.innerHTML = state.warnings.length
+    ? `<div class="warn-box">${state.warnings.map(w => `&bull; ${w}`).join("<br>")}</div>` : "";
+}
+
+function breadcrumbFor(r) {
+  const parts = [r.fileKind, r.fileBase];
+  if (r.atlas) parts.push(r.atlas);
+  if (r.hemisphere) parts.push(r.hemisphere);
+  if (r.structName) parts.push(r.structName);
+  parts.push(r.metric);
+  return parts.join(" / ");
+}
+
+function buildVariableIndex() {
+  const byKey = new Map();
+  for (const rec of state.records) {
+    if (!byKey.has(rec.varKey)) byKey.set(rec.varKey, []);
+    byKey.get(rec.varKey).push(rec);
+  }
+  state.byVarKey = byKey;
+  const leaves = [];
+  for (const [key, recs] of byKey) {
+    const r0 = recs[0];
+    leaves.push({
+      key, breadcrumb: breadcrumbFor(r0), units: r0.units,
+      n: new Set(recs.map(r => r.participant)).size,
+      groupLabel: [r0.fileKind, r0.fileBase, r0.atlas, r0.hemisphere].filter(Boolean).join(" / "),
+    });
+  }
+  leaves.sort((a, b) => a.breadcrumb.localeCompare(b.breadcrumb));
+  state.leaves = leaves;
+  renderOptions("");
+}
+
+function renderOptions(filterText) {
+  const list = document.getElementById("varList");
+  const q = filterText.trim().toLowerCase();
+  const matches = q ? state.leaves.filter(l => l.breadcrumb.toLowerCase().includes(q)) : state.leaves;
+  const capped = matches.slice(0, 300);
+  let lastGroup = null;
+  const html = [];
+  for (const leaf of capped) {
+    if (leaf.groupLabel !== lastGroup) {
+      html.push(`<div class="var-group-header">${leaf.groupLabel}</div>`);
+      lastGroup = leaf.groupLabel;
+    }
+    html.push(
+      `<div class="var-option" data-key="${leaf.key.replace(/"/g, "&quot;")}">` +
+      `<span>${leaf.breadcrumb}</span><span class="badge">N=${leaf.n}</span></div>`
+    );
+  }
+  if (matches.length > capped.length) {
+    html.push(`<div class="var-group-header">…and ${matches.length - capped.length} more — refine your search</div>`);
+  }
+  if (!capped.length) html.push(`<div class="var-option">No matching variables</div>`);
+  list.innerHTML = html.join("");
+  list.querySelectorAll(".var-option[data-key]").forEach(el => {
+    el.addEventListener("click", () => selectVariable(el.dataset.key));
+  });
+}
+
+function selectVariable(key) {
+  state.selectedKey = key;
+  state.excluded = new Set();
+  document.getElementById("varList").classList.remove("open");
+  const leaf = state.leaves.find(l => l.key === key);
+  document.getElementById("varSearch").value = leaf ? leaf.breadcrumb : "";
+  document.getElementById("selectedVarLabel").innerHTML = leaf
+    ? `Selected: ${leaf.breadcrumb} <span class="units">${leaf.units ? "(" + leaf.units + ")" : ""}</span>`
+    : "";
+  ["statsCard", "calcCard", "exportCard"].forEach(id => document.getElementById(id).classList.remove("disabled-panel"));
+  computeAndRenderStats();
+}
+
+let stripChart = null, powerChart = null;
+
+function computeAndRenderStats() {
+  const recs = state.byVarKey.get(state.selectedKey) || [];
+  const allValues = recs.map(r => ({ participant: r.participant, value: r.value }));
+  const usedValues = allValues.filter(v => !state.excluded.has(v.participant));
+  const stats = computeStats(usedValues);
+  state.currentStats = stats;
+
+  const banner = document.getElementById("pilotCaveat");
+  if (stats.n > 0) {
+    banner.innerHTML = `<div class="caveat-banner ${stats.n < 15 ? "low-n" : ""}">` +
+      `Based on <b>N=${stats.n}</b> pilot participant(s)${state.excluded.size ? ` (${state.excluded.size} excluded)` : ""}.` +
+      (stats.n < 15 ? " This is a small pilot cohort — treat the SD estimate (and everything downstream of it) as rough guidance, not a precise figure." : "") +
+      `</div>`;
+  } else {
+    banner.innerHTML = "";
+  }
+
+  const table = document.getElementById("statsTable");
+  if (stats.n > 0) {
+    const rows = [
+      ["N (used / total)", `${stats.n} / ${allValues.length}`],
+      ["Mean", fmt(stats.mean)],
+      ["SD", fmt(stats.sd)],
+      ["CV%", fmt(stats.cv, 3) + "%"],
+      ["Median", fmt(stats.median)],
+      ["Q1 – Q3", `${fmt(stats.q1)} – ${fmt(stats.q3)}`],
+      ["Min – Max", `${fmt(stats.min)} – ${fmt(stats.max)}`],
+      ["Flagged (1.5×IQR)", [...stats.flagged.keys()].length ? [...stats.flagged.keys()].join(", ") : "none"],
+    ];
+    table.innerHTML = rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("");
+  } else {
+    table.innerHTML = "<tr><td>No data for this variable.</td></tr>";
+  }
+
+  renderStripChart(allValues, stats);
+  renderCalculator();
+}
+
+function renderStripChart(allValues, stats) {
+  const ctx = document.getElementById("stripChart");
+  const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const grid = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
+  const tick = "#888780";
+  const points = allValues.map((v, i) => ({ x: i, y: v.value, participant: v.participant }));
+
+  const pointColor = (ctxPt) => {
+    const p = ctxPt.raw.participant;
+    if (state.excluded.has(p)) return "#999";
+    if (stats.flagged && stats.flagged.has(p)) return PALETTE[1];
+    return PALETTE[0];
+  };
+  const pointShape = (ctxPt) => {
+    const p = ctxPt.raw.participant;
+    return (state.excluded.has(p) || (stats.flagged && stats.flagged.has(p))) ? "triangle" : "circle";
+  };
+
+  const overlay = [];
+  if (Number.isFinite(stats.mean) && points.length) {
+    const n = points.length;
+    overlay.push({
+      type: "line", label: "mean",
+      data: [{ x: -0.5, y: stats.mean }, { x: n - 0.5, y: stats.mean }],
+      borderColor: PALETTE[2], borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, order: 1,
+    });
+    if (Number.isFinite(stats.sd)) {
+      overlay.push({
+        type: "line", label: "mean+SD",
+        data: [{ x: -0.5, y: stats.mean + stats.sd }, { x: n - 0.5, y: stats.mean + stats.sd }],
+        borderColor: PALETTE[2], borderWidth: 1, borderDash: [2, 3], pointRadius: 0, order: 1,
+      });
+      overlay.push({
+        type: "line", label: "mean-SD",
+        data: [{ x: -0.5, y: stats.mean - stats.sd }, { x: n - 0.5, y: stats.mean - stats.sd }],
+        borderColor: PALETTE[2], borderWidth: 1, borderDash: [2, 3], pointRadius: 0, order: 1,
+      });
+    }
+  }
+
+  const config = {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          type: "scatter", label: "value", data: points,
+          pointBackgroundColor: pointColor, pointBorderColor: pointColor,
+          pointStyle: pointShape, pointRadius: 5, pointHoverRadius: 7, order: 0,
+        },
+        ...overlay,
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      onClick: (evt, elements, chart) => {
+        const el = elements.find(e => e.datasetIndex === 0);
+        if (!el) return;
+        const point = chart.data.datasets[0].data[el.index];
+        if (state.excluded.has(point.participant)) state.excluded.delete(point.participant);
+        else state.excluded.add(point.participant);
+        computeAndRenderStats();
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => c.raw && c.raw.participant ? `${c.raw.participant}: ${fmt(c.raw.y)}` : fmt(c.parsed.y) } },
+      },
+      scales: {
+        x: { title: { display: true, text: "Participant (pilot cohort)", color: tick }, ticks: { display: false }, grid: { color: grid } },
+        y: { title: { display: true, text: "Value", color: tick }, ticks: { color: tick }, grid: { color: grid } },
+      },
+    },
+  };
+
+  if (stripChart) stripChart.destroy();
+  stripChart = new Chart(ctx, config);
+}
+
+function renderCalculator() {
+  const stats = state.currentStats;
+  const alpha = parseFloat(document.getElementById("alphaInput").value) || 0.05;
+  const tails = document.getElementById("tailsInput").value;
+  const power = parseFloat(document.getElementById("powerInput").value) || 0.8;
+  const m = parseInt(document.getElementById("bonferroniInput").value, 10) || 1;
+  const aEff = effectiveAlpha(alpha, m);
+
+  document.getElementById("alphaEffLine").innerHTML =
+    m > 1 ? `Bonferroni-adjusted &alpha; = ${alpha} / ${m} = <b>${fmt(aEff, 3)}</b>` : "";
+
+  const nResultEl = document.getElementById("nResult");
+  const mddResultEl = document.getElementById("mddResult");
+
+  if (!stats || !stats.n || !(stats.sd > 0)) {
+    nResultEl.innerHTML = `<div class="sub">Select a variable with at least 2 pilot participants to compute this.</div>`;
+    mddResultEl.innerHTML = `<div class="sub">Select a variable with at least 2 pilot participants to compute this.</div>`;
+    if (powerChart) { powerChart.destroy(); powerChart = null; }
+    return;
+  }
+
+  const targetValue = parseFloat(document.getElementById("targetValue").value) || 0;
+  const delta = targetToDelta(state.targetMode, targetValue, stats.mean, stats.sd);
+
+  if (delta > 0) {
+    const { nZ, nT } = requiredN(stats.sd, delta, alpha, tails, power, m);
+    const d = delta / stats.sd;
+    nResultEl.innerHTML =
+      `<div class="big">${nT}</div>` +
+      `<div class="sub">per group (t-adjusted) &middot; ${nZ} per group (normal approximation)</div>` +
+      `<div class="sub" style="margin-top:6px;">Target difference: ${fmt(delta)} (units of pilot mean) &middot; Cohen's d ≈ ${fmt(d, 3)}</div>`;
+  } else {
+    nResultEl.innerHTML = `<div class="sub">Enter a non-zero target difference.</div>`;
+  }
+
+  const nPerGroup = parseFloat(document.getElementById("nPerGroupInput").value) || 0;
+  if (nPerGroup >= 2) {
+    const { deltaZ, deltaT } = mddForN(stats.sd, nPerGroup, alpha, tails, power, m);
+    const pctT = stats.mean !== 0 ? 100 * deltaT / Math.abs(stats.mean) : NaN;
+    const dT = deltaT / stats.sd;
+    let extra = "";
+    if (delta > 0) {
+      const pw = achievedPower(stats.sd, nPerGroup, delta, alpha, tails, m);
+      extra = `<div class="sub" style="margin-top:6px;">At your target difference above, N=${nPerGroup}/group achieves ≈ <b>${fmt(pw * 100, 3)}%</b> power.</div>`;
+    }
+    mddResultEl.innerHTML =
+      `<div class="big">${fmt(deltaT)}</div>` +
+      `<div class="sub">minimum detectable difference (t-adjusted), ≈ ${fmt(pctT, 3)}% of pilot mean &middot; Cohen's d ≈ ${fmt(dT, 3)}</div>` +
+      `<div class="sub">${fmt(deltaZ)} (normal approximation)</div>` + extra;
+  } else {
+    mddResultEl.innerHTML = `<div class="sub">Enter N per group (≥2).</div>`;
+  }
+
+  renderPowerCurve(stats, alpha, tails, power, m, delta);
+}
+
+function renderPowerCurve(stats, alpha, tails, power, m, delta) {
+  const ctx = document.getElementById("powerChart");
+  const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const grid = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
+  const tick = "#888780";
+
+  const ns = [];
+  for (let n = 4; n <= 150; n += 2) ns.push(n);
+
+  let dataset, yLabel;
+  if (state.curveMode === "diff") {
+    yLabel = "Detectable % difference";
+    dataset = ns.map(n => {
+      const { deltaT } = mddForN(stats.sd, n, alpha, tails, power, m);
+      return { x: n, y: stats.mean !== 0 ? 100 * deltaT / Math.abs(stats.mean) : NaN };
+    });
+  } else {
+    yLabel = "Achieved power (%)";
+    dataset = ns.map(n => ({
+      x: n,
+      y: delta > 0 ? achievedPower(stats.sd, n, delta, alpha, tails, m) * 100 : NaN,
+    }));
+  }
+
+  const config = {
+    type: "line",
+    data: { datasets: [{ label: yLabel, data: dataset, borderColor: PALETTE[0], backgroundColor: PALETTE[0], pointRadius: 0, borderWidth: 2, tension: 0.15 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${yLabel}: ${fmt(c.parsed.y, 3)}` } } },
+      scales: {
+        x: { type: "linear", title: { display: true, text: "N per group", color: tick }, ticks: { color: tick }, grid: { color: grid } },
+        y: { title: { display: true, text: yLabel, color: tick }, ticks: { color: tick }, grid: { color: grid } },
+      },
+    },
+  };
+  if (powerChart) powerChart.destroy();
+  powerChart = new Chart(ctx, config);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Export                                                                  */
+/* ---------------------------------------------------------------------- */
+
+function buildSummaryText() {
+  const leaf = state.leaves.find(l => l.key === state.selectedKey);
+  const stats = state.currentStats;
+  if (!leaf || !stats || !stats.n) return "No variable selected yet.";
+  const alpha = document.getElementById("alphaInput").value;
+  const tails = document.getElementById("tailsInput").value;
+  const power = document.getElementById("powerInput").value;
+  const m = document.getElementById("bonferroniInput").value;
+  const targetValue = document.getElementById("targetValue").value;
+  const nPerGroup = document.getElementById("nPerGroupInput").value;
+  const delta = targetToDelta(state.targetMode, parseFloat(targetValue) || 0, stats.mean, stats.sd);
+  const { nZ, nT } = delta > 0 ? requiredN(stats.sd, delta, parseFloat(alpha), tails, parseFloat(power), parseInt(m, 10)) : {};
+  const mdd = nPerGroup >= 2 ? mddForN(stats.sd, parseFloat(nPerGroup), parseFloat(alpha), tails, parseFloat(power), parseInt(m, 10)) : null;
+
+  return [
+    `T1 Pipeline Sample Size Estimate`,
+    `Variable: ${leaf.breadcrumb}${leaf.units ? " (" + leaf.units + ")" : ""}`,
+    ``,
+    `Pilot cohort: N=${stats.n} (of ${stats.n + state.excluded.size} loaded, ${state.excluded.size} excluded)`,
+    `Mean = ${fmt(stats.mean)}, SD = ${fmt(stats.sd)}, CV = ${fmt(stats.cv, 3)}%`,
+    stats.n < 15 ? `Note: small pilot cohort (N<15) — SD estimate is uncertain.` : ``,
+    ``,
+    `Settings: alpha=${alpha} (${tails}-tailed), power=${power}, Bonferroni m=${m}`,
+    ``,
+    nT ? `Required N per group for a ${targetValue} ${state.targetMode === "%" ? "% difference" : state.targetMode === "d" ? " Cohen's d" : " raw-unit difference"}: ${nT} (t-adjusted) / ${nZ} (normal approx.)` : ``,
+    mdd ? `Minimum detectable difference at N=${nPerGroup}/group: ${fmt(mdd.deltaT)} (${fmt(100 * mdd.deltaT / Math.abs(stats.mean), 3)}% of pilot mean)` : ``,
+  ].filter(Boolean).join("\n");
+}
+
+function copySummary() {
+  const text = buildSummaryText();
+  const status = document.getElementById("copyStatus");
+  const done = () => { status.textContent = "Copied to clipboard."; setTimeout(() => status.textContent = "", 2500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand("copy"); done(); } catch (e) { /* clipboard unavailable */ }
+  document.body.removeChild(ta);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Drag & drop directory traversal (fallback for the file input)          */
+/* ---------------------------------------------------------------------- */
+
+function traverseFileTree(entry, path, out) {
+  return new Promise((resolve) => {
+    if (entry.isFile) {
+      entry.file((file) => { file._relPath = path + file.name; out.push(file); resolve(); }, resolve);
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const readBatch = () => {
+        reader.readEntries(async (entries) => {
+          if (!entries.length) { resolve(); return; }
+          await Promise.all(entries.map(e => traverseFileTree(e, path + entry.name + "/", out)));
+          readBatch();
+        }, resolve);
+      };
+      readBatch();
+    } else {
+      resolve();
+    }
+  });
+}
+
+/* ---------------------------------------------------------------------- */
+/* Wiring                                                                  */
+/* ---------------------------------------------------------------------- */
+
+function init() {
+  const dirInput = document.getElementById("dirInput");
+  const dropzone = document.getElementById("dropzone");
+
+  dropzone.addEventListener("click", () => dirInput.click());
+  dirInput.addEventListener("change", (e) => ingestAll(e.target.files));
+
+  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("drag"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+  dropzone.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("drag");
+    const items = e.dataTransfer.items;
+    if (!items || !items.length) return;
+    const out = [];
+    const entries = [...items].map(it => it.webkitGetAsEntry()).filter(Boolean);
+    await Promise.all(entries.map(en => traverseFileTree(en, "", out)));
+    ingestAll(out);
+  });
+
+  const searchInput = document.getElementById("varSearch");
+  const varList = document.getElementById("varList");
+  searchInput.addEventListener("focus", () => { varList.classList.add("open"); renderOptions(searchInput.value); });
+  searchInput.addEventListener("input", () => renderOptions(searchInput.value));
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".combobox")) varList.classList.remove("open");
+  });
+
+  document.querySelectorAll('[data-mode]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.targetMode = btn.dataset.mode;
+      renderCalculator();
+    });
+  });
+  document.querySelectorAll('[data-curve]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll('[data-curve]').forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.curveMode = btn.dataset.curve;
+      renderCalculator();
+    });
+  });
+
+  ["alphaInput", "tailsInput", "powerInput", "bonferroniInput", "targetValue", "nPerGroupInput"].forEach(id => {
+    document.getElementById(id).addEventListener("input", () => { if (state.selectedKey) renderCalculator(); });
+    document.getElementById(id).addEventListener("change", () => { if (state.selectedKey) renderCalculator(); });
+  });
+
+  document.getElementById("copyBtn").addEventListener("click", copySummary);
+  document.getElementById("printBtn").addEventListener("click", () => window.print());
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
