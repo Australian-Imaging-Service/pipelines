@@ -6,8 +6,17 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-      - id: check-yaml
       - id: check-added-large-files
+  - repo: local
+    hooks:
+      - id: check-yaml
+        name: check-yaml (tolerating repo's custom tags, e.g. '!join')
+        entry: python scripts/check_yaml.py
+        # Uses the dev env's own pydra2app install (requirements.txt) rather than
+        # an isolated hook env, so it reuses pydra2app's real tag constructors
+        # instead of duplicating them.
+        language: system
+        types: [yaml]
   - repo: https://github.com/psf/black
     rev: 25.12.0
     hooks:
