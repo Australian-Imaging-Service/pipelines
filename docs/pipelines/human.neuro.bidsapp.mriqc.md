@@ -23,24 +23,7 @@ imaging) data.
 ## Commands
 |Key|Value|
 |---|-----|
-|Task|mriqc|
+|Task|DeferredBidsappTask|
 |Operates on|session|
-#### Inputs
-|Name|Data-type(s)|Required|Description|
-|----|------------|--------|-----------|
-|`t1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|T1-weighted anatomical MRI|
-|`t2w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|T2-weighted anatomical MRI|
-|`bold`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|Resting-state functional MRI|
-
-#### Outputs
-|Name|Data-type(s)|Always generated|Description|
-|----|------------|----------------|-----------|
-|`mriqc`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Y|Generated QC outputs|
-
-#### Parameters
-|Name|Data-type(s)|Default|Description|
-|----|------------|-------|-----------|
-|`analysis_level`|<span data-toggle="tooltip" data-placement="bottom" title="field/text" aria-label="field/text">field/text</span>|`participant`|Level of analysis to run the app at|
-|`json_edits`|<span data-toggle="tooltip" data-placement="bottom" title="field/text+tuple-of+list-of (optional)" aria-label="field/text+tuple-of+list-of (optional)">field/text+tuple-of+list-of (optional)</span>|||
-|`flags`|<span data-toggle="tooltip" data-placement="bottom" title="field/text (optional)" aria-label="field/text (optional)">field/text (optional)</span>||Additional flags to pass to the app. These are passed as a single string and should be formatted as they would be on the command line (e.g. '--flag1 --flag2 value')|
+Inputs, outputs and parameters could not be introspected in this environment (the task's package isn't installed here); see the docs generated from within the built image.
 

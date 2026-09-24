@@ -63,30 +63,7 @@ Optional flags that can be provided to the `fmriprep_flags` parameter:
 ## Commands
 |Key|Value|
 |---|-----|
-|Task|fmriprep|
+|Task|DeferredBidsappTask|
 |Operates on|session|
-#### Inputs
-|Name|Data-type(s)|Required|Description|
-|----|------------|--------|-----------|
-|`t1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|T1-weighted anatomical scan|
-|`t2w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|T2-weighted anatomical scan|
-|`bold`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|functional MRI|
-|`fmap_magnitude1`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|Field map - BIDS Case 1 & 2: magnitude of first echo|
-|`fmap_magnitude2`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|Field map - BIDS Case 1 & 2: magnitude of second echo|
-|`fmap_magnitude`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|Field map - BIDS Case 3: magnitude image used for anatomical reference|
-|`fmap_phasediff`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|Field map - BIDS Case 1: phasediff image corresponding to the phase-diff map between echo times|
-|`fmap_phase1`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|Field map - BIDS Case 2: phase of first echo|
-|`fmap_phase2`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|Field map - BIDS Case 2: phase of second echo|
-|`fmap_fieldmap`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|Field map - BIDS Case 3: directly reconstructed field map|
-|`fmap_epi`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field|
-
-#### Outputs
-|Name|Data-type(s)|Always generated|Description|
-|----|------------|----------------|-----------|
-|`fmriprep`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Y|Preprocessed fMRI data|
-
-#### Parameters
-|Name|Data-type(s)|Default|Description|
-|----|------------|-------|-----------|
-|`flags`|<span data-toggle="tooltip" data-placement="bottom" title="field/text (optional)" aria-label="field/text (optional)">field/text (optional)</span>||Additional flags to pass to the app. These are passed as a single string and should be formatted as they would be on the command line (e.g. '--flag1 --flag2 value')|
+Inputs, outputs and parameters could not be introspected in this environment (the task's package isn't installed here); see the docs generated from within the built image.
 

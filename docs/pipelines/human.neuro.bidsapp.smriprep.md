@@ -26,22 +26,7 @@ SMRIPrep: a structural MRI data preprocessing pipeline including Freesurfer
 ## Commands
 |Key|Value|
 |---|-----|
-|Task|smriprep|
+|Task|DeferredBidsappTask|
 |Operates on|session|
-#### Inputs
-|Name|Data-type(s)|Required|Description|
-|----|------------|--------|-----------|
-|`t1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|T1-weighted anatomical scan|
-|`T2w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz-x</span>|Y|T2-weighted anatomical scan|
-
-#### Outputs
-|Name|Data-type(s)|Always generated|Description|
-|----|------------|----------------|-----------|
-|`smriprep`|<span data-toggle="tooltip" data-placement="bottom" title="generic/directory" aria-label="generic/directory">generic/directory</span>|Y|Preprocessed sMRI data|
-
-#### Parameters
-|Name|Data-type(s)|Default|Description|
-|----|------------|-------|-----------|
-|`flags`|<span data-toggle="tooltip" data-placement="bottom" title="field/text (optional)" aria-label="field/text (optional)">field/text (optional)</span>||Additional flags to pass to the app. These are passed as a single string and should be formatted as they would be on the command line (e.g. '--flag1 --flag2 value')|
-|`json_edits`|<span data-toggle="tooltip" data-placement="bottom" title="field/text+tuple-of+list-of (optional)" aria-label="field/text+tuple-of+list-of (optional)">field/text+tuple-of+list-of (optional)</span>|||
+Inputs, outputs and parameters could not be introspected in this environment (the task's package isn't installed here); see the docs generated from within the built image.
 
