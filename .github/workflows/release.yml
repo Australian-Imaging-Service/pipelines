@@ -329,11 +329,6 @@ jobs:
     needs: docs
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        page:
-          - {repo: Australian-Imaging-Service/Australian-Imaging-Service.github.io, branch: master}
-          - {repo: Australian-Imaging-Service/web-dev, branch: master}
     steps:
       - uses: actions/create-github-app-token@v2
         id: app-token
@@ -343,10 +338,10 @@ jobs:
           owner: ${{ github.repository_owner }}
       - name: Trigger external docs rebuild
         run: >
-          gh workflow run 'github pages' -f hugo_update_mod="github.com/${GITHUB_REPOSITORY}@docs" --ref ${{ matrix.page.branch }}
+          gh workflow run 'github pages' -f hugo_update_mod="github.com/${GITHUB_REPOSITORY}@docs" --ref master
 
         env:
-          GH_REPO: ${{ matrix.page.repo }}
+          GH_REPO: Australian-Imaging-Service/Australian-Imaging-Service.github.io
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
   publish-catalogue:
     needs: [discover-specs, build-and-deploy]
