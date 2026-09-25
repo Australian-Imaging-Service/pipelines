@@ -22,9 +22,12 @@ def step(job, name):
 
 
 def test_release_gating_permissions_and_queue(jobs):
-    assert jobs["deploy"]["if"] == "needs.discover-specs.outputs.has-builds == 'true'"
+    assert (
+        jobs["build-and-deploy"]["if"]
+        == "needs.discover-specs.outputs.has-builds == 'true'"
+    )
     publisher = jobs["publish-catalogue"]
-    assert publisher["needs"] == ["discover-specs", "deploy"]
+    assert publisher["needs"] == ["discover-specs", "build-and-deploy"]
     condition = publisher["if"]
     for required in (
         "always()",
@@ -32,7 +35,7 @@ def test_release_gating_permissions_and_queue(jobs):
         "github.event_name == 'push'",
         "startsWith(github.ref, 'refs/tags/')",
         "needs.discover-specs.result == 'success'",
-        "needs.deploy.result == 'success' || needs.deploy.result == 'skipped'",
+        "needs.build-and-deploy.result == 'success' || needs.build-and-deploy.result == 'skipped'",
     ):
         assert required in condition
     assert step(publisher, "Download built entries")["if"] == (
@@ -43,12 +46,12 @@ def test_release_gating_permissions_and_queue(jobs):
         "Record immutable image and commands",
         "Upload immutable release entry",
     ):
-        condition = step(jobs["deploy"], name)["if"]
+        condition = step(jobs["build-and-deploy"], name)["if"]
         assert "github.event_name == 'push'" in condition
         assert "startsWith(github.ref, 'refs/tags/')" in condition
     assert publisher["steps"][-1]["name"] == "Publish complete GitHub Release"
     assert publisher["permissions"]["contents"] == "write"
-    assert jobs["deploy"]["permissions"]["contents"] == "read"
+    assert jobs["build-and-deploy"]["permissions"]["contents"] == "read"
     assert (
         "git merge-base --is-ancestor"
         in step(publisher, "Retrieve previous published catalogue")["run"]
@@ -66,7 +69,7 @@ def test_inventory_is_shared_with_builds_and_publication(jobs):
         "release-inventory.json",
     }
     for job, name in (
-        ("deploy", "Download release inventory"),
+        ("build-and-deploy", "Download release inventory"),
         ("publish-catalogue", "Download release plan and inventory"),
     ):
         assert step(jobs[job], name)["with"]["name"] == upload["name"]
@@ -81,7 +84,7 @@ def test_inventory_is_shared_with_builds_and_publication(jobs):
 
 
 def test_matrix_artifacts_feed_publication(jobs):
-    assert step(jobs["deploy"], "Upload immutable release entry")["with"][
+    assert step(jobs["build-and-deploy"], "Upload immutable release entry")["with"][
         "name"
     ].startswith("pipeline-entry-")
     assert step(jobs["publish-catalogue"], "Download built entries")["with"] == {
