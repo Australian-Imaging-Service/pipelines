@@ -827,6 +827,31 @@ def verify_release_assets(
             )
 
 
+def upload_assets(repository, tag, expected, directory):
+    for name in sorted(expected - {CATALOGUE}) + [CATALOGUE]:
+        run(
+            "gh",
+            "release",
+            "upload",
+            tag,
+            str(directory / name),
+            "--repo",
+            repository,
+            "--clobber",
+        )
+
+
+def managed_assets(release):
+    names = [
+        asset.get("name") for asset in release["assets"] if isinstance(asset, dict)
+    ]
+    return {
+        name
+        for name in names
+        if isinstance(name, str) and (name == CATALOGUE or name.startswith("command-"))
+    }
+
+
 def publish(args):
     repository, tag, commit = (
         repository_name(args.repository),
@@ -846,7 +871,17 @@ def publish(args):
     release = release_lookup(repository, tag)
     if release is not None:
         require(not release["prerelease"], "Prereleases are not supported")
+        managed = managed_assets(release)
         if not release["draft"]:
+            if CATALOGUE not in managed:
+                require(
+                    managed <= expected,
+                    "Published release contains unexpected catalogue assets",
+                )
+                upload_assets(repository, tag, expected, directory)
+                release = release_lookup(repository, tag)
+                if release is None:
+                    raise CatalogueError("Release disappeared during publication")
             verify_release_assets(
                 repository, tag, release, expected, directory, directory.parent
             )
@@ -855,17 +890,8 @@ def publish(args):
             release.get("target_commitish") == commit,
             "Draft target commit mismatch; refusing to take over draft",
         )
-        names = [
-            asset.get("name") for asset in release["assets"] if isinstance(asset, dict)
-        ]
-        managed = {
-            name
-            for name in names
-            if isinstance(name, str)
-            and (name == CATALOGUE or name.startswith("command-"))
-        }
         require(managed <= expected, "Draft contains unexpected catalogue assets")
-        if CATALOGUE in names:
+        if CATALOGUE in managed:
             with workspace(directory.parent / "draft-check") as temporary:
                 download(repository, tag, CATALOGUE, temporary)
                 existing = read_json(Path(temporary) / CATALOGUE)
@@ -889,18 +915,7 @@ def publish(args):
             "--title",
             tag,
         )
-    # Upload commands first; the catalogue acts as the draft's complete manifest.
-    for name in sorted(expected - {CATALOGUE}) + [CATALOGUE]:
-        run(
-            "gh",
-            "release",
-            "upload",
-            tag,
-            str(directory / name),
-            "--repo",
-            repository,
-            "--clobber",
-        )
+    upload_assets(repository, tag, expected, directory)
     release = release_lookup(repository, tag)
     if release is None:
         raise CatalogueError("Release disappeared during draft publication")
