@@ -69,7 +69,6 @@ jobs:
           # excluding nothing.
           EXCLUDED: |
             mri/human/neuro/bidsapp/fmriprep   # BIDS app, unverified against the current pipeline2app schema
-            mri/human/neuro/bidsapp/mriqc      # BIDS app, unverified against the current pipeline2app schema
             mri/human/neuro/bidsapp/smriprep   # BIDS app, unverified against the current pipeline2app schema
         run: |
           set -euo pipefail
