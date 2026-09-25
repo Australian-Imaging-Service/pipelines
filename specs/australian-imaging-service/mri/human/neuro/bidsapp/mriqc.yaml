@@ -38,13 +38,15 @@ commands:
           help: "T1-weighted anatomical MRI"
           path: anat/T1w
         t2w:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "T2-weighted anatomical MRI"
           path: anat/T2w
+          default: null
         bold:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "Resting-state functional MRI"
           path: func/task-rest_bold
+          default: null
       outputs:
         mriqc:
           type: generic/directory

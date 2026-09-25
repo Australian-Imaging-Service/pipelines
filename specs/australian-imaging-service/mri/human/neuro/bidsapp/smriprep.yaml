@@ -44,9 +44,10 @@ commands:
           help: "T1-weighted anatomical scan"
           path: anat/T1w
         T2w:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "T2-weighted anatomical scan"
           path: anat/T2w
+          default: null
       outputs:
         smriprep:
           type: generic/directory
