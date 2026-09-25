@@ -343,7 +343,7 @@ jobs:
           owner: ${{ github.repository_owner }}
       - name: Trigger external docs rebuild
         run: >
-          gh workflow run 'github pages' -f hugo_update_mod="github.com/${GITHUB_REPOSITORY}@docs" --ref ${{ matrix.page.branch }}
+          gh workflow run 'Deploy Hugo site to Pages' -f hugo_update_mod="github.com/${GITHUB_REPOSITORY}@docs" --ref ${{ matrix.page.branch }}
 
         env:
           GH_REPO: ${{ matrix.page.repo }}
