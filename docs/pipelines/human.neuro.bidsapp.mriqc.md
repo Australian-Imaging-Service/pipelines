@@ -10,7 +10,7 @@ weight: 10
 |---|-----|
 |Name|human.neuro.bidsapp.mriqc|
 |Title|Extract quality control metrics from T1w, T2W and fMRI data|
-|Version|24.0.2|
+|Version|24.0.2post1|
 |Base image|`nipreps/mriqc:24.0.2`|
 |Maintainer|Thomas G. Close (thomas.close@sydney.edu.au)|
 |Info URL|https://mriqc.readthedocs.io|

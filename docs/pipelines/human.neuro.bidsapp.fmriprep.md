@@ -10,8 +10,8 @@ weight: 10
 |---|-----|
 |Name|human.neuro.bidsapp.fmriprep|
 |Title|Functional MRI data preprocessing pipeline|
-|Version|25.2.3|
-|Base image|`nipreps/fmriprep:25.2.3`|
+|Version|25.2.5|
+|Base image|`nipreps/fmriprep:25.2.5`|
 |Maintainer|Thomas G. Close (thomas.close@sydney.edu.au)|
 |Info URL|https://fmriprep.org|
 |Known issues|See App issues page (https://github.com/nipreps/fmriprep/issues)|
