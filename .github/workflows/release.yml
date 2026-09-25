@@ -272,7 +272,7 @@ jobs:
   # Docs are only regenerated/published once the pipeline images that back them
   # have actually built successfully (or there was nothing new to build) -- stale
   # or wrong docs must never go out for a release that failed.
-  docs:
+  build-docs:
     needs: [discover-specs, build-and-deploy]
     if: >-
       always() && !cancelled() && needs.discover-specs.result == 'success' && (needs.build-and-deploy.result == 'success' || needs.build-and-deploy.result == 'skipped')
@@ -325,7 +325,7 @@ jobs:
           publish_dir: .
           publish_branch: docs
           enable_jekyll: true
-  trigger-external:
+  publish-docs:
     needs: docs
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
