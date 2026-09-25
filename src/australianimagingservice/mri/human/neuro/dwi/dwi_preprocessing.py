@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from pydra.compose import python, shell, workflow
-from fileformats.generic import File
+from fileformats.generic import File, Directory
+from fileformats.medimage import NiftiXBvec
 from pydra.tasks.mrtrix3.v3_1 import (
     DwiGradcheck,
     DwiDenoise,
@@ -13,8 +14,12 @@ from pydra.tasks.mrtrix3.v3_1 import (
     DwiExtract,
     MrMath,
     Dwi2Response_Dhollander,
+    Dwi2Tensor,
+    Tensor2Metric,
 )
-from pydra.tasks.fastsurfer.mri_synthstrip import MriSynthstrip
+from australianimagingservice.mri.human.neuro.t1w.preprocess.mri_synthstrip import (
+    MriSynthstrip,
+)
 from fileformats.vendor.mrtrix3.medimage import (  # noqa: F401
     ImageIn,
     ImageOut,
@@ -128,6 +133,20 @@ class MrCat(shell.Task):
 # ── Python task definitions ────────────────────────────────────────────────────
 
 
+@python.define(outputs=["fslgrad"])
+def SplitBvecBval(dwi: NiftiXBvec) -> tuple[File, File]:
+    """Pull the adjacent FSL-style .bvec/.bval sidecar paths out of a
+    NiftiXBvec bundle as a single (bvec, bval) tuple output, so they can be
+    passed explicitly to MrConvert's fslgrad input, rather than relying on
+    tools that only auto-detect them by co-located, same-basename convention.
+    Must be a single combined output (not two separate ones) so downstream
+    connects to one lazy field whose resolved value is the tuple itself,
+    rather than a tuple of two still-unresolved lazy fields."""
+    bvec = dwi.encoding
+    bval = bvec.b_values_file
+    return bvec, bval
+
+
 @python.define(outputs=["grad_warning"])
 def CheckGradientCorrection(in_file: File, corrected_grad_file: File) -> str:
     """Compare original DWI gradients with DwiGradcheck-corrected export.
@@ -159,6 +178,44 @@ def CheckGradientCorrection(in_file: File, corrected_grad_file: File) -> str:
             "Verify tractography outputs carefully."
         )
     return "DwiGradcheck: gradient orientations verified, no correction applied."
+
+
+@python.define(outputs=["out_file"])
+def MeanBzero(in_file: File, out_file: str = "meanb0.mif.gz") -> File:
+    """Return a single 3D mean-b0 volume from in_file, which may already be
+    just one b0 volume (a bare 3D image, e.g. an rpe_pair companion that is
+    itself b0-only) or a genuine multi-volume series containing a mix of b0
+    and diffusion-weighted volumes. dwiextract -bzero requires >=4 dimensions
+    and errors ("Expected input image to contain more than three dimensions")
+    on a plain 3D volume, so branch on ndim rather than assuming multi-volume
+    input -- confirmed by reproducing the real crash locally against real
+    single-volume rpe_pair test data."""
+    import subprocess
+    import shutil
+    from pathlib import Path
+
+    ndim = int(
+        subprocess.run(
+            ["mrinfo", str(in_file), "-ndim"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    )
+    out_path = Path(out_file).absolute()
+    if ndim < 4:
+        shutil.copy(str(in_file), str(out_path))
+    else:
+        bzero_path = out_path.with_name(out_path.stem + "_bzero.mif.gz")
+        subprocess.run(
+            ["dwiextract", str(in_file), str(bzero_path), "-bzero", "-force", "-quiet"],
+            check=True,
+        )
+        subprocess.run(
+            ["mrmath", str(bzero_path), "mean", str(out_path), "-axis", "3", "-force", "-quiet"],
+            check=True,
+        )
+    return out_path
 
 
 @python.define(outputs=["manifest_file"])
@@ -302,325 +359,50 @@ def WritePreprocessingLog(
     return log_path
 
 
-# ── Utility functions ──────────────────────────────────────────────────────────
+@python.define(outputs=["out_dir"])
+def FinalizeDwiOutputs(
+    dwi_preprocessed: File,
+    dwimask_preprocessed: File,
+    response_wm: File,
+    response_gm: File,
+    response_csf: File,
+    fa: ImageOut | bool | None,
+    adc: ImageOut | bool | None,
+    execution_log: str,
+    cache_root: str = "",
+) -> Directory:
+    """Collect all DwiPreprocessing outputs into one structured output
+    directory, mirroring all_parcs.py's FinalizeOutputs for the T1w pipeline
+    (a single namespaced XNAT sink instead of flat, un-namespaced resources).
 
+    execution_log is WritePreprocessingLog's log_file output: already a path
+    to a written text file on disk (a plain str, not a File-typed field), so
+    it's copied like the other outputs rather than needing write_text()."""
+    import shutil
+    from pathlib import Path
 
-def detect_shell_structure(dwi_path: str) -> str:
-    """Return 'ss3t' for single-shell data (b=0 + one non-zero shell) or
-    'msmt_csd' for multi-shell data, by inspecting the DWI header with mrinfo."""
-    import subprocess
-
-    result = subprocess.run(
-        ["mrinfo", str(dwi_path), "-shell_bvalues"],
-        capture_output=True,
-        text=True,
-        check=True,
+    out_dir = (
+        Path(cache_root) / "dwi_preprocess"
+        if cache_root
+        else Path("./dwi_preprocess").absolute()
     )
-    bvalues = result.stdout.strip().split()
-    non_zero_shells = [b for b in bvalues if float(b) > 50]
-    return "ss3t" if len(non_zero_shells) == 1 else "msmt_csd"
+    dwi_dir = out_dir / "DWI"
+    response_dir = out_dir / "Response"
+    for d in (dwi_dir, response_dir):
+        d.mkdir(parents=True, exist_ok=True)
 
+    shutil.copy(str(dwi_preprocessed), dwi_dir / "dwi_preprocessed.mif.gz")
+    shutil.copy(str(dwimask_preprocessed), dwi_dir / "dwimask_preprocessed.mif.gz")
+    shutil.copy(str(fa), dwi_dir / "FA.mif.gz")
+    shutil.copy(str(adc), dwi_dir / "ADC.mif.gz")
 
-def detect_dwi_pe_and_mode(dwi_path: str) -> tuple[str, str]:
-    """
-    Infer PE direction and DwiFslpreproc mode from a DWI image.
+    shutil.copy(str(response_wm), response_dir / "response_wm.txt")
+    shutil.copy(str(response_gm), response_dir / "response_gm.txt")
+    shutil.copy(str(response_csf), response_dir / "response_csf.txt")
 
-    Detection order:
-      1. Filename patterns (_AP_, _PA_, _LR_, _RL_, _SI_, _IS_)
-      2. JSON sidecar PhaseEncodingDirection (for NIfTI inputs)
-      3. mrinfo -petable on MIF header
+    shutil.copy(str(execution_log), out_dir / "execution_log.txt")
 
-    Returns (pe_dir, rpe_mode) where rpe_mode is one of
-    'rpe_none', 'rpe_pair', 'rpe_all', 'rpe_header'.
-    """
-    import json
-    import re
-    import subprocess
-
-    name = Path(dwi_path).name
-
-    _pairs = [
-        (r"_AP(_|$|\b)", "AP"),
-        (r"_A_P(_|$|\b)", "AP"),
-        (r"_PA(_|$|\b)", "PA"),
-        (r"_P_A(_|$|\b)", "PA"),
-        (r"_LR(_|$|\b)", "LR"),
-        (r"_L_R(_|$|\b)", "LR"),
-        (r"_RL(_|$|\b)", "RL"),
-        (r"_R_L(_|$|\b)", "RL"),
-        (r"_SI(_|$|\b)", "SI"),
-        (r"_S_I(_|$|\b)", "SI"),
-        (r"_IS(_|$|\b)", "IS"),
-        (r"_I_S(_|$|\b)", "IS"),
-    ]
-    for pat, pe in _pairs:
-        if re.search(pat, name, re.IGNORECASE):
-            return pe, "rpe_none"
-
-    base = re.sub(r"\.nii(\.gz)?$", "", dwi_path)
-    json_path = base + ".json"
-    _json_map = {
-        "j-": "AP",
-        "j": "PA",
-        "i": "LR",
-        "i-": "RL",
-        "k": "SI",
-        "k-": "IS",
-    }
-    if Path(json_path).exists():
-        try:
-            with open(json_path) as f:
-                ped = json.load(f).get("PhaseEncodingDirection", "").strip()
-            if ped in _json_map:
-                return _json_map[ped], "rpe_none"
-        except Exception:
-            pass
-
-    try:
-        result = subprocess.run(
-            ["mrinfo", dwi_path, "-petable"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        raw = result.stdout.strip()
-        if raw:
-            _vec_map = {
-                (0, -1, 0): "AP",
-                (0, 1, 0): "PA",
-                (1, 0, 0): "LR",
-                (-1, 0, 0): "RL",
-                (0, 0, 1): "SI",
-                (0, 0, -1): "IS",
-            }
-            dirs = []
-            for line in raw.splitlines():
-                parts = line.split()
-                if len(parts) >= 3:
-                    vec = tuple(round(float(v)) for v in parts[:3])
-                    if vec in _vec_map:
-                        dirs.append(_vec_map[vec])
-            if dirs:
-                unique = set(dirs)
-                if len(unique) == 1:
-                    return dirs[0], "rpe_none"
-                counts = {d: dirs.count(d) for d in unique}
-                dominant = max(counts, key=lambda d: counts[d])
-                return dominant, "rpe_header"
-    except Exception:
-        pass
-
-    print(
-        f"  WARNING: could not determine PE direction for {name}. "
-        "Defaulting to AP / rpe_none. Pass pe_dir and rpe_mode explicitly to override."
-    )
-    return "AP", "rpe_none"
-
-
-def resolve_dwi_inputs(subject_dir: str) -> dict:
-    """
-    Discover DWI inputs from a subject directory.
-    Returns a dict suitable for DwiPreprocessing(**resolve_dwi_inputs(...)).
-
-    Only discovers DWI-related inputs (DWI image, RPE companion, PE direction).
-    T1/FreeSurfer inputs are handled by resolve_tractography_inputs in
-    tractography_connectomics.py.
-
-    Expected layout::
-
-        <subject_dir>/
-            <id>_dwi_*.mif.gz          (or .nii.gz — AP/PA tagged or untagged)
-
-    AP/PA classification rules (applied in priority order):
-      1. Find all DWI candidates (files matching *dwi* or *DWI*).
-      2. Group PE-tagged files by acquisition stem. Untagged files collected separately.
-      3. If a complete FWD+RPE tagged pair exists AND FWD has non-zero bvals:
-           - RPE is b0-only or unequal volumes  →  rpe_pair
-           - Both non-zero bvals, equal volumes  →  rpe_all
-      4. Else if an untagged DWI exists:
-           - With RPE-tagged companion: classify as rpe_pair or rpe_all
-           - No companion: pe_dir + rpe_mode from header
-      5. Else fallback to any single PE-tagged file  →  rpe_none
-    """
-    import re
-    import subprocess
-
-    root = Path(subject_dir)
-    if not root.is_dir():
-        raise FileNotFoundError(f"Subject directory not found: {subject_dir}")
-
-    _FWD = {"AP", "LR", "SI"}
-    _RPE = {"PA", "RL", "IS"}
-    _PE_PATS = [
-        (r"_(AP)(_|\.|$)", "AP"),
-        (r"_(PA)(_|\.|$)", "PA"),
-        (r"_(LR)(_|\.|$)", "LR"),
-        (r"_(RL)(_|\.|$)", "RL"),
-        (r"_(SI)(_|\.|$)", "SI"),
-        (r"_(IS)(_|\.|$)", "IS"),
-    ]
-
-    def _get_pe(name):
-        for pat, pe in _PE_PATS:
-            if re.search(pat, name, re.IGNORECASE):
-                return pe
-        return None
-
-    def _strip_pe(name):
-        for pat, _ in _PE_PATS:
-            name = re.sub(pat, r"_\2", name, flags=re.IGNORECASE)
-        return name
-
-    def _has_nonzero_bvals(path):
-        try:
-            r = subprocess.run(
-                ["mrinfo", str(path), "-shell_bvalues"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            return any(float(s) > 50 for s in r.stdout.strip().split())
-        except Exception:
-            return True
-
-    def _get_nvols(path):
-        try:
-            r = subprocess.run(
-                ["mrinfo", str(path), "-size"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            parts = r.stdout.strip().split()
-            return int(parts[3]) if len(parts) >= 4 else 1
-        except Exception:
-            return None
-
-    dwi_candidates = sorted(
-        {
-            f
-            for pat in ["*dwi*.mif.gz", "*DWI*.mif.gz", "*dwi*.nii.gz", "*DWI*.nii.gz"]
-            for f in root.glob(pat)
-        }
-    )
-    if not dwi_candidates:
-        raise FileNotFoundError(f"No DWI image found in {subject_dir}")
-
-    stem_map = {}
-    untagged = []
-    for f in dwi_candidates:
-        pe = _get_pe(f.name)
-        if pe:
-            stem_map.setdefault(_strip_pe(f.name), {})[pe] = f
-        else:
-            untagged.append(f)
-
-    dwi_raw_mif = None
-    rpe_file = None
-    pe_dir = "AP"
-    rpe_mode = "rpe_none"
-
-    def _classify_rpe_companion(fwd_path, rpe_path):
-        fwd_name = Path(fwd_path).name
-        rpe_name = Path(rpe_path).name
-        rpe_has_dwi = _has_nonzero_bvals(str(rpe_path))
-        if rpe_has_dwi:
-            nvols_fwd = _get_nvols(str(fwd_path))
-            nvols_rpe = _get_nvols(str(rpe_path))
-            equal_vols = nvols_fwd is not None and nvols_fwd == nvols_rpe
-            if equal_vols:
-                print(
-                    f"  AP/PA pair detected (rpe_all): "
-                    f"{fwd_name} + {rpe_name} ({nvols_fwd} vols each)"
-                )
-                return "rpe_all"
-            else:
-                print(
-                    f"  AP/PA pair detected (rpe_pair — unequal volumes): "
-                    f"{fwd_name} ({nvols_fwd} vols) + {rpe_name} ({nvols_rpe} vols)"
-                )
-                return "rpe_pair"
-        else:
-            print(
-                f"  AP/PA pair detected (rpe_pair): "
-                f"{fwd_name} (DWI) + {rpe_name} (b0 SE-EPI)"
-            )
-            return "rpe_pair"
-
-    # Phase 1: complete FWD+RPE tagged pair where FWD has non-zero bvals
-    for stem, pe_map in stem_map.items():
-        fwds = {pe: p for pe, p in pe_map.items() if pe in _FWD}
-        rpes = {pe: p for pe, p in pe_map.items() if pe in _RPE}
-        if fwds and rpes:
-            fwd_pe, fwd_path = next(iter(fwds.items()))
-            _rpe_pe, rpe_path = next(iter(rpes.items()))
-            if not _has_nonzero_bvals(str(fwd_path)):
-                continue
-            rpe_mode = _classify_rpe_companion(fwd_path, rpe_path)
-            dwi_raw_mif = str(fwd_path)
-            rpe_file = str(rpe_path)
-            pe_dir = fwd_pe
-            break
-
-    # Phase 2: untagged DWI + optional RPE-tagged companion
-    if dwi_raw_mif is None and untagged:
-        main_dwi = (
-            max(untagged, key=lambda f: _get_nvols(str(f)) or 0)
-            if len(untagged) > 1
-            else untagged[0]
-        )
-        dwi_raw_mif = str(main_dwi)
-        all_rpe = [
-            (pe, p) for sm in stem_map.values() for pe, p in sm.items() if pe in _RPE
-        ]
-        if all_rpe:
-            _rpe_pe, _rpe_path = all_rpe[0]
-            rpe_file = str(_rpe_path)
-            rpe_mode = _classify_rpe_companion(str(main_dwi), str(_rpe_path))
-            pe_dir, _ = detect_dwi_pe_and_mode(dwi_raw_mif)
-        else:
-            pe_dir, rpe_mode = detect_dwi_pe_and_mode(dwi_raw_mif)
-            label = (
-                "interleaved AP+PA — rpe_header"
-                if rpe_mode == "rpe_header"
-                else "single PE direction"
-            )
-            print(f"  Untagged DWI ({label}): {main_dwi.name}")
-
-    # Phase 3: fallback — single PE-tagged file
-    if dwi_raw_mif is None:
-        for stem, pe_map in stem_map.items():
-            fwds = {pe: p for pe, p in pe_map.items() if pe in _FWD}
-            rpes = {pe: p for pe, p in pe_map.items() if pe in _RPE}
-            if fwds:
-                fwd_pe, fwd_path = next(iter(fwds.items()))
-                print(f"  Single FWD DWI (rpe_none): {fwd_path.name}")
-                dwi_raw_mif = str(fwd_path)
-                pe_dir = fwd_pe
-                break
-            if rpes:
-                rpe_pe, rpe_path = next(iter(rpes.items()))
-                print(f"  Single RPE DWI (rpe_none): {rpe_path.name}")
-                dwi_raw_mif = str(rpe_path)
-                pe_dir = rpe_pe
-                break
-
-    if dwi_raw_mif is None:
-        raise FileNotFoundError(f"Could not identify a main DWI in {subject_dir}")
-
-    return {
-        "dwi_raw_mif": dwi_raw_mif,
-        "rpe_file": rpe_file,
-        "pe_dir": pe_dir,
-        "rpe_mode": rpe_mode,
-    }
-
-
-def get_eddy_nthr() -> int:
-    """Return threads to pass to eddy --nthr: all CPUs minus one, minimum 1."""
-    import os
-
-    return max(1, (os.cpu_count() or 1) - 1)
+    return Directory(out_dir)
 
 
 # ── Main workflow ──────────────────────────────────────────────────────────────
@@ -628,34 +410,55 @@ def get_eddy_nthr() -> int:
 
 @workflow.define(
     outputs=[
-        "dwi_preprocessed",
-        "dwimask_preprocessed",
-        "response_wm",
-        "response_gm",
-        "response_csf",
-        "execution_log",
+        "out_dir",
     ]
 )
 def DwiPreprocessing(
-    dwi_raw_mif: File,
+    dwi_raw: NiftiXBvec,
     pe_dir: str = "AP",
     rpe_mode: str = "rpe_none",
-    rpe_file: str | None = None,
+    rpe_file: NiftiXBvec | None = None,
     readout_time: float | None = None,
-    eddy_options: str = f"' --slm=linear --nthr={get_eddy_nthr()}'",
+    eddy_options: str = "' --slm=linear'",
     fod_algorithm: str = "msmt_csd",
     start_time: str = "",
     cache_root: str = "",
-) -> tuple[File, File, File, File, File, str]:
+) -> Directory:
+
+    # ── Import NIfTI+bvec/bval into .mif with an embedded gradient table ────────
+    # dwi_raw/rpe_file are DICOM-converted NiftiXBvec bundles (nii+bval+bvec+json),
+    # not .mif — none of the mrtrix3 tools below discover gradients automatically
+    # unless they're embedded in a .mif header, so import explicitly here rather
+    # than relying on co-located-file auto-detection.
+    dwi_grad = workflow.add(SplitBvecBval(dwi=dwi_raw), name="SplitBvecBval_dwi")
+    dwi_raw_mif = workflow.add(
+        MrConvert(
+            in_file=dwi_raw,
+            fslgrad=dwi_grad.fslgrad,
+            out_file="dwi_raw.mif.gz",
+            config=[],
+        ),
+        name="MrConvert_dwi_import",
+    ).out_file
 
     # ── AP/PA preparation ──────────────────────────────────────────────────────
     se_epi_task_out = None
 
     if rpe_mode == "rpe_all":
+        rpe_grad = workflow.add(SplitBvecBval(dwi=rpe_file), name="SplitBvecBval_rpe")
+        rpe_file_mif = workflow.add(
+            MrConvert(
+                in_file=rpe_file,
+                fslgrad=rpe_grad.fslgrad,
+                out_file="rpe_raw.mif.gz",
+                config=[],
+            ),
+            name="MrConvert_rpe_import",
+        ).out_file
         dwicat_task = workflow.add(
             DwiCat(
                 in_file1=dwi_raw_mif,
-                in_file2=rpe_file,
+                in_file2=rpe_file_mif,
                 out_file="dwi_AP_PA_concat.mif.gz",
             ),
             name="DwiCat_rpe_all",
@@ -663,6 +466,16 @@ def DwiPreprocessing(
         dwi_prepared = dwicat_task.out_file
 
     elif rpe_mode == "rpe_pair":
+        rpe_grad = workflow.add(SplitBvecBval(dwi=rpe_file), name="SplitBvecBval_rpe")
+        rpe_file_mif = workflow.add(
+            MrConvert(
+                in_file=rpe_file,
+                fslgrad=rpe_grad.fslgrad,
+                out_file="rpe_raw.mif.gz",
+                config=[],
+            ),
+            name="MrConvert_rpe_import",
+        ).out_file
         fwd_b0_extract = workflow.add(
             DwiExtract(in_file=dwi_raw_mif, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
             name="DwiExtract_fwd_b0",
@@ -677,19 +490,9 @@ def DwiPreprocessing(
             ),
             name="MrMath_fwd_meanb0",
         )
-        rpe_b0_extract = workflow.add(
-            DwiExtract(in_file=rpe_file, out_file="rpe_bzero.mif.gz", bzero=True, config=[]),
-            name="DwiExtract_rpe_b0",
-        )
         rpe_meanb0 = workflow.add(
-            MrMath(
-                in_file=rpe_b0_extract.out_file,
-                out_file="rpe_meanb0.mif.gz",
-                operation="mean",
-                axis=3,
-                config=[],
-            ),
-            name="MrMath_rpe_meanb0",
+            MeanBzero(in_file=rpe_file_mif, out_file="rpe_meanb0.mif.gz"),
+            name="MeanBzero_rpe",
         )
         se_epi_task = workflow.add(
             MrCat(
@@ -884,6 +687,25 @@ def DwiPreprocessing(
         )
     )
 
+    # ── Step 11: Diffusion tensor + FA/ADC maps ────────────────────────────────
+    dwi2tensor_task = workflow.add(
+        Dwi2Tensor(
+            dwi=crop_task_dwi.out_file,
+            mask=crop_task_mask.out_file,
+            dt="dwi_tensor.mif.gz",
+            config=[],
+        )
+    )
+    tensor2metric_task = workflow.add(
+        Tensor2Metric(
+            tensor=dwi2tensor_task.dt,
+            mask=crop_task_mask.out_file,
+            fa="FA.mif.gz",
+            adc="ADC.mif.gz",
+            config=[],
+        )
+    )
+
     # ── Write manifest (paths consumed by tractography_connectomics.py) ───────
     workflow.add(
         WritePreprocessingManifest(
@@ -916,36 +738,18 @@ def DwiPreprocessing(
         )
     )
 
-    return (
-        crop_task_dwi.out_file,
-        crop_task_mask.out_file,
-        EstimateResponseFcn_task.out_sfwm,
-        EstimateResponseFcn_task.out_gm,
-        EstimateResponseFcn_task.out_csf,
-        log_task.log_file,
+    finalize = workflow.add(
+        FinalizeDwiOutputs(
+            dwi_preprocessed=crop_task_dwi.out_file,
+            dwimask_preprocessed=crop_task_mask.out_file,
+            response_wm=EstimateResponseFcn_task.out_sfwm,
+            response_gm=EstimateResponseFcn_task.out_gm,
+            response_csf=EstimateResponseFcn_task.out_csf,
+            fa=tensor2metric_task.fa,
+            adc=tensor2metric_task.adc,
+            execution_log=log_task.log_file,
+            cache_root=cache_root,
+        )
     )
 
-
-# ── Entry point ────────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    import datetime
-    import os
-
-    subject_dir = "/Users/adso8337/Desktop/5TTmsmt_testing/data/BATMAN/"
-    output_path = "/Users/adso8337/Desktop/5TTmsmt_testing/outputs/preproc/"
-
-    nthreads = max(1, (os.cpu_count() or 1) - 2)
-
-    inputs = resolve_dwi_inputs(subject_dir)
-    dwi_path = inputs["dwi_raw_mif"]
-
-    nthr = get_eddy_nthr()
-    wf = DwiPreprocessing(
-        **inputs,
-        eddy_options=f"' --slm=linear --nthr={nthreads}'",
-        fod_algorithm=detect_shell_structure(dwi_path),
-        start_time=datetime.datetime.now().isoformat(timespec="seconds"),
-        cache_root=output_path,
-    )
-    result = wf(cache_root=output_path, rerun=True)
+    return finalize.out_dir

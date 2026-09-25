@@ -9,12 +9,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fileformats",
+    "fileformats-medimage",
     "fileformats-medimage-extras",
     "pydra >=1.0a11",
-    # NB: monai and pydra-compose-monai are NOT here -- see the `monai` extra.
-    "pydra-tasks-fastsurfer >=0.2.2",
-    "pydra-tasks-freesurfer",
     "pydra-tasks-fsl",
+    "pydra-tasks-fastsurfer >=0.2.2",
     "pydra-tasks-mrtrix3 >=3.1.0a1",
 ]
 license = "CC-BY-4.0"
@@ -60,7 +59,17 @@ dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
 # output (Dice 0.0025 vs 0.9772 on MSD spleen_10).
 monai = ["monai >=1.4.0", "pydra-compose-monai >=0.1.5", "huggingface_hub"]
 
-test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.21.2", "pydra2app-xnat>=0.8.7", "australianimagingservice[monai]"]
+test = [
+    "pytest >=6.2.5",
+    "pytest-env>=0.6.2",
+    "pytest-cov>=2.12.1",
+    "frametree>=0.17.1",
+    "frametree-xnat>=0.6.16",
+    "xnat4tests>=0.3.14",
+    "pydra2app>=0.21.2",
+    "pydra2app-xnat>=0.8.7",
+    "australianimagingservice[monai]",
+]
 
 
 [project.urls]
