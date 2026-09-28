@@ -1,12 +1,12 @@
 schema_version: 2.0
 title: "Extract quality control metrics from T1w, T2W and fMRI data"
-version: &package_version "24.0.2"
+version: "24.0.2post1"
 authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au
 base_image:
   name: nipreps/mriqc
-  tag: *package_version
+  tag: "24.0.2"
   package_manager: apt
 docs:
   info_url: https://mriqc.readthedocs.io
@@ -38,13 +38,15 @@ commands:
           help: "T1-weighted anatomical MRI"
           path: anat/T1w
         t2w:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "T2-weighted anatomical MRI"
           path: anat/T2w
+          default: null
         bold:
-          type: medimage/nifti-gz-x
+          type: medimage/nifti-gz-x?
           help: "Resting-state functional MRI"
           path: func/task-rest_bold
+          default: null
       outputs:
         mriqc:
           type: generic/directory

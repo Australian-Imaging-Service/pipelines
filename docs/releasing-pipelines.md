@@ -59,7 +59,12 @@ spec changes its stable ID.
 ## Publication and retries
 
 Push a tag at the intended commit and let the workflow publish the GitHub Release.
-Do not publish an empty GitHub Release first through the web UI. The workflow:
+Alternatively, publish the release from the GitHub web UI (which creates the tag);
+the workflow then attaches the catalogue assets to that published release, as
+long as it has no `pipeline-release.json` yet and contains no unexpected
+catalogue assets. The catalogue is uploaded last, so its presence marks the
+asset set as complete; the release notes and any other assets are left as-is.
+For tag-only pushes, the workflow:
 
 1. Waits for every required build and immutable entry artifact.
 2. Retrieves the preceding non-prerelease catalogue and checks commit ancestry.

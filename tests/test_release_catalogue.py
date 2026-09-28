@@ -515,7 +515,6 @@ class GitHub:
             if self.fail_upload:
                 raise rc.CatalogueError("upload failure")
             assert self.release is not None
-            assert self.release["draft"]
             path = Path(command[4])
             self.assets[path.name] = path.read_bytes()
         elif operation == "edit":
@@ -608,6 +607,32 @@ def test_published_mismatch_never_modified(work, monkeypatch):
     assets[rc.CATALOGUE] = b"{}"
     github = GitHub(monkeypatch, release("v2"), assets)
     with pytest.raises(rc.CatalogueError, match="differs"):
+        rc.publish(publish_args(directory))
+    assert github.calls == []
+
+
+@pytest.mark.parametrize("partial", [False, True])
+def test_complete_published_release_without_catalogue(work, monkeypatch, partial):
+    directory, _ = catalogue(work, [item()], monkeypatch, tag="v2")
+    assets = {"notes.txt": b"user asset"}
+    if partial:
+        command = next(p for p in directory.iterdir() if p.name != rc.CATALOGUE)
+        assets[command.name] = command.read_bytes()
+    existing = {**release("v2"), "target_commitish": "main"}
+    github = GitHub(monkeypatch, existing, assets)
+    rc.publish(publish_args(directory))
+    assert [call[2] for call in github.calls] == ["upload", "upload"]
+    assert github.calls[-1][4].endswith(rc.CATALOGUE)
+    assert github.assets["notes.txt"] == b"user asset"
+    before = list(github.calls)
+    rc.publish(publish_args(directory))
+    assert github.calls == before
+
+
+def test_published_release_with_unexpected_assets_never_modified(work, monkeypatch):
+    directory, _ = catalogue(work, [item()], monkeypatch, tag="v2")
+    github = GitHub(monkeypatch, release("v2"), {"command-other.json": b"{}"})
+    with pytest.raises(rc.CatalogueError, match="unexpected"):
         rc.publish(publish_args(directory))
     assert github.calls == []
 
