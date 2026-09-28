@@ -58,7 +58,7 @@ class BidsAppTestBlueprint:
 
 
 BIDS_APP_PARAMETERS = {
-    "fmriprep": {"json_edits": 'func/.*bold ".SliceTiming[] /= 1000.0"'},
+    "fmriprep": {},
     "qsiprep": {"qsiprep_flags": "--output-resolution 2.5"},
 }
 
