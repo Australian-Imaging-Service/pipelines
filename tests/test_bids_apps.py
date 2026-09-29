@@ -96,7 +96,7 @@ def test_bids_app(
                     inpt = input_file.contents[0].metadata["SeriesDescription"]
                 else:
                     inpt = src.name
-                inputs_json[src.name] = inpt + qualifiers
+                inputs_json[src.name] = inpt + ("|" + qualifiers if qualifiers else "")
             else:
                 inputs_json[src.name] = ""
 
