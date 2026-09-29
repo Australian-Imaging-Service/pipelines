@@ -81,19 +81,22 @@ def test_bids_app(
         for src in image_spec.command().sources:
             if (bids_app_blueprint.test_data / src.name).exists():
                 test_data = bids_app_blueprint.test_data / src.name
-                converter_args_path = test_data / "converter.json"
-                converter_args = ""
-                if converter_args_path.exists():
-                    with open(converter_args_path) as f:
+                qualifiers_path = test_data / "qualifiers.json"
+                qualifiers = ""
+                if qualifiers_path.exists():
+                    with open(qualifiers_path) as f:
                         dct = json.load(f)
-                    for name, val in dct.items():
-                        converter_args += f" converter.{name}={val}"
+                    for ns, assign in dct.items():
+                        for name, val in assign.items():
+                            qualifiers += (
+                                f" {ns}.{name}={json.dumps(val, separators=(',', ':'))}"
+                            )
                 input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
                 if isinstance(input_file, DicomDir):
                     inpt = input_file.contents[0].metadata["SeriesDescription"]
                 else:
                     inpt = src.name
-                inputs_json[src.name] = inpt + converter_args
+                inputs_json[src.name] = inpt + qualifiers
             else:
                 inputs_json[src.name] = ""
 
