@@ -74,7 +74,7 @@ commands:
   fmriprep:
     task:
       type: bidsapp
-      app: /opt/conda/bin/fmriprep
+      app: /app/.pixi/envs/fmriprep/bin/fmriprep
       inputs:
         t1w:
           type: medimage/nifti-gz-x
