@@ -56,6 +56,28 @@ Only the currently selected pipelines enter the catalogue. Removing a selection
 removes its catalogue entry but does not delete its published image. Renaming a
 spec changes its stable ID.
 
+## Reconciler image
+
+Each tag release also publishes
+`ghcr.io/australian-imaging-service/pipelines-reconciler:<tag>`, built from
+[`reconciler/`](../reconciler). An existing tag is never overwritten. Nodes run it to
+install and update the catalogue's commands in their XNAT instance:
+
+```bash
+docker run --rm \
+  -e XNAT_HOST=https://xnat.example.org \
+  -e XNAT_USER=username \
+  -e XNAT_PASS=password \
+  ghcr.io/australian-imaging-service/pipelines-reconciler:<tag>
+```
+
+Each run performs one reconciliation using `pydra2app ext xnat deploy-pipelines`,
+reports every pipeline as `installed`, `updated`, `unchanged` or `failed`, and exits
+nonzero if any pipeline fails. It reads the latest release's catalogue unless
+`PIPELINE_CATALOGUE_URL` is set. New commands are installed disabled, existing
+commands are updated in place, and nothing is removed. The XNAT user must be an
+administrator or Container Service manager.
+
 ## Publication and retries
 
 Push a tag at the intended commit and let the workflow publish the GitHub Release.

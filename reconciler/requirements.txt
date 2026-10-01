@@ -1,0 +1,5 @@
+pydra2app-xnat==0.9.0
+pydra2app==0.22.2
+pydra==1.0a9
+frametree==0.17.1
+frametree-xnat==0.6.16
