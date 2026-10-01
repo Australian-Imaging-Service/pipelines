@@ -1,10 +1,18 @@
 name: Sync MONAI model specs
 on:
-  schedule:
-    # 16:00 UTC Sunday = 02:00 Monday in Sydney during AEST (UTC+10). Cron has
-    # no timezone, so this lands at 03:00 Monday over AEDT (UTC+11) -- fine for
-    # a weekly background sync, and not worth chasing with two schedules.
-    - cron: "0 16 * * 0"
+  # PAUSED until #494 lands. The generator still vendors bundle configs and
+  # writes a task module per model, which is the shape rejected on #486 and
+  # again on #522 -- so each run reopens a PR that will not be merged. Leaving
+  # it scheduled just produces a weekly PR to close.
+  #
+  # Restore by uncommenting the two lines below. `workflow_dispatch` is kept so
+  # the sync can still be run by hand while #494 is in progress.
+  #
+  # schedule:
+  #   # 16:00 UTC Sunday = 02:00 Monday in Sydney during AEST (UTC+10). Cron has
+  #   # no timezone, so this lands at 03:00 Monday over AEDT (UTC+11) -- fine for
+  #   # a weekly background sync, and not worth chasing with two schedules.
+  #   - cron: "0 16 * * 0"
   workflow_dispatch: {}
 permissions:
   contents: write # create-pull-request pushes the sync branch
