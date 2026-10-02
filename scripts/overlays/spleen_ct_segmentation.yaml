@@ -19,4 +19,4 @@ packages:
     # but meaningless segmentations (Dice 0.0025 vs 0.9772 on MSD spleen_10).
     pydra-compose-monai: ">=0.1.5"
 
-operates_on: session
+operates_on: medimage/session

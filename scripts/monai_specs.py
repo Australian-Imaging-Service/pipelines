@@ -234,7 +234,7 @@ class MonaiModels:
             sink["path"] = f"monai/{entry.name}/{out_name}"
             sinks[out_name] = sink
 
-        operates_on = overlay.get("operates_on", "session")
+        operates_on = overlay.get("operates_on", "medimage/session")
         command = {
             "task": {
                 "type": "monai",
