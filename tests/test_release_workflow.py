@@ -93,6 +93,18 @@ def test_matrix_artifacts_feed_publication(jobs):
     }
 
 
+def test_reconciler_image_is_built_always_and_pushed_only_on_tags(jobs):
+    job = jobs["reconciler-image"]
+    assert "needs" not in job
+    for name in ("Build reconciler image", "Check reconciler CLI"):
+        assert "if" not in step(job, name)
+    for name in ("Login to Docker registry", "Push reconciler image"):
+        condition = step(job, name)["if"]
+        assert "github.event_name == 'push'" in condition
+        assert "startsWith(github.ref, 'refs/tags/')" in condition
+    assert "already exists" in step(job, "Push reconciler image")["run"]
+
+
 def test_run_steps_have_valid_bash_syntax(jobs):
     for job in jobs.values():
         for item in job["steps"]:
