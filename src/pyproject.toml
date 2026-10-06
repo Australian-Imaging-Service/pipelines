@@ -69,7 +69,12 @@ monai = ["monai >=1.4.0", "pydra-compose-monai >=0.2.0", "huggingface_hub"]
 # pydra2app >=0.23.2 can defer loading a task whose files only exist inside the
 # image being built, which is how MONAI specs referencing a bundle under
 # /monai-bundles are built at all (see the `monai` extra above).
-test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.23.2", "pydra2app-xnat>=0.8.7", "australianimagingservice[monai]"]
+#
+# pydra2app-xnat >=0.9.1 is needed for that to work through XnatApp: earlier
+# versions redeclared `image` on XnatCommand, which moved it after `task` in
+# the attrs field order, so it was still unset when the task was loaded and
+# `can_defer_task` was never reached.
+test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.23.2", "pydra2app-xnat>=0.9.1", "australianimagingservice[monai]"]
 
 
 [project.urls]

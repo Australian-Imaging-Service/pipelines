@@ -218,19 +218,6 @@ def test_generate_spec_points_bundle_at_runtime_resource(
     assert spec["resources"][mm.resource_name(entry)]["path"] == runtime_path
 
 
-@pytest.mark.xfail(
-    reason=(
-        "pydra2app's task_converter defers a task given as a dotted string, but "
-        "an inline dict goes to structure(), which calls monai.define() -> "
-        "parse_monai_spec() and reads configs/metadata.json from the bundle path "
-        "immediately. That path only exists inside the built image, so the spec "
-        "cannot be loaded on the build host. Needs deferral for the dict form "
-        "when sources and sinks are already defined -- raised with @tclose. "
-        "Same root cause as #496."
-    ),
-    raises=ValueError,
-    strict=True,
-)
 def test_generated_spec_bundle_is_not_a_user_parameter(
     tmp_path, whitelist_file, overlay_dir, monkeypatch
 ):
@@ -256,7 +243,9 @@ def test_generated_spec_bundle_is_not_a_user_parameter(
     monkeypatch.syspath_prepend(str(tmp_path / "src"))
     importlib.invalidate_caches()
 
-    image_spec = XnatApp.load(written[0])
+    # The bundle path only exists inside the image, so loading on the build host
+    # defers the task (see pydra2app's `App.can_defer_task`).
+    image_spec = XnatApp.load(written[0], allow_deferred=True)
     command = image_spec.commands[0]
     assert "bundle" not in [getattr(p, "name", p) for p in command.parameters]
     assert "bundle" not in [getattr(s, "name", s) for s in command.sources]
@@ -435,19 +424,6 @@ def _make_synthetic_bundle(dest: Path) -> Path:
     return dest
 
 
-@pytest.mark.xfail(
-    reason=(
-        "pydra2app's task_converter defers a task given as a dotted string, but "
-        "an inline dict goes to structure(), which calls monai.define() -> "
-        "parse_monai_spec() and reads configs/metadata.json from the bundle path "
-        "immediately. That path only exists inside the built image, so the spec "
-        "cannot be loaded on the build host. Needs deferral for the dict form "
-        "when sources and sinks are already defined -- raised with @tclose. "
-        "Same root cause as #496."
-    ),
-    raises=ValueError,
-    strict=True,
-)
 def test_generated_spec_loads_as_xnatapp(tmp_path, whitelist_file, overlay_dir, monkeypatch):
     import importlib
     import scripts.monai_specs as ms
@@ -466,20 +442,25 @@ def test_generated_spec_loads_as_xnatapp(tmp_path, whitelist_file, overlay_dir, 
     bundle = _make_synthetic_bundle(tmp_path / "downloaded")
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
 
-    # Full sync path: writes the module, vendors the bundle beside it, writes the spec.
+    # Full sync path: reads the downloaded bundle for its metadata, writes the spec.
     written = mm.sync(download_bundle=lambda entry: bundle)
     assert len(written) == 1
     spec_path = written[0]
 
-    # Make the generated module importable, then load the spec (eager task import).
     monkeypatch.syspath_prepend(str(tmp_path / "src"))
     importlib.invalidate_caches()
 
-    image_spec = XnatApp.load(spec_path)
-    assert image_spec.commands
-    assert image_spec.commands[0].name
-    # command.task resolved to an actual class (not left as an unresolved string)
-    assert not isinstance(image_spec.commands[0].task, str)
+    # The spec points `task.bundle` at the path the bundle occupies *inside the
+    # image*, which doesn't exist on the build host, so pydra-compose-monai
+    # raises FileNotFoundError and pydra2app defers loading the task until it
+    # runs in the image. The command still has to be usable here: its sources
+    # and sinks come from the spec itself rather than from task introspection.
+    image_spec = XnatApp.load(spec_path, allow_deferred=True)
+    command = image_spec.command()
+    assert command.deferred
+    assert command.name
+    assert command.source_names == ["image"]
+    assert command.sink_names == ["pred"]
 
 
 # ---------------------------------------------------------------------------
