@@ -128,127 +128,6 @@ def test_detect_changes_flags_new_and_updated(tmp_path, whitelist_file):
     assert mm.detect_changes([entry]) == [entry]
 
 
-def test_class_name_is_camelcase(tmp_path, whitelist_file):
-    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    entry = mm.whitelist()[0]
-    assert mm.class_name(entry) == "SpleenCtSegmentation"
-
-
-def test_task_module_ref_and_path(tmp_path, whitelist_file):
-    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    entry = mm.whitelist()[0]
-    assert mm.task_module_ref(entry) == (
-        "australianimagingservice.ct.human.abdomen.monai."
-        "spleen_ct_segmentation:SpleenCtSegmentation"
-    )
-    assert mm.task_module_path(entry) == (
-        tmp_path / "src" / "australianimagingservice" / "ct" / "human"
-        / "abdomen" / "monai" / "spleen_ct_segmentation.py"
-    )
-
-
-def test_bundle_vendor_dir_beside_module(tmp_path, whitelist_file):
-    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    entry = mm.whitelist()[0]
-    assert mm.bundle_vendor_dir(entry) == (
-        mm.task_module_path(entry).parent / "spleen_ct_segmentation_bundle"
-    )
-
-
-def test_write_task_module_uses_module_relative_bundle(tmp_path, whitelist_file):
-    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    entry = mm.whitelist()[0]
-    path = mm.write_task_module(entry)
-    assert path == mm.task_module_path(entry)
-    text = path.read_text()
-    # references pydra-compose-monai define, uses a module-relative bundle path
-    # (NOT an absolute /opt/bundles path), and names the class
-    assert "from pydra.compose import monai" in text
-    assert "Path(__file__).parent" in text
-    assert '"spleen_ct_segmentation_bundle"' in text
-    assert "/opt/bundles" not in text
-    assert "SpleenCtSegmentation = monai.define(" in text
-    # every generated package dir has an __init__.py so the dotted ref imports
-    assert (path.parent / "__init__.py").is_file()
-
-
-def test_write_task_module_does_not_package_src_root(tmp_path, whitelist_file):
-    """``src/`` is the import root, not a package: it must not get an __init__.py."""
-    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    entry = mm.whitelist()[0]
-    mm.write_task_module(entry)
-    assert not (tmp_path / "src" / "__init__.py").exists()
-    # ... but the package dirs below it are all importable
-    pkg = tmp_path / "src" / "australianimagingservice"
-    assert (pkg / "__init__.py").is_file()
-    assert (pkg / "ct" / "human" / "abdomen" / "monai" / "__init__.py").is_file()
-
-
-def _write_downloaded_bundle(dest: Path) -> Path:
-    """A downloaded bundle as it arrives from the Model Zoo, weights included."""
-    (dest / "configs").mkdir(parents=True, exist_ok=True)
-    (dest / "configs" / "metadata.json").write_text("{}")
-    (dest / "configs" / "inference.json").write_text("{}")
-    (dest / "models").mkdir(parents=True, exist_ok=True)
-    (dest / "models" / "model.pt").write_bytes(b"\x00" * 2048)
-    (dest / "models" / "model.ts").write_bytes(b"\x00" * 2048)
-    (dest / "docs").mkdir(parents=True, exist_ok=True)
-    (dest / "docs" / "README.md").write_text("# docs\n")
-    (dest / "LICENSE").write_text("license\n")
-    (dest / ".cache" / "huggingface").mkdir(parents=True, exist_ok=True)
-    (dest / ".cache" / "huggingface" / "CACHEDIR.TAG").write_text("x")
-    (dest / ".gitattributes").write_text("* text=auto\n")
-    return dest
-
-
-def test_vendor_bundle_excludes_download_cache(tmp_path, whitelist_file):
-    """HF download-provenance dirs are not part of the bundle and must not vendor."""
-    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    entry = mm.whitelist()[0]
-    src_bundle = _write_downloaded_bundle(tmp_path / "downloaded")
-
-    dest = mm.vendor_bundle(entry, src_bundle)
-    assert (dest / "configs" / "metadata.json").is_file()
-    assert not (dest / ".cache").exists()
-    assert not (dest / ".gitattributes").exists()
-
-
-def test_vendor_bundle_excludes_model_weights(tmp_path, whitelist_file):
-    """Weights are never committed: only build-host introspection data vendors.
-
-    ``parse_monai_spec`` reads only ``configs/metadata.json``, so configs are
-    sufficient for spec-load / Dockerfile generation. Weights reach the image
-    via the ``resources`` mechanism instead (see notes/monai-weights-plan.md).
-    """
-    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    entry = mm.whitelist()[0]
-    src_bundle = _write_downloaded_bundle(tmp_path / "downloaded")
-
-    dest = mm.vendor_bundle(entry, src_bundle)
-    # configs kept — this is what define()/spec_fragment introspect
-    assert (dest / "configs" / "metadata.json").is_file()
-    assert (dest / "configs" / "inference.json").is_file()
-    # weights excluded entirely
-    assert not (dest / "models").exists()
-    # provenance kept: small, and useful when reviewing a sync PR
-    assert (dest / "LICENSE").is_file()
-
-
-def test_vendor_bundle_is_idempotent_and_drops_stale_weights(
-    tmp_path, whitelist_file
-):
-    """A re-vendor over an older copy that had weights must remove them."""
-    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    entry = mm.whitelist()[0]
-    src_bundle = _write_downloaded_bundle(tmp_path / "downloaded")
-
-    # Simulate a previously-vendored bundle that still carries weights.
-    stale = mm.bundle_vendor_dir(entry)
-    (stale / "models").mkdir(parents=True)
-    (stale / "models" / "model.pt").write_bytes(b"\x00")
-
-    dest = mm.vendor_bundle(entry, src_bundle)
-    assert not (dest / "models").exists()
 
 
 @pytest.fixture
@@ -298,13 +177,14 @@ def test_generate_spec_shape(tmp_path, whitelist_file, overlay_dir, monkeypatch)
     assert isinstance(spec["commands"], dict)
     assert list(spec["commands"]) == ["spleen_ct_segmentation"]
     cmd = spec["commands"]["spleen_ct_segmentation"]
-    assert cmd["task"] == (
-        "australianimagingservice.ct.human.abdomen.monai."
-        "spleen_ct_segmentation:SpleenCtSegmentation"
-    )
-    # the class bakes in a configs-only bundle path for build-host introspection;
-    # configuration redirects the task to the full bundle at runtime
-    assert cmd["configuration"] == {"bundle": "/monai-bundles/spleen_ct_segmentation"}
+    # the task is declared inline rather than referencing a generated module,
+    # and points straight at the in-image bundle path
+    assert cmd["task"] == {
+        "type": "monai",
+        "bundle": "/monai-bundles/spleen_ct_segmentation",
+    }
+    # no redirect is needed any more, so there is no configuration block
+    assert "configuration" not in cmd
     assert cmd["operates_on"] == "session"
     assert cmd["sources"]["image"]["datatype"] == "medimage/nifti-gz-x"
     # sink path rewritten to the frametree store path
@@ -314,11 +194,11 @@ def test_generate_spec_shape(tmp_path, whitelist_file, overlay_dir, monkeypatch)
 def test_generate_spec_points_bundle_at_runtime_resource(
     tmp_path, whitelist_file, overlay_dir, monkeypatch
 ):
-    """The task's ``bundle`` must resolve to the in-container weights path.
+    """The task's ``bundle`` and its ``resources`` entry must name one path.
 
-    The committed bundle is configs-only, so the module-relative path is only
-    valid on the build host. At runtime the full bundle arrives as a resource,
-    and ``configuration.bundle`` redirects the task there.
+    The resource is unpacked to that path inside the image and the task reads
+    the bundle from it, so if the two ever drifted the image would build but
+    fail at run time.
     """
     import scripts.monai_specs as ms
 
@@ -332,10 +212,10 @@ def test_generate_spec_points_bundle_at_runtime_resource(
 
     cmd = spec["commands"]["spleen_ct_segmentation"]
     runtime_path = mm.runtime_bundle_path(entry)
-    assert cmd["configuration"]["bundle"] == runtime_path
+    assert cmd["task"]["bundle"] == runtime_path
 
     # a matching resource delivers the bundle to exactly that path
-    assert spec["resources"][mm.resource_name(entry)] == runtime_path
+    assert spec["resources"][mm.resource_name(entry)]["path"] == runtime_path
 
 
 def test_generated_spec_bundle_is_not_a_user_parameter(
@@ -363,7 +243,9 @@ def test_generated_spec_bundle_is_not_a_user_parameter(
     monkeypatch.syspath_prepend(str(tmp_path / "src"))
     importlib.invalidate_caches()
 
-    image_spec = XnatApp.load(written[0])
+    # The bundle path only exists inside the image, so loading on the build host
+    # defers the task (see pydra2app's `App.can_defer_task`).
+    image_spec = XnatApp.load(written[0], allow_deferred=True)
     command = image_spec.commands[0]
     assert "bundle" not in [getattr(p, "name", p) for p in command.parameters]
     assert "bundle" not in [getattr(s, "name", s) for s in command.sources]
@@ -425,9 +307,10 @@ def test_sync_writes_only_changed(tmp_path, whitelist_file, overlay_dir, monkeyp
     assert written[0].is_file()
     # sync also emitted the committed per-model task module ...
     entry = mm.whitelist()[0]._replace(version="0.5.3")
-    assert mm.task_module_path(entry).is_file()
-    # ... and vendored the bundle beside it
-    assert (mm.bundle_vendor_dir(entry) / "configs" / "metadata.json").is_file()
+    # nothing is vendored or generated beside the spec any more
+    assert not (tmp_path / "src").exists()
+    # the downloaded bundle is read and discarded, never committed
+    assert not list((tmp_path / "specs").glob("**/*_bundle"))
 
     # Second run: version unchanged -> nothing written
     written2 = mm.sync(download_bundle=lambda entry: fake_bundle)
@@ -559,20 +442,25 @@ def test_generated_spec_loads_as_xnatapp(tmp_path, whitelist_file, overlay_dir, 
     bundle = _make_synthetic_bundle(tmp_path / "downloaded")
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
 
-    # Full sync path: writes the module, vendors the bundle beside it, writes the spec.
+    # Full sync path: reads the downloaded bundle for its metadata, writes the spec.
     written = mm.sync(download_bundle=lambda entry: bundle)
     assert len(written) == 1
     spec_path = written[0]
 
-    # Make the generated module importable, then load the spec (eager task import).
     monkeypatch.syspath_prepend(str(tmp_path / "src"))
     importlib.invalidate_caches()
 
-    image_spec = XnatApp.load(spec_path)
-    assert image_spec.commands
-    assert image_spec.commands[0].name
-    # command.task resolved to an actual class (not left as an unresolved string)
-    assert not isinstance(image_spec.commands[0].task, str)
+    # The spec points `task.bundle` at the path the bundle occupies *inside the
+    # image*, which doesn't exist on the build host, so pydra-compose-monai
+    # raises FileNotFoundError and pydra2app defers loading the task until it
+    # runs in the image. The command still has to be usable here: its sources
+    # and sinks come from the spec itself rather than from task introspection.
+    image_spec = XnatApp.load(spec_path, allow_deferred=True)
+    command = image_spec.command()
+    assert command.deferred
+    assert command.name
+    assert command.source_names == ["image"]
+    assert command.sink_names == ["pred"]
 
 
 # ---------------------------------------------------------------------------
