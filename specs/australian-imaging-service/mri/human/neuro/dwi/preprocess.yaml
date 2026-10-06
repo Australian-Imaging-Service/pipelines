@@ -19,6 +19,12 @@ packages:
     pydra: '>=1.0a11'
     pydra-tasks-mrtrix3:
     pydra-tasks-fsl:
+    # DwiPreprocessing imports mri_synthstrip from the t1w pipeline's preprocess
+    # package for brain masking; importing it runs that package's __init__.py,
+    # which eagerly pulls in pydra-tasks-freesurfer/pydra-tasks-fastsurfer too
+    # (see t1w/preprocess.yaml, which declares the same two for the same reason)
+    pydra-tasks-freesurfer:
+    pydra-tasks-fastsurfer:
     fileformats:
     fileformats-medimage-extras:
     pydra2app:
