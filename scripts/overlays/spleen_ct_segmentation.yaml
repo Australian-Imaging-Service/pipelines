@@ -9,7 +9,17 @@ docs:
     Pydra task and packaged for the Australian Imaging Service.
 base_image:
   name: projectmonai/monai
-  tag: latest
+  # Pinned rather than `latest`. The base image tag is part of the spec
+  # checksum that `plan-builds` compares against the published image to decide
+  # whether to rebuild, so with `latest` the checksum stays constant while the
+  # image underneath it changes -- a new MONAI release would not trigger a
+  # rebuild, and the published image would silently drift from the spec that
+  # describes it. Pinning makes a MONAI bump a reviewable one-line change that
+  # rebuilds as intended.
+  #
+  # Bump in step with the pydra-compose-monai floor below, which requires
+  # monai >=1.4.
+  tag: "1.6.1"
   package_manager: apt
 packages:
   pip:
