@@ -2,7 +2,6 @@ from pathlib import Path
 
 from pydra.compose import python, shell, workflow
 from fileformats.generic import File, Directory
-from fileformats.medimage import NiftiXBvec
 from pydra.tasks.mrtrix3.v3_1 import (
     DwiGradcheck,
     DwiDenoise,
@@ -21,6 +20,7 @@ from australianimagingservice.mri.human.neuro.t1w.preprocess.mri_synthstrip impo
     MriSynthstrip,
 )
 from fileformats.vendor.mrtrix3.medimage import (  # noqa: F401
+    ImageFormatGz,
     ImageIn,
     ImageOut,
 )
@@ -131,20 +131,6 @@ class MrCat(shell.Task):
 
 
 # ── Python task definitions ────────────────────────────────────────────────────
-
-
-@python.define(outputs=["fslgrad"])
-def SplitBvecBval(dwi: NiftiXBvec) -> tuple[File, File]:
-    """Pull the adjacent FSL-style .bvec/.bval sidecar paths out of a
-    NiftiXBvec bundle as a single (bvec, bval) tuple output, so they can be
-    passed explicitly to MrConvert's fslgrad input, rather than relying on
-    tools that only auto-detect them by co-located, same-basename convention.
-    Must be a single combined output (not two separate ones) so downstream
-    connects to one lazy field whose resolved value is the tuple itself,
-    rather than a tuple of two still-unresolved lazy fields."""
-    bvec = dwi.encoding
-    bval = bvec.b_values_file
-    return bvec, bval
 
 
 @python.define(outputs=["grad_warning"])
@@ -414,10 +400,10 @@ def FinalizeDwiOutputs(
     ]
 )
 def DwiPreprocessing(
-    dwi_raw: NiftiXBvec,
+    dwi_raw: ImageFormatGz,
     pe_dir: str = "AP",
     rpe_mode: str = "rpe_none",
-    rpe_file: NiftiXBvec | None = None,
+    rpe_file: ImageFormatGz | None = None,
     readout_time: float | None = None,
     eddy_options: str = "' --slm=linear'",
     fod_algorithm: str = "msmt_csd",
@@ -425,40 +411,18 @@ def DwiPreprocessing(
     cache_root: str = "",
 ) -> Directory:
 
-    # ── Import NIfTI+bvec/bval into .mif with an embedded gradient table ────────
-    # dwi_raw/rpe_file are DICOM-converted NiftiXBvec bundles (nii+bval+bvec+json),
-    # not .mif — none of the mrtrix3 tools below discover gradients automatically
-    # unless they're embedded in a .mif header, so import explicitly here rather
-    # than relying on co-located-file auto-detection.
-    dwi_grad = workflow.add(SplitBvecBval(dwi=dwi_raw), name="SplitBvecBval_dwi")
-    dwi_raw_mif = workflow.add(
-        MrConvert(
-            in_file=dwi_raw,
-            fslgrad=dwi_grad.fslgrad,
-            out_file="dwi_raw.mif.gz",
-            config=[],
-        ),
-        name="MrConvert_dwi_import",
-    ).out_file
-
     # ── AP/PA preparation ──────────────────────────────────────────────────────
+    # dwi_raw/rpe_file arrive as .mif.gz with gradients already embedded in the
+    # header (as of fileformats-vendor-mrtrix3 3.1.0a9, frametree's pipeline
+    # sourcing step auto-converts FSL-style NIfTI+bvec/bval or DICOM straight
+    # to this gradient-aware format, so no manual import step is needed here).
     se_epi_task_out = None
 
     if rpe_mode == "rpe_all":
-        rpe_grad = workflow.add(SplitBvecBval(dwi=rpe_file), name="SplitBvecBval_rpe")
-        rpe_file_mif = workflow.add(
-            MrConvert(
-                in_file=rpe_file,
-                fslgrad=rpe_grad.fslgrad,
-                out_file="rpe_raw.mif.gz",
-                config=[],
-            ),
-            name="MrConvert_rpe_import",
-        ).out_file
         dwicat_task = workflow.add(
             DwiCat(
-                in_file1=dwi_raw_mif,
-                in_file2=rpe_file_mif,
+                in_file1=dwi_raw,
+                in_file2=rpe_file,
                 out_file="dwi_AP_PA_concat.mif.gz",
             ),
             name="DwiCat_rpe_all",
@@ -466,18 +430,8 @@ def DwiPreprocessing(
         dwi_prepared = dwicat_task.out_file
 
     elif rpe_mode == "rpe_pair":
-        rpe_grad = workflow.add(SplitBvecBval(dwi=rpe_file), name="SplitBvecBval_rpe")
-        rpe_file_mif = workflow.add(
-            MrConvert(
-                in_file=rpe_file,
-                fslgrad=rpe_grad.fslgrad,
-                out_file="rpe_raw.mif.gz",
-                config=[],
-            ),
-            name="MrConvert_rpe_import",
-        ).out_file
         fwd_b0_extract = workflow.add(
-            DwiExtract(in_file=dwi_raw_mif, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
+            DwiExtract(in_file=dwi_raw, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
             name="DwiExtract_fwd_b0",
         )
         fwd_meanb0 = workflow.add(
@@ -491,7 +445,7 @@ def DwiPreprocessing(
             name="MrMath_fwd_meanb0",
         )
         rpe_meanb0 = workflow.add(
-            MeanBzero(in_file=rpe_file_mif, out_file="rpe_meanb0.mif.gz"),
+            MeanBzero(in_file=rpe_file, out_file="rpe_meanb0.mif.gz"),
             name="MeanBzero_rpe",
         )
         se_epi_task = workflow.add(
@@ -504,10 +458,10 @@ def DwiPreprocessing(
             name="MrCat_se_epi",
         )
         se_epi_task_out = se_epi_task.out_file
-        dwi_prepared = dwi_raw_mif
+        dwi_prepared = dwi_raw
 
     else:
-        dwi_prepared = dwi_raw_mif
+        dwi_prepared = dwi_raw
 
     # ── Step 1: Gradient check ─────────────────────────────────────────────────
     DWIgradcheck_task = workflow.add(
