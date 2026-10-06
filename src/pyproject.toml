@@ -58,9 +58,18 @@ dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
 # earlier versions never ran the bundle's `initialize` section, so inference ran
 # with randomly-initialised weights and produced plausible but meaningless
 # output (Dice 0.0025 vs 0.9772 on MSD spleen_10).
-monai = ["monai >=1.4.0", "pydra-compose-monai >=0.1.5", "huggingface_hub"]
+#
+# >=0.2.0 raises FileNotFoundError carrying the bundle path when the bundle
+# isn't on this host, which is what pydra2app's `can_defer_task` keys on to
+# defer loading the task into the image (it checks the path falls within one of
+# the image's resources). Earlier versions failed in ways it could not act on,
+# so a spec referencing a not-yet-fetched bundle could not be built at all.
+monai = ["monai >=1.4.0", "pydra-compose-monai >=0.2.0", "huggingface_hub"]
 
-test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.21.2", "pydra2app-xnat>=0.8.7", "australianimagingservice[monai]"]
+# pydra2app >=0.23.2 can defer loading a task whose files only exist inside the
+# image being built, which is how MONAI specs referencing a bundle under
+# /monai-bundles are built at all (see the `monai` extra above).
+test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.23.2", "pydra2app-xnat>=0.8.7", "australianimagingservice[monai]"]
 
 
 [project.urls]

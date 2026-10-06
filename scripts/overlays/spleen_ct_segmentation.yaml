@@ -17,6 +17,11 @@ packages:
     # versions never ran the bundle's `initialize` section, so inference
     # ran with randomly-initialised weights and produced plausible-looking
     # but meaningless segmentations (Dice 0.0025 vs 0.9772 on MSD spleen_10).
-    pydra-compose-monai: ">=0.1.5"
+    #
+    # >=0.2.0 raises FileNotFoundError, carrying the bundle path, when the
+    # bundle isn't on the host. The image re-loads this spec to resolve the
+    # deferred task, so keep it in step with the build-host floor rather than
+    # letting the two drift.
+    pydra-compose-monai: ">=0.2.0"
 
 operates_on: medimage/session
