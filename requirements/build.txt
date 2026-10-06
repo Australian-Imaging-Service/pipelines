@@ -1,2 +1,9 @@
-pydra2app >=0.22.2
-pydra2app-xnat >= 0.8.7
+# Build/release tooling. The version floors live in src/pyproject.toml's
+# `build` extra so they are declared once -- they were previously duplicated
+# here and had drifted (this file still pinned pydra2app >=0.22.2 after the
+# test extra had moved on to >=0.23.2).
+#
+# This installs the australianimagingservice package itself as well as the
+# tooling. Every workflow step that reads this file already runs
+# `pip install ./src` straight afterwards, so that is not extra work.
+./src[build]

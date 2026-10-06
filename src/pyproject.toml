@@ -40,6 +40,17 @@ dynamic = ["version"]
 [project.optional-dependencies]
 dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
 
+# The build/release tooling: planning builds, building images, and producing
+# the release catalogue. Declared here rather than in requirements/build.txt so
+# that the floors live in one place -- they were previously duplicated between
+# the two and had already drifted apart. requirements/build.txt now just
+# installs this extra.
+#
+# pydra2app >=0.23.2 can defer loading a task whose files only exist inside the
+# image being built (see the `monai` extra below), and pydra2app-xnat >=0.9.1
+# is needed for that to work through XnatApp.
+build = ["pydra2app >=0.23.2", "pydra2app-xnat >=0.9.1"]
+
 # Build tooling for MONAI specs, needed only by scripts/monai_specs.py (sync,
 # fetch-resources, triage) -- not by the installed package, and not by any
 # pipeline that is not a MONAI one.
