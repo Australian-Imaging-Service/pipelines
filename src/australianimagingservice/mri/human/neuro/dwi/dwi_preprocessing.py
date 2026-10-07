@@ -26,6 +26,72 @@ from fileformats.vendor.mrtrix3.medimage import (  # noqa: F401
 from fileformats.medimage import NiftiXBvec
 from fileformats.extras.vendor.mrtrix3.medimage.converters import MrConvertWithFslGrad
 
+# ── Temporary workaround for a frametree bug (filed upstream, remove once fixed) ─
+# frametree.core.pipeline.RuntimeConverterWorkflow is used whenever a pipeline
+# input's declared datatype is Optional (a Union with None), e.g. our own
+# rpe_file: NiftiXBvec | None. Its loop calls `dt.get_converter(type(in_file))`
+# for each candidate type in the union, and uses `converter is None` to mean
+# "no working candidate was found, raise". But fileformats' own convention is
+# that get_converter() legitimately *returns* None to mean "already matches,
+# no conversion needed" (confirmed directly: NiftiXBvec.get_converter(NiftiXBvec)
+# returns None without raising). The loop can't tell these two cases apart, so
+# an exact match that needs no conversion at all gets misreported as total
+# failure -- this is exactly what happens for rpe_file in the rpe_pair/rpe_all
+# scenarios, where the sourced value already is a NiftiXBvec.
+#
+# This patch is identical to the original except it (a) tracks "found a
+# working candidate" with a separate sentinel, treating a found-but-None
+# converter as "return the value unchanged" rather than a failure, and (b)
+# fixes a second, smaller bug in the same loop: `ty.get_args(Optional[X])`
+# returns `NoneType` (the class), not the `None` singleton, so the original
+# `if dt is None: continue` never actually filtered it out -- it would go on
+# to call `NoneType.get_converter(...)` and crash with an unrelated
+# AttributeError in any genuine-failure case.
+import attrs
+import typing as ty
+from fileformats.core.exceptions import FormatConversionError
+import frametree.core.pipeline as _frametree_pipeline
+from frametree.core.pipeline import is_coercible as _is_coercible
+from pydra.utils.typing import is_union as _is_union
+
+_NOT_FOUND = object()
+
+
+@workflow.define(outputs=["out_file"])
+def _PatchedRuntimeConverterWorkflow(
+    in_file,
+    datatype,
+    converter_args: dict,
+):
+    if _is_coercible(type(in_file), datatype):
+        return in_file
+    converter = _NOT_FOUND
+    msg = []
+    for dt in ty.get_args(datatype) if _is_union(datatype) else (datatype,):
+        if dt is None or dt is type(None):
+            continue
+        try:
+            converter = dt.get_converter(type(in_file))
+        except FormatConversionError as e:
+            msg.append(str(e))
+            continue
+        else:
+            break
+    if converter is _NOT_FOUND:
+        raise FormatConversionError(
+            f"Failed to get converter from {type(in_file)} to {datatype}:\n"
+            + "\n".join(msg)
+        )
+    if converter is None:
+        return in_file
+    task = attrs.evolve(converter.task, **converter_args)
+    setattr(task, converter.in_file, in_file)
+    out = workflow.add(task)
+    return getattr(out, converter.out_file)
+
+
+_frametree_pipeline.RuntimeConverterWorkflow = _PatchedRuntimeConverterWorkflow
+
 # ── Custom shell task wrappers ─────────────────────────────────────────────────
 
 
