@@ -27,6 +27,9 @@ packages:
     pydra-tasks-fastsurfer:
     fileformats:
     fileformats-medimage-extras:
+    # DwiPreprocessing imports MrConvertWithFslGrad directly from this package's
+    # extras module to embed FSL-style gradients into .mif.gz headers
+    fileformats-vendor-mrtrix3-extras: '>=3.1.0a9'
     pydra2app:
     frametree:
     frametree-xnat:
