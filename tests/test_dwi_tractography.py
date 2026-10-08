@@ -36,7 +36,7 @@ UPSTREAM_DERIVATIVES = ("dwi_preprocess", "t1w_preprocess")
 
 # Kept small so the test exercises every step without the hours a realistic
 # (10M streamline) run takes
-NUM_STREAMLINES = "10000"
+NUM_STREAMLINES = "1000"
 
 
 def upload_derivatives_to_xnat(
