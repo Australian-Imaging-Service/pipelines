@@ -8,11 +8,14 @@
 # The anatomy fields are human classification -- they are not present in bundle
 # metadata, and they determine where the generated spec lands in the tree.
 models:
-  spleen_ct_segmentation:
+  # Segments 104 structures from a single-channel CT, so it spans regions
+  # rather than sitting in one -- hence `whole-body` rather than picking a
+  # dominant region and misfiling the rest.
+  wholeBody_ct_segmentation:
     version: null
     modality: ct
     species: human
-    region: abdomen
+    region: whole-body
 
 # Reviewed and deliberately not published.
 #   reason:     why, for whoever reads the triage report later
