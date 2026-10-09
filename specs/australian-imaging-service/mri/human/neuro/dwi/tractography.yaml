@@ -59,13 +59,19 @@ commands:
     task: australianimagingservice.mri.human.neuro.dwi.tractography_connectomics:TractographyConnectomics
     operates_on: medimage/session
     sources:
+      # `type` is set explicitly so pydra2app doesn't widen it to a union of
+      # every format convertible to a file set (its default), which includes
+      # unparameterised generics such as DirectoryOf[T] that have no MIME type
+      # and break the generated command JSON
       DWI_PREPROC:
         field: dwi_preproc_dir
+        type: core/file-set
         help: >-
           Output directory of the DWI preprocessing pipeline (its
           dwi_preprocess derivative, e.g. "dwi_preprocess@")
       T1_PREPROC:
         field: t1_preproc_dir
+        type: core/file-set
         help: >-
           Output directory of the T1w preprocessing pipeline's all_parcs
           command (its t1w_preprocess derivative, e.g. "t1w_preprocess@")
