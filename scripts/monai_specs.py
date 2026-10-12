@@ -1,4 +1,5 @@
 """Generate pipeline2app XNAT specs from whitelisted MONAI Model Zoo bundles."""
+import json
 import os
 import typing as ty
 from pathlib import Path
@@ -210,6 +211,29 @@ class MonaiModels:
     def overlay_path(self, entry: WhitelistEntry) -> Path:
         return OVERLAYS_DIR / f"{entry.name}.yaml"
 
+    @staticmethod
+    def required_packages(bundle_dir: Path) -> Dict[str, str]:
+        """The bundle's own declared runtime requirements, as a pip mapping.
+
+        Bundles record what they need to run in metadata.json's
+        ``required_packages_version``. These are not optional extras: without
+        them the bundle's own inference config fails to instantiate. The
+        wholeBody_ct_segmentation image built cleanly and then died at
+        inference with ``OptionalImportError: from ignite.engine import
+        State``, because SupervisedEvaluator needs pytorch-ignite and nothing
+        installed it.
+
+        Versions are propagated exactly as the bundle pins them, since that is
+        what the model was validated against. Where a pin conflicts with the
+        base image, the overlay can override it (overlay wins on merge).
+        """
+        metadata_path = bundle_dir / "configs" / "metadata.json"
+        if not metadata_path.is_file():
+            return {}
+        metadata = json.loads(metadata_path.read_text()) or {}
+        required = metadata.get("required_packages_version") or {}
+        return {str(name): str(version) for name, version in required.items()}
+
     def generate_spec(self, entry: WhitelistEntry, bundle_dir: Path) -> dict:
         """Build a full pipeline2app XNAT spec dict for a model.
 
@@ -226,6 +250,7 @@ class MonaiModels:
         """
         overlay = yaml.safe_load(self.overlay_path(entry).read_text()) or {}
         fragment = spec_fragment(bundle_dir)
+        required = self.required_packages(bundle_dir)
 
         # Rewrite sink paths from bundle metadata paths to frametree store paths.
         sinks = {}
@@ -272,6 +297,14 @@ class MonaiModels:
         # override name/version/commands, so merge overlay UNDER the core spec.
         merged = _deep_merge(overlay, spec)
         merged.pop("operates_on", None)  # consumed into the command
+
+        # The bundle's own requirements go in UNDER the overlay's pip entries,
+        # so a hand-authored pin always wins -- that is the escape hatch when a
+        # bundle pin conflicts with the base image.
+        if required:
+            packages = dict(merged.get("packages") or {})
+            packages["pip"] = _deep_merge(required, dict(packages.get("pip") or {}))
+            merged["packages"] = packages
         return merged
 
     def write_spec(self, entry: WhitelistEntry, spec: dict) -> Path:

@@ -24,6 +24,23 @@ base_image:
   package_manager: apt
 packages:
   pip:
+    # Overrides the bundle's own `pytorch-ignite: 0.4.11` pin, which is
+    # otherwise propagated from metadata.json's required_packages_version.
+    #
+    # 0.4.11 (2022) relies on `enum` internals that Python 3.11 tightened, so
+    # it installs but cannot be imported in the Python 3.11 conda env
+    # pipeline2app builds:
+    #
+    #   AttributeError: 'CallableEventWithFilter' object has no attribute '_name_'
+    #     at ignite/engine/events.py:200 in __hash__
+    #
+    # which surfaces as the bundle failing to instantiate SupervisedEvaluator.
+    # 0.5.x declares `requires_python >=3.10,<3.15` and imports cleanly here.
+    #
+    # NB: the model was validated against 0.4.11, so this trades exact
+    # fidelity for being runnable at all. Revisit if the bundle is republished
+    # against a newer ignite.
+    pytorch-ignite: ">=0.5"
     # >=0.1.5 loads the bundle's checkpoint via ConfigWorkflow. Earlier
     # versions never ran the bundle's `initialize` section, so inference
     # ran with randomly-initialised weights and produced plausible-looking

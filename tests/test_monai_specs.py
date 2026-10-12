@@ -406,6 +406,115 @@ def test_fetch_resources_ignores_non_monai_specs(tmp_path, whitelist_file):
     assert mm.fetch_resources(tmp_path / "resources", download=fail_download) == []
 
 
+def _write_bundle_metadata(dest: Path, **extra) -> Path:
+    """A bundle whose metadata.json carries arbitrary extra top-level fields."""
+    configs = dest / "configs"
+    configs.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "name": "WholeBodyCtSegmentation",
+        "network_data_format": {
+            "inputs": {"image": {"type": "image", "modality": "CT"}},
+            "outputs": {"pred": {"type": "image", "format": "segmentation"}},
+        },
+    }
+    metadata.update(extra)
+    (configs / "metadata.json").write_text(json.dumps(metadata))
+    return dest
+
+
+def test_generate_spec_includes_bundle_required_packages(
+    tmp_path, whitelist_file, overlay_dir, monkeypatch
+):
+    """A bundle's own declared requirements must reach the image.
+
+    Bundles record what they need to run in metadata.json's
+    `required_packages_version`. Without it, wholeBody_ct_segmentation built
+    fine and then failed at inference with
+    `OptionalImportError: from ignite.engine import State`, because
+    SupervisedEvaluator needs pytorch-ignite and nothing installed it.
+    """
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    bundle = _write_bundle_metadata(
+        tmp_path / "bundle",
+        required_packages_version={
+            "pytorch-ignite": "0.4.11",
+            "nibabel": "5.2.1",
+        },
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    spec = mm.generate_spec(entry, bundle_dir=bundle)
+
+    pip = spec["packages"]["pip"]
+    assert pip["pytorch-ignite"] == "0.4.11"
+    assert pip["nibabel"] == "5.2.1"
+    # the overlay's own entries survive alongside them
+    assert "pydra-compose-monai" in pip
+
+
+def test_overlay_pin_wins_over_bundle_required_package(
+    tmp_path, whitelist_file, monkeypatch
+):
+    """The overlay is hand-authored, so it overrides the bundle's pin.
+
+    That is the escape hatch for a bundle pin that conflicts with the base
+    image -- without it the only fix would be editing the generator.
+    """
+    import scripts.monai_specs as ms
+
+    d = tmp_path / "overlays"
+    d.mkdir()
+    (d / "spleen_ct_segmentation.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "title": "T",
+                "authors": [{"name": "A", "email": "a@b.c"}],
+                "docs": {"info_url": "https://example.org"},
+                "base_image": {"name": "projectmonai/monai", "tag": "1.6.1",
+                               "package_manager": "apt"},
+                "packages": {"pip": {"nibabel": ">=5.3"}},
+            }
+        )
+    )
+    monkeypatch.setattr(ms, "OVERLAYS_DIR", d)
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    bundle = _write_bundle_metadata(
+        tmp_path / "bundle",
+        required_packages_version={"nibabel": "5.2.1"},
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    spec = mm.generate_spec(entry, bundle_dir=bundle)
+
+    assert spec["packages"]["pip"]["nibabel"] == ">=5.3"
+
+
+def test_generate_spec_without_required_packages_is_unchanged(
+    tmp_path, whitelist_file, overlay_dir, monkeypatch
+):
+    """Bundles that declare nothing must not grow an empty or broken section."""
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    bundle = _write_bundle_metadata(tmp_path / "bundle")
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    spec = mm.generate_spec(entry, bundle_dir=bundle)
+
+    assert list(spec["packages"]["pip"]) == ["pydra-compose-monai"]
+
+
 def _make_synthetic_bundle(dest: Path) -> Path:
     configs = dest / "configs"
     configs.mkdir(parents=True, exist_ok=True)
