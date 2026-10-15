@@ -16,6 +16,18 @@ models:
     modality: ct
     species: human
     region: whole-body
+    # Overrides what the bundle declares in metadata.json's
+    # required_packages_version, for pins that don't work in the built image.
+    package_overrides:
+      # The bundle pins pytorch-ignite 0.4.11 (2022), which relies on `enum`
+      # internals Python 3.11 tightened. It installs but cannot be imported in
+      # the 3.11 conda env pipeline2app builds:
+      #   AttributeError: 'CallableEventWithFilter' object has no attribute '_name_'
+      # surfacing as the bundle failing to instantiate SupervisedEvaluator.
+      # 0.5.x declares requires_python >=3.10,<3.15 and imports cleanly.
+      # NB: trades exact fidelity (the model was validated against 0.4.11) for
+      # being runnable at all. Revisit if the bundle is republished.
+      pytorch-ignite: ">=0.5"
 
 # Reviewed and deliberately not published.
 #   reason:     why, for whoever reads the triage report later
