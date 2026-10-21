@@ -65,11 +65,11 @@ test = [
     "pytest >=6.2.5",
     "pytest-env>=0.6.2",
     "pytest-cov>=2.12.1",
-    "frametree>=0.17.1",
+    "frametree>=0.17.4",
     "frametree-xnat>=0.6.16",
     "xnat4tests>=0.3.14",
-    "pydra2app>=0.23.2",
-    "pydra2app-xnat>=0.8.7",
+    "pydra2app>=0.23.3",
+    "pydra2app-xnat>=0.9.1",
     "australianimagingservice[monai]",
 ]
 
