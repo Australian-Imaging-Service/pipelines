@@ -406,7 +406,10 @@ def DwiPreprocessing(
     rpe_mode: str = "rpe_none",
     rpe_file: NiftiXBvec | None = None,
     readout_time: float | None = None,
-    eddy_options: str = "' --slm=linear'",
+    # Passed to dwifslpreproc as a single argument (pydra doesn't go through a
+    # shell, so no quotes); the leading space stops dwifslpreproc's own argument
+    # parser from mistaking "--slm=linear" for one of its options
+    eddy_options: str = " --slm=linear",
     fod_algorithm: str = "msmt_csd",
     start_time: str = "",
     cache_root: str = "",
