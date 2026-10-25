@@ -294,7 +294,6 @@ class EpiRegMat(shell.Task):
         "response_gm",
         "response_csf",
         "ftt_image",
-        "fttvis_image",
         "t1brain_mgz",
         "norm_mgz",
         "wmseg_mgz",
@@ -312,7 +311,6 @@ def ResolveTractographyInputs(
     File,
     File,
     File,
-    ImageFormatGz,
     ImageFormatGz,
     MghGz,
     MghGz,
@@ -336,7 +334,6 @@ def ResolveTractographyInputs(
 
         t1w_preprocess/
             5TTimages/5TT_<ftt_method>.mif.gz
-            5TTimages/5TTvis_<ftt_method>.mif.gz
             Atlases/Atlas_<name>.mif.gz      (one per parcellation)
             FS_outputs/.../mri/{brainmask,norm,wm.seg}.mgz
     """
@@ -399,9 +396,6 @@ def ResolveTractographyInputs(
         File(find_one(dwi_files, "dwi_preprocess", "response_gm.txt")),
         File(find_one(dwi_files, "dwi_preprocess", "response_csf.txt")),
         ImageFormatGz(find_one(t1_files, "t1w_preprocess", f"5TT_{ftt_key}.mif.gz")),
-        ImageFormatGz(
-            find_one(t1_files, "t1w_preprocess", f"5TTvis_{ftt_key}.mif.gz")
-        ),
         MghGz(find_one(t1_files, "t1w_preprocess", "brainmask.mgz")),
         MghGz(find_one(t1_files, "t1w_preprocess", "norm.mgz")),
         # FreeSurfer's recon-all writes wm.seg.mgz; fall back to wm.mgz, which
@@ -499,8 +493,8 @@ def WriteTractographyLog(
         "  3.  MrcalcMax — WM binary mask for epi_reg",
         "  4.  EpiRegMat (epi_reg) — DWI-to-T1 registration",
         "  5.  TransformConvertFlirt — FLIRT transform → MRtrix3 format",
-        "  6.  MrTransform — apply transform + reslice DWI and mask to T1 space",
-        f"  7.  {fod_step} — FOD estimation in T1 space",
+        "  6.  MrTransform — align DWI and mask to T1 space (header only, no reslicing)",
+        f"  7.  {fod_step} — FOD estimation (DWI resolution, aligned to T1 space)",
         "  8.  MtNormalise3Tissue — multi-tissue FOD normalisation",
         "  9.  TckGenAct (iFOD2, ACT) — probabilistic tractography",
         "  10. TckSift2 — streamline weight optimisation",
@@ -694,9 +688,15 @@ def TractographyConnectomics(
         name="TransformConvert",
     )
 
-    # ── Step 6: Apply transform — reslice DWI and mask to T1 space ────────────
-    # mrtransform treats any 4D image with an SH-compatible volume count (6, 15,
-    # 28, 45, 66, ...) as an FOD and reorients it unless told otherwise, so
+    # ── Step 6: Align DWI and mask to T1 space (header only) ──────────────────
+    # Without -template, mrtransform applies the transform to the image header
+    # only, so the DWI keeps its native resolution rather than being resampled
+    # onto the much finer T1 grid (which made dwi2fod need ~12 GB). ACT, tckgen,
+    # SIFT2 and the TDI/connectome steps all work in scanner coordinates, so the
+    # 5TT image and parcellations stay on their own T1 grid. mrtransform also
+    # rotates the DW gradient table by the same transform.
+    # It treats any 4D image with an SH-compatible volume count (6, 15, 28, 45,
+    # 66, ...) as an FOD and reorients it unless told otherwise, so
     # "-reorient_fod no" is required for DWI. MrTransform's reorient_fod field
     # is a bare bool flag that can't render the "no" value, hence append_args.
     dwi_t1_task = workflow.add(
@@ -704,8 +704,6 @@ def TractographyConnectomics(
             in_file=resolved.dwi_preprocessed,
             out_file="DWI_T1space.mif.gz",
             linear=transformconvert_task.out_file,
-            template=resolved.fttvis_image,
-            strides=resolved.fttvis_image,
             append_args=["-reorient_fod", "no"],
             config=[],
         ),
@@ -715,17 +713,14 @@ def TractographyConnectomics(
         MrTransform(
             in_file=resolved.dwimask_preprocessed,
             out_file="DWImask_T1space.mif.gz",
-            interp="nearest",
             linear=transformconvert_task.out_file,
-            template=resolved.fttvis_image,
-            strides=resolved.fttvis_image,
             append_args=["-reorient_fod", "no"],
             config=[],
         ),
         name="MrTransform_mask",
     )
 
-    # ── Step 7: FOD estimation in T1 space ────────────────────────────────────
+    # ── Step 7: FOD estimation (DWI resolution, aligned to T1 space) ──────────
     if fod_algorithm == "ss3t":
         fod_task = workflow.add(
             Ss3tCsdBeta1(

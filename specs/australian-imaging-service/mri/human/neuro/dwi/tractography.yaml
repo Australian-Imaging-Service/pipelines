@@ -47,8 +47,9 @@ authors:
 docs:
   info_url: "https://placeholder.org" # Link to external documentation for underlying tool
   description: | # Description of tool for auto-docs
-    Register preprocessed DWI to T1 space (FSL epi_reg, boundary-based),
-    estimate and normalise multi-tissue FODs in T1 space, run
+    Register preprocessed DWI to T1 space (FSL epi_reg, boundary-based;
+    applied to the image header only, keeping the DWI's native resolution),
+    estimate and normalise multi-tissue FODs, run
     anatomically-constrained iFOD2 tractography with SIFT2 streamline
     weighting, generate TDI and DEC-TDI maps, and build one structural
     connectome per parcellation. Inputs are the bundled outputs of the DWI
