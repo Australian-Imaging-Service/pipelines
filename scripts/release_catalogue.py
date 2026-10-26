@@ -228,8 +228,16 @@ def load_app(path, root_dir):
     from frametree.core.serialize import ClassResolver
     from pydra2app.xnat import XnatApp
 
+    # allow_deferred: a spec's task often can't be loaded here. Its compose
+    # provider may not be installed (`pydra.compose.bidsapp`), or it may point
+    # at a path that only exists inside the image (a MONAI bundle under
+    # /monai-bundles). Both are expected, and pydra2app's own CLI passes this
+    # on every spec load for the same reason; without it, inventory fails on
+    # any spec whose task can't be resolved on the runner.
     with ClassResolver.FALLBACK_TO_STR:
-        return XnatApp.load(path, root_dir=root_dir, registry="ghcr.io")
+        return XnatApp.load(
+            path, root_dir=root_dir, registry="ghcr.io", allow_deferred=True
+        )
 
 
 def inventory(args):

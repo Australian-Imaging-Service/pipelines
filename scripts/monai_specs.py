@@ -1,4 +1,5 @@
 """Generate pipeline2app XNAT specs from whitelisted MONAI Model Zoo bundles."""
+import json
 import os
 import re
 import typing as ty
@@ -9,33 +10,33 @@ import yaml
 from monai.bundle import get_all_bundles_list
 from pydra.compose.monai import spec_fragment
 
-PACKAGE = "australianimagingservice"
-OVERLAYS_DIR = Path(__file__).parent / "overlays"
-
-#: Download-provenance artefacts to strip when vendoring a fetched bundle.
-VENDOR_EXCLUDE = (".cache", ".gitattributes", ".git", ".huggingface")
-
-#: Bundle entries committed beside the generated module. Only ``configs`` is
-#: functionally required — ``parse_monai_spec`` reads ``configs/metadata.json``
-#: and nothing else — but the licence and docs are small and make a synced
-#: bundle reviewable. Model weights are deliberately absent: they are large,
-#: re-downloadable, and already versioned in the Model Zoo, so they reach the
-#: image via ``resources`` instead (see notes/monai-weights-plan.md).
-VENDOR_INCLUDE = ("configs", "docs", "LICENSE")
 
 #: Directory inside the built image that model bundles are copied into.
 RUNTIME_BUNDLE_ROOT = "/monai-bundles"
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
-    """Recursive merge; ``override`` wins on scalar conflicts."""
-    result = dict(base)
-    for k, v in override.items():
-        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
-            result[k] = _deep_merge(result[k], v)
-        else:
-            result[k] = v
-    return result
+#: Fields that are the same for every MONAI Model Zoo bundle, so they are
+#: defaults here rather than repeated in a per-model file. A model that ever
+#: needs a different value should gain a whitelist field, not an overlay.
+MONAI_BASE_IMAGE = "projectmonai/monai"
+
+#: Pinned rather than `latest`: the base image tag is part of the spec checksum
+#: `plan-builds` compares against the published image to decide whether to
+#: rebuild. With `latest` the checksum stays constant while the image beneath
+#: it changes, so a new MONAI release would not trigger a rebuild and the
+#: published image would silently drift from the spec describing it.
+MONAI_BASE_IMAGE_TAG = "1.6.1"
+
+MONAI_AUTHORS = [{"name": "MONAI Consortium", "email": "monai.contact@gmail.com"}]
+MONAI_INFO_URL = "https://monai.io/model-zoo.html"
+MONAI_OPERATES_ON = "medimage/session"
+
+#: >=0.1.5 loads the bundle's checkpoint via ConfigWorkflow; earlier versions
+#: never ran the bundle's `initialize` section, so inference ran with
+#: randomly-initialised weights and produced plausible but meaningless output.
+#: >=0.2.0 raises FileNotFoundError carrying the bundle path when the bundle
+#: isn't on the host, which is what pydra2app's `can_defer_task` keys on.
+PYDRA_COMPOSE_MONAI_REQ = ">=0.2.0"
 
 
 class WhitelistEntry(ty.NamedTuple):
@@ -44,6 +45,9 @@ class WhitelistEntry(ty.NamedTuple):
     modality: str
     species: str
     region: str
+    #: pip requirements that override what the bundle declares in its
+    #: `required_packages_version`, for pins that don't work in the image.
+    package_overrides: Dict[str, str] = {}
 
 
 class DeclinedEntry(ty.NamedTuple):
@@ -87,6 +91,10 @@ class MonaiModels:
                     modality=cfg["modality"],
                     species=cfg["species"],
                     region=cfg["region"],
+                    package_overrides={
+                        str(k): str(v)
+                        for k, v in (cfg.get("package_overrides") or {}).items()
+                    },
                 )
             )
         return entries
@@ -203,26 +211,6 @@ class MonaiModels:
                 changed.append(entry)
         return changed
 
-    def class_name(self, entry: WhitelistEntry) -> str:
-        """CamelCase Python class name derived from the model name."""
-        words = re.split(r"[^a-zA-Z0-9]+", entry.name)
-        return "".join(w.capitalize() for w in words if w)
-
-    def _module_parts(self, entry: WhitelistEntry) -> List[str]:
-        return [PACKAGE, entry.modality, entry.species, entry.region, "monai", entry.name]
-
-    def task_module_path(self, entry: WhitelistEntry) -> Path:
-        parts = self._module_parts(entry)
-        return self.root.joinpath("src", *parts).with_suffix(".py")
-
-    def task_module_ref(self, entry: WhitelistEntry) -> str:
-        dotted = ".".join(self._module_parts(entry))
-        return f"{dotted}:{self.class_name(entry)}"
-
-    def bundle_vendor_dir(self, entry: WhitelistEntry) -> Path:
-        """Directory where the model's bundle is vendored, beside its module."""
-        return self.task_module_path(entry).parent / f"{entry.name}_bundle"
-
     def resource_name(self, entry: WhitelistEntry) -> str:
         """Name of the build-time resource carrying the model's full bundle.
 
@@ -234,61 +222,90 @@ class MonaiModels:
     def runtime_bundle_path(self, entry: WhitelistEntry) -> str:
         """Path the full bundle occupies *inside the built image*.
 
-        The committed bundle is configs-only, so the module-relative path baked
-        into the generated class is valid only on the build host. At runtime the
-        task is redirected here via ``configuration.bundle``.
+        Both the ``resources`` entry (where the bundle is unpacked to) and the
+        command's inline task (where it reads the bundle from) point here, so
+        the two cannot drift apart.
         """
         return f"{RUNTIME_BUNDLE_ROOT}/{entry.name}"
 
-    def write_task_module(self, entry: WhitelistEntry) -> Path:
-        """Generate a committed per-model task module (define()-built class).
+    @staticmethod
+    def bundle_metadata(bundle_dir: Path) -> dict:
+        """The bundle's parsed ``configs/metadata.json``, or ``{}`` if absent."""
+        metadata_path = bundle_dir / "configs" / "metadata.json"
+        if not metadata_path.is_file():
+            return {}
+        return json.loads(metadata_path.read_text()) or {}
 
-        The class builds itself from the bundle vendored beside this module
-        (``<model>_bundle/``), using a module-relative path so it resolves
-        identically on the build host (CI / --generate-only) and inside the
-        built image. pipeline2app imports and introspects this class eagerly
-        at spec-load / Dockerfile-generation time, so the bundle must be
-        present next to the module — which is why sync() vendors it (Task 6).
+    @staticmethod
+    def required_packages(bundle_dir: Path) -> Dict[str, str]:
+        """The bundle's own declared runtime requirements, as a pip mapping.
+
+        Bundles record what they need to run in metadata.json's
+        ``required_packages_version``. These are not optional extras: without
+        them the bundle's own inference config fails to instantiate. The
+        wholeBody_ct_segmentation image built cleanly and then died at
+        inference with ``OptionalImportError: from ignite.engine import
+        State``, because SupervisedEvaluator needs pytorch-ignite and nothing
+        installed it.
+
+        Versions are propagated exactly as the bundle pins them, since that is
+        what the model was validated against. A pin that does not work in the
+        image is overridden per-model via the whitelist's
+        ``package_overrides``.
         """
-        path = self.task_module_path(entry)
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Ensure every generated package directory is importable. ``src`` is the
-        # import root rather than a package, so stop before adding one there.
-        src_root = self.root / "src"
-        pkg_dirs = list(path.parent.relative_to(src_root).parents)[:-1]
-        pkg_dirs = [src_root / p for p in pkg_dirs]
-        pkg_dirs.append(path.parent)
-        for d in pkg_dirs:
-            init = d / "__init__.py"
-            if not init.exists():
-                init.write_text("")
-
-        cls = self.class_name(entry)
-        bundle_dirname = f"{entry.name}_bundle"
-        path.write_text(
-            '"""Auto-generated MONAI task module. Do not edit by hand."""\n'
-            "from pathlib import Path\n"
-            "from pydra.compose import monai\n\n"
-            f'BUNDLE_PATH = Path(__file__).parent / "{bundle_dirname}"\n\n'
-            f'{cls} = monai.define(BUNDLE_PATH, name="{cls}")\n'
+        required = (
+            MonaiModels.bundle_metadata(bundle_dir).get("required_packages_version")
+            or {}
         )
-        return path
+        return {str(name): str(version) for name, version in required.items()}
 
-    def overlay_path(self, entry: WhitelistEntry) -> Path:
-        return OVERLAYS_DIR / f"{entry.name}.yaml"
+    #: Words to keep upper-cased in a generated title; without these, "ct"
+    #: becomes "Ct" rather than "CT".
+    TITLE_ACRONYMS = {
+        "ct", "mri", "mr", "pet", "spect", "us", "xray", "dwi", "3d", "2d",
+    }
+
+    @classmethod
+    def title_for(cls, entry: WhitelistEntry, metadata: dict) -> str:
+        """A human-readable title, from the bundle's own name.
+
+        Most bundles already give a spaced, correctly-capitalised name (e.g.
+        "Whole Body CT Segmentation"), which is used as-is -- re-splitting it
+        would turn "CT" into "C T". Only an unspaced name (snake_case or
+        CamelCase, or a fallback to the whitelist key) needs breaking up.
+        """
+        raw = str(metadata.get("name") or entry.name).strip()
+        if " " in raw:
+            return f"MONAI {raw}"
+        words = re.sub(r"(?<!^)(?=[A-Z])", " ", raw.replace("_", " ")).split()
+        return "MONAI " + " ".join(
+            w.upper() if w.lower() in cls.TITLE_ACRONYMS else w.capitalize()
+            for w in words
+        )
 
     def generate_spec(self, entry: WhitelistEntry, bundle_dir: Path) -> dict:
         """Build a full pipeline2app XNAT spec dict for a model.
 
-        Combines the bundle-derived field fragment with the hand-authored
-        overlay (title/authors/docs/base_image/packages/operates_on).
-        command.task references the committed generated per-model class
-        (see write_task_module); the bundle is baked into that class, so
-        the command needs no configuration.
+        Everything is either derived from the bundle (title, description,
+        sources, sinks, required packages) or a MONAI-wide default (authors,
+        base image, info_url, operates_on). The only per-model human input is
+        in the whitelist: anatomy placement, an optional version pin, and
+        ``package_overrides`` for a bundle pin that does not work in the image.
+
+        The command declares its task inline (``type: monai``) pointing at the
+        in-image bundle path, rather than referencing a generated Python class.
+        pipeline2app >=0.22 defers resolution of a task it cannot import, and a
+        command whose sources and sinks are already defined -- as they are here,
+        derived from the bundle at generation time -- never needs the task
+        resolved on the build host. So nothing reads the path until the image
+        runs, by which point ``resources`` guarantees it exists.
         """
-        overlay = yaml.safe_load(self.overlay_path(entry).read_text()) or {}
+        metadata = self.bundle_metadata(bundle_dir)
         fragment = spec_fragment(bundle_dir)
+        # The bundle's own pins first, then the whitelist's overrides.
+        pip = self.required_packages(bundle_dir)
+        pip.update(entry.package_overrides)
+        pip["pydra-compose-monai"] = PYDRA_COMPOSE_MONAI_REQ
 
         # Rewrite sink paths from bundle metadata paths to frametree store paths.
         sinks = {}
@@ -297,17 +314,12 @@ class MonaiModels:
             sink["path"] = f"monai/{entry.name}/{out_name}"
             sinks[out_name] = sink
 
-        operates_on = overlay.get("operates_on", "session")
-        # The generated class bakes in a module-relative bundle path, which is
-        # configs-only and therefore sufficient for build-host introspection but
-        # not for inference. Redirect the task to the full bundle delivered as a
-        # resource. Setting it here (rather than as a parameter) also keeps it
-        # out of the user-facing UI: pipeline2app excludes configuration keys
-        # from both sources and parameters.
         command = {
-            "task": self.task_module_ref(entry),
-            "operates_on": operates_on,
-            "configuration": {"bundle": self.runtime_bundle_path(entry)},
+            "task": {
+                "type": "monai",
+                "bundle": self.runtime_bundle_path(entry),
+            },
+            "operates_on": MONAI_OPERATES_ON,
             "sources": fragment["sources"],
             "sinks": sinks,
             "parameters": fragment["parameters"],
@@ -319,19 +331,39 @@ class MonaiModels:
         # release workflow reads command names via ``yq '.commands | keys'``,
         # which only works on a mapping.
         spec = {
+            "title": self.title_for(entry, metadata),
+            "authors": MONAI_AUTHORS,
+            "docs": {
+                "info_url": MONAI_INFO_URL,
+                "description": str(
+                    metadata.get("description")
+                    or f"MONAI Model Zoo bundle '{entry.name}', wrapped as a Pydra "
+                    "task and packaged for the Australian Imaging Service."
+                ),
+            },
+            "base_image": {
+                "name": MONAI_BASE_IMAGE,
+                "tag": MONAI_BASE_IMAGE_TAG,
+                "package_manager": "apt",
+            },
+            "packages": {"pip": pip},
             "name": entry.name,
             "version": entry.version,
-            # Declares that the full bundle (weights included) must be supplied
-            # at build time under this name in ``--resources-dir``, and copied
-            # to the path the command's ``configuration.bundle`` points at.
-            "resources": {self.resource_name(entry): self.runtime_bundle_path(entry)},
+            # The full bundle (weights included) is delivered at build time and
+            # unpacked to the path the command's task points at. ``url`` is a
+            # default that ``--resources-dir``/``--resource`` override, so CI
+            # can supply a locally fetched bundle instead -- which it does,
+            # because the Model Zoo no longer publishes bundle archives (see
+            # #507): NGC's archive endpoint 404s and Hugging Face serves the
+            # files individually, so there is no URL to point at today.
+            "resources": {
+                self.resource_name(entry): {
+                    "path": self.runtime_bundle_path(entry),
+                },
+            },
             "commands": {entry.name: command},
         }
-        # overlay supplies title/authors/docs/base_image/packages; it must not
-        # override name/version/commands, so merge overlay UNDER the core spec.
-        merged = _deep_merge(overlay, spec)
-        merged.pop("operates_on", None)  # consumed into the command
-        return merged
+        return spec
 
     def write_spec(self, entry: WhitelistEntry, spec: dict) -> Path:
         path = self.spec_path(entry)
@@ -339,52 +371,16 @@ class MonaiModels:
         path.write_text(yaml.safe_dump(spec, sort_keys=False))
         return path
 
-    def vendor_bundle(self, entry: WhitelistEntry, bundle_dir: Path) -> Path:
-        """Copy the introspectable part of a downloaded bundle beside its module.
-
-        The generated task module reads the bundle via a module-relative path
-        (``Path(__file__).parent / "<model>_bundle"``), so what is committed
-        there must be enough for pipeline2app to introspect the class at
-        spec-load time — which is ``configs/metadata.json`` and nothing more.
-        Idempotent: replaces any existing vendored copy.
-
-        Only ``VENDOR_INCLUDE`` entries are copied — an allowlist rather than
-        an exclude-list, so a new large directory appearing in a future bundle
-        cannot silently end up committed. In particular model weights are not
-        vendored; they are delivered to the image as a resource at build time
-        and the task is pointed at them via ``configuration.bundle``.
-
-        Download-provenance artefacts left behind by the fetch (the Hugging
-        Face ``.cache`` tree, ``.gitattributes``) are excluded by the same
-        allowlist.
-        """
-        import shutil
-
-        dest = self.bundle_vendor_dir(entry)
-        if dest.exists():
-            shutil.rmtree(dest)
-        dest.mkdir(parents=True, exist_ok=True)
-        for name in VENDOR_INCLUDE:
-            source = bundle_dir / name
-            if not source.exists():
-                continue
-            if source.is_dir():
-                shutil.copytree(
-                    source,
-                    dest / name,
-                    ignore=shutil.ignore_patterns(*VENDOR_EXCLUDE),
-                )
-            else:
-                shutil.copy2(source, dest / name)
-        return dest
-
     def sync(self, download_bundle: Callable[[WhitelistEntry], Path]) -> List[Path]:
-        """Full pipeline: fetch → filter → detect → vendor + codegen + generate → write.
+        """Full pipeline: fetch → filter → detect → generate → write.
 
-        For each changed model: download the bundle, vendor it beside the
-        generated module, write the committed per-model task module, generate
-        the spec (which references that module + vendored bundle), and write
-        the spec. Returns the spec paths written.
+        For each changed model, download the bundle, read its metadata to derive
+        the command's sources and sinks, and write the spec. Returns the spec
+        paths written.
+
+        The bundle is read here and then discarded -- nothing from it is
+        committed. Deriving sources/sinks at generation time is what lets the
+        spec stand alone, so the build host never needs the bundle or the task.
 
         ``download_bundle`` maps an entry to a local bundle root directory
         (injected so tests need no network; production passes ``self._download``).
@@ -395,8 +391,6 @@ class MonaiModels:
         written: List[Path] = []
         for entry in changed:
             bundle_dir = download_bundle(entry)
-            self.write_task_module(entry)
-            self.vendor_bundle(entry, bundle_dir)
             spec = self.generate_spec(entry, bundle_dir)
             written.append(self.write_spec(entry, spec))
         return written
