@@ -9,6 +9,7 @@ from frametree.core.utils import show_cli_trace
 from frametree.xnat import Xnat
 from pydra.utils.typing import TypeParser
 from pydra2app.core.cli import make
+from pydra2app.core.command import ContainerCommand
 from pydra2app.xnat import XnatApp
 from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
 
@@ -82,22 +83,18 @@ def test_bids_app(
         for src in image_spec.command().sources:
             if (bids_app_blueprint.test_data / src.name).exists():
                 test_data = bids_app_blueprint.test_data / src.name
-                qualifiers_path = test_data / "qualifiers.json"
-                qualifiers = ""
-                if qualifiers_path.exists():
-                    with open(qualifiers_path) as f:
-                        dct = json.load(f)
-                    for ns, assign in dct.items():
-                        for name, val in assign.items():
-                            qualifiers += (
-                                f" {ns}.{name}={json.dumps(val, separators=(',', ':'))}"
-                            )
                 input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
                 if isinstance(input_file, DicomDir):
                     inpt = input_file.contents[0].metadata["SeriesDescription"]
                 else:
                     inpt = src.name
-                inputs_json[src.name] = inpt + ("|" + qualifiers if qualifiers else "")
+                # Load qualifiers from a JSON file if it exists
+                qualifiers_path = test_data / "qualifiers.json"
+                if qualifiers_path.exists():
+                    with open(qualifiers_path) as f:
+                        dct = json.load(f)
+                    inpt = ContainerCommand.format_qualifiers(path=inpt, qualifiers=dct)
+                inputs_json[src.name] = inpt
             else:
                 inputs_json[src.name] = ""
 
