@@ -1,5 +1,7 @@
 """Generate pipeline2app XNAT specs from whitelisted MONAI Model Zoo bundles."""
+import json
 import os
+import re
 import typing as ty
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
@@ -8,21 +10,33 @@ import yaml
 from monai.bundle import get_all_bundles_list
 from pydra.compose.monai import spec_fragment
 
-OVERLAYS_DIR = Path(__file__).parent / "overlays"
 
 #: Directory inside the built image that model bundles are copied into.
 RUNTIME_BUNDLE_ROOT = "/monai-bundles"
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
-    """Recursive merge; ``override`` wins on scalar conflicts."""
-    result = dict(base)
-    for k, v in override.items():
-        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
-            result[k] = _deep_merge(result[k], v)
-        else:
-            result[k] = v
-    return result
+#: Fields that are the same for every MONAI Model Zoo bundle, so they are
+#: defaults here rather than repeated in a per-model file. A model that ever
+#: needs a different value should gain a whitelist field, not an overlay.
+MONAI_BASE_IMAGE = "projectmonai/monai"
+
+#: Pinned rather than `latest`: the base image tag is part of the spec checksum
+#: `plan-builds` compares against the published image to decide whether to
+#: rebuild. With `latest` the checksum stays constant while the image beneath
+#: it changes, so a new MONAI release would not trigger a rebuild and the
+#: published image would silently drift from the spec describing it.
+MONAI_BASE_IMAGE_TAG = "1.6.1"
+
+MONAI_AUTHORS = [{"name": "MONAI Consortium", "email": "monai.contact@gmail.com"}]
+MONAI_INFO_URL = "https://monai.io/model-zoo.html"
+MONAI_OPERATES_ON = "medimage/session"
+
+#: >=0.1.5 loads the bundle's checkpoint via ConfigWorkflow; earlier versions
+#: never ran the bundle's `initialize` section, so inference ran with
+#: randomly-initialised weights and produced plausible but meaningless output.
+#: >=0.2.0 raises FileNotFoundError carrying the bundle path when the bundle
+#: isn't on the host, which is what pydra2app's `can_defer_task` keys on.
+PYDRA_COMPOSE_MONAI_REQ = ">=0.2.0"
 
 
 class WhitelistEntry(ty.NamedTuple):
@@ -31,6 +45,9 @@ class WhitelistEntry(ty.NamedTuple):
     modality: str
     species: str
     region: str
+    #: pip requirements that override what the bundle declares in its
+    #: `required_packages_version`, for pins that don't work in the image.
+    package_overrides: Dict[str, str] = {}
 
 
 class DeclinedEntry(ty.NamedTuple):
@@ -74,6 +91,10 @@ class MonaiModels:
                     modality=cfg["modality"],
                     species=cfg["species"],
                     region=cfg["region"],
+                    package_overrides={
+                        str(k): str(v)
+                        for k, v in (cfg.get("package_overrides") or {}).items()
+                    },
                 )
             )
         return entries
@@ -207,14 +228,69 @@ class MonaiModels:
         """
         return f"{RUNTIME_BUNDLE_ROOT}/{entry.name}"
 
-    def overlay_path(self, entry: WhitelistEntry) -> Path:
-        return OVERLAYS_DIR / f"{entry.name}.yaml"
+    @staticmethod
+    def bundle_metadata(bundle_dir: Path) -> dict:
+        """The bundle's parsed ``configs/metadata.json``, or ``{}`` if absent."""
+        metadata_path = bundle_dir / "configs" / "metadata.json"
+        if not metadata_path.is_file():
+            return {}
+        return json.loads(metadata_path.read_text()) or {}
+
+    @staticmethod
+    def required_packages(bundle_dir: Path) -> Dict[str, str]:
+        """The bundle's own declared runtime requirements, as a pip mapping.
+
+        Bundles record what they need to run in metadata.json's
+        ``required_packages_version``. These are not optional extras: without
+        them the bundle's own inference config fails to instantiate. The
+        wholeBody_ct_segmentation image built cleanly and then died at
+        inference with ``OptionalImportError: from ignite.engine import
+        State``, because SupervisedEvaluator needs pytorch-ignite and nothing
+        installed it.
+
+        Versions are propagated exactly as the bundle pins them, since that is
+        what the model was validated against. A pin that does not work in the
+        image is overridden per-model via the whitelist's
+        ``package_overrides``.
+        """
+        required = (
+            MonaiModels.bundle_metadata(bundle_dir).get("required_packages_version")
+            or {}
+        )
+        return {str(name): str(version) for name, version in required.items()}
+
+    #: Words to keep upper-cased in a generated title; without these, "ct"
+    #: becomes "Ct" rather than "CT".
+    TITLE_ACRONYMS = {
+        "ct", "mri", "mr", "pet", "spect", "us", "xray", "dwi", "3d", "2d",
+    }
+
+    @classmethod
+    def title_for(cls, entry: WhitelistEntry, metadata: dict) -> str:
+        """A human-readable title, from the bundle's own name.
+
+        Most bundles already give a spaced, correctly-capitalised name (e.g.
+        "Whole Body CT Segmentation"), which is used as-is -- re-splitting it
+        would turn "CT" into "C T". Only an unspaced name (snake_case or
+        CamelCase, or a fallback to the whitelist key) needs breaking up.
+        """
+        raw = str(metadata.get("name") or entry.name).strip()
+        if " " in raw:
+            return f"MONAI {raw}"
+        words = re.sub(r"(?<!^)(?=[A-Z])", " ", raw.replace("_", " ")).split()
+        return "MONAI " + " ".join(
+            w.upper() if w.lower() in cls.TITLE_ACRONYMS else w.capitalize()
+            for w in words
+        )
 
     def generate_spec(self, entry: WhitelistEntry, bundle_dir: Path) -> dict:
         """Build a full pipeline2app XNAT spec dict for a model.
 
-        Combines the bundle-derived field fragment with the hand-authored
-        overlay (title/authors/docs/base_image/packages/operates_on).
+        Everything is either derived from the bundle (title, description,
+        sources, sinks, required packages) or a MONAI-wide default (authors,
+        base image, info_url, operates_on). The only per-model human input is
+        in the whitelist: anatomy placement, an optional version pin, and
+        ``package_overrides`` for a bundle pin that does not work in the image.
 
         The command declares its task inline (``type: monai``) pointing at the
         in-image bundle path, rather than referencing a generated Python class.
@@ -224,8 +300,12 @@ class MonaiModels:
         resolved on the build host. So nothing reads the path until the image
         runs, by which point ``resources`` guarantees it exists.
         """
-        overlay = yaml.safe_load(self.overlay_path(entry).read_text()) or {}
+        metadata = self.bundle_metadata(bundle_dir)
         fragment = spec_fragment(bundle_dir)
+        # The bundle's own pins first, then the whitelist's overrides.
+        pip = self.required_packages(bundle_dir)
+        pip.update(entry.package_overrides)
+        pip["pydra-compose-monai"] = PYDRA_COMPOSE_MONAI_REQ
 
         # Rewrite sink paths from bundle metadata paths to frametree store paths.
         sinks = {}
@@ -234,13 +314,12 @@ class MonaiModels:
             sink["path"] = f"monai/{entry.name}/{out_name}"
             sinks[out_name] = sink
 
-        operates_on = overlay.get("operates_on", "medimage/session")
         command = {
             "task": {
                 "type": "monai",
                 "bundle": self.runtime_bundle_path(entry),
             },
-            "operates_on": operates_on,
+            "operates_on": MONAI_OPERATES_ON,
             "sources": fragment["sources"],
             "sinks": sinks,
             "parameters": fragment["parameters"],
@@ -252,6 +331,22 @@ class MonaiModels:
         # release workflow reads command names via ``yq '.commands | keys'``,
         # which only works on a mapping.
         spec = {
+            "title": self.title_for(entry, metadata),
+            "authors": MONAI_AUTHORS,
+            "docs": {
+                "info_url": MONAI_INFO_URL,
+                "description": str(
+                    metadata.get("description")
+                    or f"MONAI Model Zoo bundle '{entry.name}', wrapped as a Pydra "
+                    "task and packaged for the Australian Imaging Service."
+                ),
+            },
+            "base_image": {
+                "name": MONAI_BASE_IMAGE,
+                "tag": MONAI_BASE_IMAGE_TAG,
+                "package_manager": "apt",
+            },
+            "packages": {"pip": pip},
             "name": entry.name,
             "version": entry.version,
             # The full bundle (weights included) is delivered at build time and
@@ -268,11 +363,7 @@ class MonaiModels:
             },
             "commands": {entry.name: command},
         }
-        # overlay supplies title/authors/docs/base_image/packages; it must not
-        # override name/version/commands, so merge overlay UNDER the core spec.
-        merged = _deep_merge(overlay, spec)
-        merged.pop("operates_on", None)  # consumed into the command
-        return merged
+        return spec
 
     def write_spec(self, entry: WhitelistEntry, spec: dict) -> Path:
         path = self.spec_path(entry)

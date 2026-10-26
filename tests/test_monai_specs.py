@@ -130,30 +130,7 @@ def test_detect_changes_flags_new_and_updated(tmp_path, whitelist_file):
 
 
 
-@pytest.fixture
-def overlay_dir(tmp_path: Path, monkeypatch) -> Path:
-    import scripts.monai_specs as ms
-
-    d = tmp_path / "overlays"
-    d.mkdir()
-    (d / "spleen_ct_segmentation.yaml").write_text(
-        yaml.safe_dump(
-            {
-                "title": "MONAI Spleen CT Segmentation",
-                "authors": [{"name": "MONAI Consortium", "email": "x@example.org"}],
-                "docs": {"info_url": "https://monai.io/model-zoo.html"},
-                "base_image": {"name": "projectmonai/monai", "tag": "latest",
-                               "package_manager": "apt"},
-                "packages": {"pip": {"pydra-compose-monai": None}},
-                "operates_on": "session",
-            }
-        )
-    )
-    monkeypatch.setattr(ms, "OVERLAYS_DIR", d)
-    return d
-
-
-def test_generate_spec_shape(tmp_path, whitelist_file, overlay_dir, monkeypatch):
+def test_generate_spec_shape(tmp_path, whitelist_file, monkeypatch):
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
@@ -185,14 +162,15 @@ def test_generate_spec_shape(tmp_path, whitelist_file, overlay_dir, monkeypatch)
     }
     # no redirect is needed any more, so there is no configuration block
     assert "configuration" not in cmd
-    assert cmd["operates_on"] == "session"
+    # namespace-qualified: a bare "session" is not a valid axes reference
+    assert cmd["operates_on"] == "medimage/session"
     assert cmd["sources"]["image"]["datatype"] == "medimage/nifti-gz-x"
     # sink path rewritten to the frametree store path
     assert cmd["sinks"]["pred"]["path"] == "monai/spleen_ct_segmentation/pred"
 
 
 def test_generate_spec_points_bundle_at_runtime_resource(
-    tmp_path, whitelist_file, overlay_dir, monkeypatch
+    tmp_path, whitelist_file, monkeypatch
 ):
     """The task's ``bundle`` and its ``resources`` entry must name one path.
 
@@ -219,7 +197,7 @@ def test_generate_spec_points_bundle_at_runtime_resource(
 
 
 def test_generated_spec_bundle_is_not_a_user_parameter(
-    tmp_path, whitelist_file, overlay_dir, monkeypatch
+    tmp_path, whitelist_file, monkeypatch
 ):
     """``bundle`` is set via configuration, so it must not be user-facing."""
     import importlib
@@ -252,7 +230,7 @@ def test_generated_spec_bundle_is_not_a_user_parameter(
 
 
 def test_generated_spec_commands_match_release_workflow_contract(
-    tmp_path, whitelist_file, overlay_dir, monkeypatch
+    tmp_path, whitelist_file, monkeypatch
 ):
     """release.yml runs ``yq '.commands | keys'``, which requires a mapping.
 
@@ -285,7 +263,7 @@ def test_write_spec_creates_yaml(tmp_path, whitelist_file):
     assert reloaded["version"] == "0.5.3"
 
 
-def test_sync_writes_only_changed(tmp_path, whitelist_file, overlay_dir, monkeypatch):
+def test_sync_writes_only_changed(tmp_path, whitelist_file, monkeypatch):
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(ms, "get_all_bundles_list",
@@ -318,7 +296,7 @@ def test_sync_writes_only_changed(tmp_path, whitelist_file, overlay_dir, monkeyp
 
 
 def test_fetch_resources_reads_specs_and_populates_resources_dir(
-    tmp_path, whitelist_file, overlay_dir, monkeypatch
+    tmp_path, whitelist_file, monkeypatch
 ):
     """``fetch-resources`` stages each spec's full bundle for --resources-dir.
 
@@ -362,7 +340,7 @@ def test_fetch_resources_reads_specs_and_populates_resources_dir(
 
 
 def test_fetch_resources_is_idempotent(
-    tmp_path, whitelist_file, overlay_dir, monkeypatch
+    tmp_path, whitelist_file, monkeypatch
 ):
     """Re-running replaces the staged copy rather than merging into it."""
     import scripts.monai_specs as ms
@@ -406,6 +384,184 @@ def test_fetch_resources_ignores_non_monai_specs(tmp_path, whitelist_file):
     assert mm.fetch_resources(tmp_path / "resources", download=fail_download) == []
 
 
+def _write_bundle_metadata(dest: Path, **extra) -> Path:
+    """A bundle whose metadata.json carries arbitrary extra top-level fields."""
+    configs = dest / "configs"
+    configs.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "name": "WholeBodyCtSegmentation",
+        "network_data_format": {
+            "inputs": {"image": {"type": "image", "modality": "CT"}},
+            "outputs": {"pred": {"type": "image", "format": "segmentation"}},
+        },
+    }
+    metadata.update(extra)
+    (configs / "metadata.json").write_text(json.dumps(metadata))
+    return dest
+
+
+def test_spec_fields_come_from_bundle_and_defaults_not_an_overlay(
+    tmp_path, whitelist_file, monkeypatch
+):
+    """No per-model overlay: constants are defaults, the rest is derived.
+
+    Everything an overlay used to carry is either the same for every MONAI
+    bundle (authors, base image, info_url, operates_on) or already in the
+    bundle's metadata (title, description).
+    """
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    bundle = _write_bundle_metadata(
+        tmp_path / "bundle",
+        description="Segments 104 structures from CT.",
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    spec = mm.generate_spec(entry, bundle_dir=bundle)
+
+    # derived from the bundle
+    assert spec["docs"]["description"] == "Segments 104 structures from CT."
+    # title comes from the bundle's own `name`, not the whitelist key.
+    # This bundle's name is unspaced CamelCase, so it is split; a name that
+    # is already spaced (as most real bundles are) is used verbatim.
+    assert spec["title"] == "MONAI Whole Body CT Segmentation"
+    # constant for every MONAI bundle
+    assert spec["base_image"]["name"] == "projectmonai/monai"
+    assert spec["base_image"]["tag"] == ms.MONAI_BASE_IMAGE_TAG
+    assert spec["authors"][0]["name"] == "MONAI Consortium"
+    assert spec["docs"]["info_url"] == "https://monai.io/model-zoo.html"
+    assert spec["commands"][entry.name]["operates_on"] == "medimage/session"
+    assert spec["packages"]["pip"]["pydra-compose-monai"] == ms.PYDRA_COMPOSE_MONAI_REQ
+
+
+def test_title_uses_an_already_spaced_bundle_name_verbatim(
+    tmp_path, whitelist_file, monkeypatch
+):
+    """Most real bundles name themselves readably -- don't re-split them.
+
+    wholeBody_ct_segmentation's metadata name is "Whole Body CT Segmentation";
+    splitting that on capitals yields "Whole Body C T Segmentation".
+    """
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    bundle = _write_bundle_metadata(tmp_path / "bundle", name="Whole Body CT Segmentation")
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.2.7")
+
+    spec = mm.generate_spec(entry, bundle_dir=bundle)
+    assert spec["title"] == "MONAI Whole Body CT Segmentation"
+
+
+def test_whitelist_package_overrides_beat_bundle_pins(tmp_path, monkeypatch):
+    """A per-model pin the bundle gets wrong is recorded in the whitelist.
+
+    wholeBody_ct_segmentation pins pytorch-ignite 0.4.11, which installs but
+    cannot be imported on Python 3.11. That is the only genuinely per-model
+    value, so it lives with the other per-model decisions rather than in a
+    file of its own.
+    """
+    import scripts.monai_specs as ms
+
+    wl = tmp_path / "wl.yaml"
+    wl.write_text(
+        yaml.safe_dump(
+            {
+                "models": {
+                    "wholeBody_ct_segmentation": {
+                        "version": None,
+                        "modality": "ct",
+                        "species": "human",
+                        "region": "whole-body",
+                        "package_overrides": {"pytorch-ignite": ">=0.5"},
+                    }
+                }
+            }
+        )
+    )
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    bundle = _write_bundle_metadata(
+        tmp_path / "bundle",
+        required_packages_version={"pytorch-ignite": "0.4.11", "itk": "5.4.0"},
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=wl)
+    entry = mm.whitelist()[0]._replace(version="0.2.7")
+    spec = mm.generate_spec(entry, bundle_dir=bundle)
+
+    pip = spec["packages"]["pip"]
+    assert pip["pytorch-ignite"] == ">=0.5"  # override wins
+    assert pip["itk"] == "5.4.0"  # bundle pin untouched
+
+
+def test_whitelist_entry_without_overrides_still_parses(tmp_path, whitelist_file):
+    """`package_overrides` is optional -- most models will not need one."""
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    assert mm.whitelist()[0].package_overrides == {}
+
+
+def test_generate_spec_includes_bundle_required_packages(
+    tmp_path, whitelist_file, monkeypatch
+):
+    """A bundle's own declared requirements must reach the image.
+
+    Bundles record what they need to run in metadata.json's
+    `required_packages_version`. Without it, wholeBody_ct_segmentation built
+    fine and then failed at inference with
+    `OptionalImportError: from ignite.engine import State`, because
+    SupervisedEvaluator needs pytorch-ignite and nothing installed it.
+    """
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    bundle = _write_bundle_metadata(
+        tmp_path / "bundle",
+        required_packages_version={
+            "pytorch-ignite": "0.4.11",
+            "nibabel": "5.2.1",
+        },
+    )
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    spec = mm.generate_spec(entry, bundle_dir=bundle)
+
+    pip = spec["packages"]["pip"]
+    assert pip["pytorch-ignite"] == "0.4.11"
+    assert pip["nibabel"] == "5.2.1"
+    # the overlay's own entries survive alongside them
+    assert "pydra-compose-monai" in pip
+
+
+def test_generate_spec_without_required_packages_is_unchanged(
+    tmp_path, whitelist_file, monkeypatch
+):
+    """Bundles that declare nothing must not grow an empty or broken section."""
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    bundle = _write_bundle_metadata(tmp_path / "bundle")
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    spec = mm.generate_spec(entry, bundle_dir=bundle)
+
+    assert list(spec["packages"]["pip"]) == ["pydra-compose-monai"]
+
+
 def _make_synthetic_bundle(dest: Path) -> Path:
     configs = dest / "configs"
     configs.mkdir(parents=True, exist_ok=True)
@@ -424,7 +580,7 @@ def _make_synthetic_bundle(dest: Path) -> Path:
     return dest
 
 
-def test_generated_spec_loads_as_xnatapp(tmp_path, whitelist_file, overlay_dir, monkeypatch):
+def test_generated_spec_loads_as_xnatapp(tmp_path, whitelist_file, monkeypatch):
     import importlib
     import scripts.monai_specs as ms
     from pydra2app.xnat import XnatApp
