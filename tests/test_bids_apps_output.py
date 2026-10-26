@@ -1,0 +1,120 @@
+import itertools
+import json
+import typing as ty
+from pathlib import Path
+
+from fileformats.medimage import DicomDir
+from fileformats.text import Plain as PlainText
+from frametree.core.utils import show_cli_trace
+from frametree.xnat import Xnat
+from pydra.utils.typing import TypeParser
+from pydra2app.core.cli import make
+from pydra2app.core.command import ContainerCommand
+from pydra2app.xnat import XnatApp
+from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
+
+SKIP_BUILD = False
+
+PKG_DIR = Path(__file__).parent.parent
+
+FREESURFER_LICENSE_PATH = Path(
+    PKG_DIR / "tests" / "data" / "licenses" / "freesurfer_license.txt"
+)
+
+
+def test_bids_app(
+    bids_app_blueprint,
+    run_prefix,
+    xnat_repository: Xnat,
+    xnat_connect: ty.Any,
+    cli_runner: ty.Any,
+):
+
+    bp = bids_app_blueprint
+
+    build_dir = bp.spec_path.parent / ".build-test" / bp.spec_path.stem
+
+    build_dir.mkdir(exist_ok=True, parents=True)
+
+    if SKIP_BUILD:
+        build_arg = "--generate-only"
+    else:
+        build_arg = "--build"
+
+    frameset = xnat_repository.define_frameset(bids_app_blueprint.project_id)
+    frameset.install_license("freesurfer", PlainText(FREESURFER_LICENSE_PATH))
+
+    result = cli_runner(
+        make,
+        list(
+            itertools.chain(
+                [
+                    "xnat",
+                    str(bp.spec_path),
+                    "--registry",
+                    "pipelines-core-test",
+                    "--build-dir",
+                    str(build_dir),
+                    build_arg,
+                    "--for-localhost",
+                    "--use-local-packages",
+                    "--raise-errors",
+                ],
+            )
+        ),
+    )
+
+    assert result.exit_code == 0, show_cli_trace(result)
+
+    image_spec = XnatApp.load(bp.spec_path)
+
+    with xnat_connect() as xlogin:
+
+        build_name = image_spec.name.split(".")[-1]
+
+        with open(build_dir / "xnat_commands" / (build_name + ".json")) as f:
+            xnat_command = json.load(f)
+        xnat_command["name"] = xnat_command["label"] = image_spec.name + run_prefix
+
+        test_xsession = next(iter(xlogin.projects[bp.project_id].experiments.values()))
+
+        inputs_json = {}
+
+        for src in image_spec.command().sources:
+            if (bids_app_blueprint.test_data / src.name).exists():
+                test_data = bids_app_blueprint.test_data / src.name
+                input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
+                if isinstance(input_file, DicomDir):
+                    inpt = input_file.contents[0].metadata["SeriesDescription"]
+                else:
+                    inpt = src.name
+                # Load qualifiers from a JSON file if it exists
+                qualifiers_path = test_data / "qualifiers.json"
+                if qualifiers_path.exists():
+                    with open(qualifiers_path) as f:
+                        dct = json.load(f)
+                    inpt = ContainerCommand.format_qualifiers(path=inpt, qualifiers=dct)
+                inputs_json[src.name] = inpt
+            else:
+                inputs_json[src.name] = ""
+
+        for pname, pval in bp.parameters.items():
+            inputs_json[pname] = pval
+
+        inputs_json["pydra2app_flags"] = (
+            "--worker debug "
+            "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
+            "--dataset-name default "
+            "--logger frametree debug "
+            "--logger pydra2app debug "
+        )
+
+        workflow_id, status, out_str = install_and_launch_xnat_cs_command(
+            command_json=xnat_command,
+            project_id=bp.project_id,
+            session_id=test_xsession.id,
+            inputs=inputs_json,
+            xlogin=xlogin,
+            timeout=30000,
+        )
+        assert status == "Complete", f"Workflow {workflow_id} failed.\n{out_str}"
