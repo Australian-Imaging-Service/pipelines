@@ -33,7 +33,7 @@ the input requirements for FastSurfer
 #### Inputs
 |Name|Data-type(s)|Required|Description|
 |----|------------|--------|-----------|
-|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz</span>|Y|The T1-weighted MRI dataset to preprocess|
+|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz+convertible-to" aria-label="medimage/nifti-gz+convertible-to">medimage/nifti-gz+convertible-to</span>|Y|The T1-weighted MRI dataset to preprocess|
 
 #### Outputs
 |Name|Data-type(s)|Always generated|Description|
@@ -61,7 +61,7 @@ the input requirements for FastSurfer
 #### Inputs
 |Name|Data-type(s)|Required|Description|
 |----|------------|--------|-----------|
-|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz" aria-label="medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz">medimage/dicom-dir\|medimage/dicom-series\|medimage/nifti-gz</span>|Y|The T1-weighted MRI dataset to preprocess|
+|`T1w`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz+convertible-to" aria-label="medimage/nifti-gz+convertible-to">medimage/nifti-gz+convertible-to</span>|Y|The T1-weighted MRI dataset to preprocess|
 
 #### Outputs
 |Name|Data-type(s)|Always generated|Description|
