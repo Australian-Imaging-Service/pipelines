@@ -49,7 +49,7 @@ dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
 # pydra2app >=0.23.2 can defer loading a task whose files only exist inside the
 # image being built (see the `monai` extra below), and pydra2app-xnat >=0.9.1
 # is needed for that to work through XnatApp.
-build = ["pydra2app >=0.23.2", "pydra2app-xnat >=0.9.1"]
+build = ["pydra2app >=0.23.3", "pydra2app-xnat >=0.9.1"]
 
 # Build tooling for MONAI specs, needed only by scripts/monai_specs.py (sync,
 # fetch-resources, triage) -- not by the installed package, and not by any
@@ -85,7 +85,7 @@ monai = ["monai >=1.4.0", "pydra-compose-monai >=0.2.0", "huggingface_hub"]
 # versions redeclared `image` on XnatCommand, which moved it after `task` in
 # the attrs field order, so it was still unset when the task was loaded and
 # `can_defer_task` was never reached.
-test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.1", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.23.2", "pydra2app-xnat>=0.9.1", "australianimagingservice[monai]"]
+test = ["pytest >=6.2.5", "pytest-env>=0.6.2", "pytest-cov>=2.12.1", "frametree>=0.17.4", "frametree-xnat>=0.6.16", "xnat4tests>=0.3.14", "pydra2app>=0.23.3", "pydra2app-xnat>=0.9.1", "australianimagingservice[monai]"]
 
 
 [project.urls]
