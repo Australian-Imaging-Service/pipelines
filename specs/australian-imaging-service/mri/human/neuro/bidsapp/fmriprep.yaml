@@ -143,3 +143,4 @@ commands:
       json_edits:
         path: "fmap/.*"
         jq_expr: '.IntendedFor = "{bold}"'
+      # json_edits: 'func/.*bold ".SliceTiming[] /= 1000.0"'

@@ -15,16 +15,16 @@ packages:
     simplejson:
     acres:
     looseversion:
+    fileformats:
     fileformats-datascience:
     fileformats-medimage:
+    fileformats-medimage-extras:
     fileformats-vendor-fsl:
     pydra: '>=1.0a11'
     pydra-tasks-mrtrix3:
-    pydra-tasks-fsl:
-    fileformats:
+    pydra-tasks-fsl: '>=0.3.1'
     pydra-tasks-fastsurfer:
     pydra-tasks-freesurfer:
-    fileformats-medimage-extras:
     pydra2app:
     frametree:
     frametree-xnat:

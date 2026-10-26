@@ -1,10 +1,12 @@
 import itertools
 import json
 import typing as ty
+from pathlib import Path
 
-from anyio import Path
 from fileformats.medimage import DicomDir
+from fileformats.text import Plain as PlainText
 from frametree.core.utils import show_cli_trace
+from frametree.xnat import Xnat
 from pydra.utils.typing import TypeParser
 from pydra2app.core.cli import make
 from pydra2app.xnat import XnatApp
@@ -12,12 +14,18 @@ from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
 
 SKIP_BUILD = False
 
+PKG_DIR = Path(__file__).parent.parent
+
+FREESURFER_LICENSE_PATH = Path(
+    PKG_DIR / "tests" / "data" / "licenses" / "freesurfer_license.txt"
+)
+
 
 def test_bids_app(
     bids_app_blueprint,
     run_prefix,
+    xnat_repository: Xnat,
     xnat_connect: ty.Any,
-    license_src: Path,
     cli_runner: ty.Any,
 ):
 
@@ -32,7 +40,8 @@ def test_bids_app(
     else:
         build_arg = "--build"
 
-    licenses = [["--license", p.stem, str(p)] for p in license_src.glob("*")]
+    frameset = xnat_repository.define_frameset(bids_app_blueprint.project_id)
+    frameset.install_license("freesurfer", PlainText(FREESURFER_LICENSE_PATH))
 
     result = cli_runner(
         make,
@@ -50,7 +59,6 @@ def test_bids_app(
                     "--use-local-packages",
                     "--raise-errors",
                 ],
-                *licenses,
             )
         ),
     )
@@ -83,7 +91,7 @@ def test_bids_app(
                         converter_args += f" converter.{name}={val}"
                 input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
                 if isinstance(input_file, DicomDir):
-                    inpt = input_file.metadata["SeriesDescription"]
+                    inpt = input_file.contents[0].metadata["SeriesDescription"]
                 else:
                     inpt = src.name
                 inputs_json[src.name] = inpt + converter_args

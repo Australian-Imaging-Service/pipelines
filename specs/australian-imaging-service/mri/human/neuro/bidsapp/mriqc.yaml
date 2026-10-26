@@ -19,6 +19,9 @@ packages:
     - pydra-tasks-dcm2niix
     - pydra-tasks-mrtrix3
     - pydra-compose-bidsapp
+    - frametree
+    - pydra
+    - pydra2app
   neurodocker:
     dcm2niix: v1.0.20250506
     mrtrix3:
@@ -31,7 +34,7 @@ commands:
     operates_on: medimage/session
     task:
       type: bidsapp
-      app: /usr/local/miniconda/bin/mriqc
+      app: /opt/conda/bin/mriqc
       inputs:
         t1w:
           type: medimage/nifti-gz-x
@@ -54,3 +57,4 @@ commands:
           path: mriqc
     configuration:
       work_dir: /work/nipype-work
+      flags: '--nprocs 1'  # Avoid mem-gb bug https://github.com/nipreps/mriqc/pull/1447
