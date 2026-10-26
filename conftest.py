@@ -1,18 +1,18 @@
-import os
 import logging
-from pathlib import Path
+import os
 import tempfile
 import typing as ty
-from datetime import datetime
 from dataclasses import dataclass
-from frametree.core.utils import varname2path
-from frametree.xnat import Xnat
-from fileformats.application import Dicom
+from datetime import datetime
+from pathlib import Path
+
 import pytest
-from click.testing import CliRunner
-from fileformats.medimage import DicomDir
 import xnat
 import xnat4tests
+from click.testing import CliRunner
+from fileformats.application import Dicom
+from frametree.core.utils import varname2path
+from frametree.xnat import Xnat
 
 # Set DEBUG logging for unittests
 
@@ -53,7 +53,7 @@ class BidsAppTestBlueprint:
 
     spec_path: str
     project_id: str
-    parameters: ty.Dict[str, str]
+    parameters: dict[str, str]
     test_data: Path
 
 
@@ -154,7 +154,7 @@ TEST_SUBJECT_LABEL = "TESTSUBJ"
 TEST_SESSION_LABEL = "TESTSUBJ_01"
 
 
-def make_project_id(dataset_name: str, run_prefix: ty.Optional[str] = None) -> str:
+def make_project_id(dataset_name: str, run_prefix: str | None = None) -> str:
     return (run_prefix if run_prefix else "") + dataset_name
 
 
