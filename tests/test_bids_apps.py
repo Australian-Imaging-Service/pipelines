@@ -1,14 +1,14 @@
-import json
 import itertools
+import json
 import typing as ty
+
 from anyio import Path
 from fileformats.medimage import DicomDir
+from frametree.core.utils import show_cli_trace
 from pydra.utils.typing import TypeParser
 from pydra2app.core.cli import make
 from pydra2app.xnat import XnatApp
-from frametree.core.utils import show_cli_trace
 from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
-
 
 SKIP_BUILD = False
 
