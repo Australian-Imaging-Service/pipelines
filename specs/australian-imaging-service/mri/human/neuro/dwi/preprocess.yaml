@@ -1,13 +1,6 @@
 title: "Preprocess diffusion-weighted MRI" # Short name for the pipeline referenced in the UI
 schema_version: "2.0" # the version of the specification format used for this file
-version: "0.1.0"
-base_image:
-  # Same base image as t1w/preprocess.yaml — provides mri_synthstrip (used by
-  # DwiPreprocessing for brain masking) and a bundled FreeSurfer license
-  # mechanism
-  name: deepmi/fastsurfer
-  package_manager: apt
-  tag: gpu-latest
+version: "0.1.1"
 packages:
   pip:
     setuptools:
@@ -24,7 +17,6 @@ packages:
     # which eagerly pulls in pydra-tasks-freesurfer/pydra-tasks-fastsurfer too
     # (see t1w/preprocess.yaml, which declares the same two for the same reason)
     pydra-tasks-freesurfer:
-    pydra-tasks-fastsurfer:
     fileformats:
     fileformats-medimage-extras:
     # DwiPreprocessing imports MrConvertWithFslGrad directly from this package's
@@ -66,16 +58,11 @@ authors:
     email: thomas.close@sydney.edu.au
 licenses:
   freesurfer:
-    destination:
-      &freesurfer_license !join [
-        "/opt/freesurfer-",
-        *freesurfer_version,
-        "/license.txt",
-      ]
+    destination: &freesurfer_license !join ["/opt/freesurfer-", *freesurfer_version, "/license.txt"]
     info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
     description: >
-      DwiPreprocessing uses mri_synthstrip (a FreeSurfer-distributed tool) for
-      brain masking, which requires a FreeSurfer license to run.
+      DwiPreprocessing uses mri_synthstrip (a FreeSurfer-distributed tool) for brain masking, which requires a FreeSurfer license to run.
+
 docs:
   info_url: "https://placeholder.org" # Link to external documentation for underlying tool
   description: | # Description of tool for auto-docs
@@ -96,9 +83,7 @@ commands:
       RPE:
         field: rpe_file
         help: >-
-          Optional reverse phase-encode (or b0-only) companion image, used
-          for topup distortion correction. If not provided, only eddy motion
-          correction is performed.
+          Optional reverse phase-encode (or b0-only) companion image, used for topup distortion correction. If not provided, only eddy motion correction is performed.
     sinks:
       dwi_preprocess:
         field: out_dir
@@ -110,10 +95,7 @@ commands:
       RpeMode:
         field: rpe_mode
         help: >-
-          Reverse phase-encode mode passed to dwifslpreproc: rpe_none (no RPE
-          image), rpe_pair (RPE is b0-only or unequal volumes to DWI),
-          rpe_all (RPE is a full DWI series with equal volumes), or
-          rpe_header (PE info embedded in the image header)
+          Reverse phase-encode mode passed to dwifslpreproc: rpe_none (no RPE image), rpe_pair (RPE is b0-only or unequal volumes to DWI), rpe_all (RPE is a full DWI series with equal volumes), or rpe_header (PE info embedded in the image header)
         default: rpe_none
       ReadoutTime:
         field: readout_time
