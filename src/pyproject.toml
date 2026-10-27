@@ -50,7 +50,7 @@ dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
 # pydra2app >=0.23.2 can defer loading a task whose files only exist inside the
 # image being built (see the `monai` extra below), and pydra2app-xnat >=0.9.1
 # is needed for that to work through XnatApp.
-build = ["pydra2app >=0.23.2", "pydra2app-xnat >=0.9.1"]
+build = ["pydra2app >=0.23.3", "pydra2app-xnat >=0.9.1", "frametree >=0.17.4"]
 
 # Build tooling for MONAI specs, needed only by scripts/monai_specs.py (sync,
 # fetch-resources, triage) -- not by the installed package, and not by any
