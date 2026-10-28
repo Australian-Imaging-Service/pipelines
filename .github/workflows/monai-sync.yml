@@ -33,6 +33,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e "./src[test]"
+      # The scheduled run and a manual `workflow_dispatch` take the same path:
+      # `sync` regenerates every whitelisted model's spec and writes only the
+      # ones that actually differ (#495). There is no --force variant and none
+      # is needed -- a run with nothing to do writes nothing, so it opens no PR.
       - name: Generate/update MONAI specs
         run: python -m scripts.monai_specs sync
       - name: Open PR with changes
@@ -45,6 +49,12 @@ jobs:
           body: "Automated MONAI Model Zoo spec sync. Review generated specs before merge."
           # Only the spec is generated now -- no task module, no vendored
           # bundle -- so nothing under src/ needs staging.
+          #
+          # This must also carry *deletions*: when a model's anatomy fields
+          # change, sync writes the spec at the new path and removes the one
+          # left at the old. The action stages with `git add -A -- <paths>`,
+          # which picks up a removal as long as the deleted path matches the
+          # glob -- the old path is under specs/**/monai/** too, so it does.
           add-paths: |
             specs/**/monai/**
       # Triage runs after the sync PR so the report reflects decisions already
