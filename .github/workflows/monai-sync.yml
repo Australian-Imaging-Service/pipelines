@@ -1,12 +1,13 @@
 name: Sync MONAI model specs
 on:
-  # PAUSED until #494 lands. The generator still vendors bundle configs and
-  # writes a task module per model, which is the shape rejected on #486 and
-  # again on #522 -- so each run reopens a PR that will not be merged. Leaving
-  # it scheduled just produces a weekly PR to close.
+  # PAUSED until a MONAI pipeline has been run end to end (#498). The generator
+  # now emits standalone specs (#494), but no generated spec should merge until
+  # one has been tested, since a merged spec ships with the next tag. Until then
+  # each run reopens a PR for the approved-but-untested models that will not be
+  # merged, so leaving it scheduled just produces a weekly PR to close.
   #
   # Restore by uncommenting the two lines below. `workflow_dispatch` is kept so
-  # the sync can still be run by hand while #494 is in progress.
+  # the sync can still be run by hand in the meantime.
   #
   # schedule:
   #   # 16:00 UTC Sunday = 02:00 Monday in Sydney during AEST (UTC+10). Cron has
@@ -41,7 +42,7 @@ jobs:
           base: main
           title: "Update MONAI model specs"
           commit-message: "chore(monai): sync model specs from Model Zoo"
-          body: "Automated MONAI Model Zoo spec sync. Review generated specs and task modules before merge."
+          body: "Automated MONAI Model Zoo spec sync. Review generated specs before merge."
           # Only the spec is generated now -- no task module, no vendored
           # bundle -- so nothing under src/ needs staging.
           add-paths: |
