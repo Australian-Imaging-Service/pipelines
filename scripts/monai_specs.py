@@ -520,7 +520,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "command",
         choices=["sync", "fetch-resources", "triage"],
         help=(
-            "sync: regenerate specs/task modules from the Model Zoo. "
+            "sync: regenerate specs from the Model Zoo. "
             "fetch-resources: download the full bundles (weights included) "
             "that the generated specs declare, ready for --resources-dir. "
             "Required before building, as weights are not committed. "
