@@ -4,10 +4,14 @@ The release workflow produces container images and a complete, versioned catalog
 
 ## Selection and building
 
-The approved set is the workflow's `HAND_LISTED` entries plus committed generated
-MONAI specs. Generated MONAI Python modules and their bundle configuration must be
-committed alongside the specs. The planning job installs the pipelines package so
-those task classes resolve.
+Every spec under `specs/australian-imaging-service` is selected unless it is
+listed in the workflow's `EXCLUDED` block, each entry with a `#` comment giving
+the reason. Generated MONAI specs are selected the same way. They are
+self-contained: the command's sources and sinks are written into the spec at
+sync time, so nothing from the bundle is committed. Before a MONAI spec is built,
+the workflow runs `python -m scripts.monai_specs fetch-resources` to download
+the full bundle, weights included, at the version recorded in the spec, and
+passes it to the build with `--resources-dir`.
 
 `pydra2app plan-builds` checks this set against GHCR and produces `release-plan.json`
 with `build` and `unchanged` lists. New and incremented versions are built in
