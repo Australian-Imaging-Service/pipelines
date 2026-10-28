@@ -203,13 +203,50 @@ class MonaiModels:
         version = data.get("version")
         return str(version) if version is not None else None
 
-    def detect_changes(self, entries: List[WhitelistEntry]) -> List[WhitelistEntry]:
-        """Return entries with no spec yet, or whose version differs from the spec."""
-        changed: List[WhitelistEntry] = []
-        for entry in entries:
-            if self.existing_version(entry) != entry.version:
-                changed.append(entry)
-        return changed
+    def existing_spec(self, entry: WhitelistEntry) -> Optional[dict]:
+        """The spec currently on disk for ``entry``, or None if there isn't one."""
+        path = self.spec_path(entry)
+        if not path.is_file():
+            return None
+        return yaml.safe_load(path.read_text()) or {}
+
+    def is_changed(self, entry: WhitelistEntry, spec: dict) -> bool:
+        """Whether a freshly generated ``spec`` differs from the one on disk.
+
+        A generated spec is a function of three inputs -- the Zoo version, the
+        model's whitelist entry, and the generator code -- so comparing the
+        output covers all three. The previous check compared only the version
+        recorded in the spec, which left whitelist and generator changes
+        silently unapplied: correcting a pin, adding ``package_overrides`` and
+        moving a model's ``region`` each produced no regeneration during #532
+        and had to be forced by deleting the spec by hand (#495).
+
+        Comparing output was originally rejected as costing a bundle download
+        per model per run. Since #494 sync already downloads every bundle to
+        read its metadata, so that cost is already being paid.
+        """
+        return self.existing_spec(entry) != spec
+
+    def orphaned_specs(self, entries: List[WhitelistEntry]) -> List[Path]:
+        """Specs for whitelisted models that sit somewhere other than their path.
+
+        ``spec_path`` is derived from the entry's anatomy fields, so changing
+        ``region`` (or ``modality``/``species``) makes the generator write to a
+        new path and leave the old spec behind. The stale copy still builds, so
+        it is worse than one that is merely out of date -- the Zoo would be
+        serving two images for one model.
+
+        Only models in ``entries`` are considered. A spec whose model has been
+        removed from the whitelist entirely is a withdrawal, reported by
+        ``withdrawn()`` for a human to act on, not something to delete here.
+        """
+        wanted = {self.spec_path(e) for e in entries}
+        names = {e.name for e in entries}
+        return [
+            path
+            for path in self.monai_specs()
+            if path.stem in names and path not in wanted
+        ]
 
     def resource_name(self, entry: WhitelistEntry) -> str:
         """Name of the build-time resource carrying the model's full bundle.
@@ -371,12 +408,20 @@ class MonaiModels:
         path.write_text(yaml.safe_dump(spec, sort_keys=False))
         return path
 
-    def sync(self, download_bundle: Callable[[WhitelistEntry], Path]) -> List[Path]:
-        """Full pipeline: fetch → filter → detect → generate → write.
+    def sync(
+        self, download_bundle: Callable[[WhitelistEntry], Path]
+    ) -> ty.Tuple[List[Path], List[Path]]:
+        """Full pipeline: fetch → filter → generate → compare → write.
 
-        For each changed model, download the bundle, read its metadata to derive
-        the command's sources and sinks, and write the spec. Returns the spec
-        paths written.
+        For each whitelisted model, download the bundle, read its metadata to
+        derive the command's sources and sinks, and generate the spec. The spec
+        is written only if it differs from what is already on disk, so a run
+        that changes nothing touches no files and produces no commit.
+
+        Generating before comparing, rather than gating on the version first, is
+        what makes whitelist and generator changes visible to the comparison
+        (#495). It costs nothing extra: since #494 the bundle is downloaded for
+        its metadata either way.
 
         The bundle is read here and then discarded -- nothing from it is
         committed. Deriving sources/sinks at generation time is what lets the
@@ -384,16 +429,45 @@ class MonaiModels:
 
         ``download_bundle`` maps an entry to a local bundle root directory
         (injected so tests need no network; production passes ``self._download``).
+
+        Returns ``(written, removed)`` -- the specs written, and the stale specs
+        deleted after a model moved in the tree.
         """
         available = self.fetch_available()
         whitelisted = self.filter_whitelist(available)
-        changed = self.detect_changes(whitelisted)
+
         written: List[Path] = []
-        for entry in changed:
+        for entry in whitelisted:
             bundle_dir = download_bundle(entry)
             spec = self.generate_spec(entry, bundle_dir)
-            written.append(self.write_spec(entry, spec))
-        return written
+            if self.is_changed(entry, spec):
+                written.append(self.write_spec(entry, spec))
+
+        # After writing, so a model that moved has its spec at the new path
+        # before the old one goes -- never a window with neither.
+        removed: List[Path] = []
+        for path in self.orphaned_specs(whitelisted):
+            path.unlink()
+            removed.append(path)
+            self._prune_empty_dirs(path.parent)
+        return written, removed
+
+    def _prune_empty_dirs(self, directory: Path) -> None:
+        """Remove ``directory`` and empty ancestors, stopping at the specs root.
+
+        A relocated model otherwise leaves its old ``<region>/monai/`` behind as
+        an empty directory. Git does not track those, but they are noise in a
+        working tree and make the anatomy layout misleading to read.
+        """
+        specs_root = self.root / "specs" / "australian-imaging-service"
+        while (
+            directory != specs_root
+            and specs_root in directory.parents
+            and directory.is_dir()
+            and not any(directory.iterdir())
+        ):
+            directory.rmdir()
+            directory = directory.parent
 
     def _download(self, entry: WhitelistEntry) -> Path:
         """Download a bundle from the Model Zoo into ``<root>/.monai-bundles``."""
@@ -567,9 +641,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             print("no MONAI specs declaring bundle resources found")
         return 0
 
-    written = mm.sync(download_bundle=mm._download)
+    written, removed = mm.sync(download_bundle=mm._download)
     for path in written:
         print(f"wrote {path}")
+    for path in removed:
+        print(f"removed {path} (model moved in the tree)")
+    if not written and not removed:
+        print("all specs up to date")
     return 0
 
 

@@ -101,31 +101,54 @@ def test_fetch_available_uses_monai_api(tmp_path, whitelist_file, monkeypatch):
     assert available["spleen_ct_segmentation"] == "0.5.3"
 
 
-def _write_spec(path: Path, version: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump({"name": path.stem, "version": version}))
-
-
 def test_existing_version_none_when_missing(tmp_path, whitelist_file):
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]
     assert mm.existing_version(entry) is None
 
 
-def test_detect_changes_flags_new_and_updated(tmp_path, whitelist_file):
+def test_is_changed_compares_whole_spec_not_just_version(tmp_path, whitelist_file):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    spec = {"name": entry.name, "version": "0.5.3", "packages": {"pip": {}}}
+
+    # No spec yet -> changed (new)
+    assert mm.is_changed(entry, spec)
+
+    # Identical spec on disk -> unchanged
+    mm.write_spec(entry, spec)
+    assert not mm.is_changed(entry, spec)
+
+    # Version moved -> changed
+    assert mm.is_changed(entry, {**spec, "version": "0.6.0"})
+
+    # Same version but different content -> changed. This is the #495 case:
+    # the old check only compared `version`, so a whitelist or generator
+    # change at an unchanged Zoo version was silently skipped.
+    assert mm.is_changed(entry, {**spec, "packages": {"pip": {"ignite": ">=0.5"}}})
+
+
+def test_orphaned_specs_finds_a_model_that_moved(tmp_path, whitelist_file):
+    """Changing a model's anatomy fields must not leave the old spec behind.
+
+    ``spec_path`` is derived from modality/species/region, so a relocation
+    writes to a new path. The spec at the old one still builds, so leaving it
+    would publish two images for one model.
+    """
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]._replace(version="0.5.3")
 
-    # No spec yet -> flagged as changed (new)
-    assert mm.detect_changes([entry]) == [entry]
+    # Spec written at the original region ...
+    old_path = mm.write_spec(entry, {"name": entry.name, "version": "0.5.3"})
+    assert mm.orphaned_specs([entry]) == []
 
-    # Spec at same version -> not flagged
-    _write_spec(mm.spec_path(entry), "0.5.3")
-    assert mm.detect_changes([entry]) == []
+    # ... then the whitelist moves the model to a new region.
+    moved = entry._replace(region="whole-body")
+    assert mm.orphaned_specs([moved]) == [old_path]
 
-    # Spec at older version -> flagged (updated)
-    _write_spec(mm.spec_path(entry), "0.5.0")
-    assert mm.detect_changes([entry]) == [entry]
+    # A spec for a model that is no longer whitelisted at all is a withdrawal,
+    # reported by withdrawn() for a human, not an orphan to delete here.
+    assert mm.orphaned_specs([]) == []
 
 
 
@@ -216,7 +239,7 @@ def test_generated_spec_bundle_is_not_a_user_parameter(
     )
     bundle = _make_synthetic_bundle(tmp_path / "downloaded")
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    written = mm.sync(download_bundle=lambda entry: bundle)
+    written, _ = mm.sync(download_bundle=lambda entry: bundle)
 
     monkeypatch.syspath_prepend(str(tmp_path / "src"))
     importlib.invalidate_caches()
@@ -280,19 +303,133 @@ def test_sync_writes_only_changed(tmp_path, whitelist_file, monkeypatch):
 
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
 
-    written = mm.sync(download_bundle=lambda entry: fake_bundle)
+    written, removed = mm.sync(download_bundle=lambda entry: fake_bundle)
     assert len(written) == 1
     assert written[0].is_file()
-    # sync also emitted the committed per-model task module ...
-    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    assert removed == []
     # nothing is vendored or generated beside the spec any more
     assert not (tmp_path / "src").exists()
     # the downloaded bundle is read and discarded, never committed
     assert not list((tmp_path / "specs").glob("**/*_bundle"))
 
-    # Second run: version unchanged -> nothing written
-    written2 = mm.sync(download_bundle=lambda entry: fake_bundle)
+    # Second run: nothing about the inputs changed -> nothing written. The
+    # spec is regenerated to compare, but matches, so the file is not touched.
+    before = written[0].read_text()
+    written2, removed2 = mm.sync(download_bundle=lambda entry: fake_bundle)
     assert written2 == []
+    assert removed2 == []
+    assert written[0].read_text() == before
+
+
+def _stub_zoo(monkeypatch, version: str = "0.5.3") -> None:
+    """Patch out the network: the Zoo listing and the bundle's spec fragment."""
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(ms, "get_all_bundles_list",
+                        lambda **kw: [("spleen_ct_segmentation", version)])
+    monkeypatch.setattr(
+        ms, "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+
+
+def _write_whitelist(path: Path, **fields) -> Path:
+    base = {
+        "version": None,
+        "modality": "ct",
+        "species": "human",
+        "region": "abdomen",
+    }
+    base.update(fields)
+    path.write_text(yaml.safe_dump({"models": {"spleen_ct_segmentation": base}}))
+    return path
+
+
+def test_sync_regenerates_on_a_whitelist_only_change(tmp_path, monkeypatch):
+    """#495 AC1: a whitelist change regenerates even at an unchanged Zoo version.
+
+    ``package_overrides`` changes what is installed in the built image, so a
+    spec that ignores it describes an image nobody is building. Under the old
+    version-only gate this was skipped silently and had to be forced by
+    deleting the spec by hand.
+    """
+    _stub_zoo(monkeypatch)
+    bundle = tmp_path / "bundle"
+    (bundle / "configs").mkdir(parents=True)
+    (bundle / "configs" / "metadata.json").write_text("{}")
+
+    wl = _write_whitelist(tmp_path / "wl.yaml")
+    mm = MonaiModels(root=tmp_path, whitelist_path=wl)
+    written, _ = mm.sync(download_bundle=lambda entry: bundle)
+    assert len(written) == 1
+    assert "pytorch-ignite" not in yaml.safe_load(written[0].read_text())["packages"]["pip"]
+
+    # Only the whitelist changes -- the Zoo version is untouched.
+    _write_whitelist(wl, package_overrides={"pytorch-ignite": ">=0.5"})
+    written2, _ = mm.sync(download_bundle=lambda entry: bundle)
+
+    assert len(written2) == 1
+    pip = yaml.safe_load(written2[0].read_text())["packages"]["pip"]
+    assert pip["pytorch-ignite"] == ">=0.5"
+
+
+def test_sync_regenerates_on_a_generator_change(tmp_path, monkeypatch):
+    """#495 AC2: a generator change that alters output regenerates the spec."""
+    _stub_zoo(monkeypatch)
+    import scripts.monai_specs as ms
+
+    bundle = tmp_path / "bundle"
+    (bundle / "configs").mkdir(parents=True)
+    (bundle / "configs" / "metadata.json").write_text("{}")
+
+    wl = _write_whitelist(tmp_path / "wl.yaml")
+    mm = MonaiModels(root=tmp_path, whitelist_path=wl)
+    written, _ = mm.sync(download_bundle=lambda entry: bundle)
+    assert len(written) == 1
+
+    # A module-level default moves, as MONAI_BASE_IMAGE_TAG did when the base
+    # image was pinned. Nothing in the Zoo or the whitelist has changed.
+    monkeypatch.setattr(ms, "MONAI_BASE_IMAGE_TAG", "1.7.0")
+    written2, _ = mm.sync(download_bundle=lambda entry: bundle)
+
+    assert len(written2) == 1
+    assert yaml.safe_load(written2[0].read_text())["base_image"]["tag"] == "1.7.0"
+
+
+def test_sync_relocates_a_moved_model_and_removes_the_old_spec(tmp_path, monkeypatch):
+    """#495 AC3: an anatomy change writes the new path and deletes the old.
+
+    The nastiest case in the original report: because ``existing_version``
+    reads the spec at the *derived* path, a relocation made it read a file
+    that did not exist yet, so the move looked like a fresh generation and the
+    spec at the old path was simply abandoned -- still valid, still buildable.
+    """
+    _stub_zoo(monkeypatch)
+    bundle = tmp_path / "bundle"
+    (bundle / "configs").mkdir(parents=True)
+    (bundle / "configs" / "metadata.json").write_text("{}")
+
+    wl = _write_whitelist(tmp_path / "wl.yaml", region="abdomen")
+    mm = MonaiModels(root=tmp_path, whitelist_path=wl)
+    written, _ = mm.sync(download_bundle=lambda entry: bundle)
+    old_path = written[0]
+    assert old_path.parent.parent.name == "abdomen"
+
+    _write_whitelist(wl, region="whole-body")
+    written2, removed = mm.sync(download_bundle=lambda entry: bundle)
+
+    assert len(written2) == 1
+    new_path = written2[0]
+    assert new_path.parent.parent.name == "whole-body"
+    assert new_path.is_file()
+
+    # The old spec is gone, not merely superseded ...
+    assert removed == [old_path]
+    assert not old_path.exists()
+    # ... and exactly one spec for this model remains in the tree.
+    assert mm.monai_specs() == [new_path]
+    # the emptied region directory is pruned rather than left as a stub
+    assert not old_path.parent.exists()
 
 
 def test_fetch_resources_reads_specs_and_populates_resources_dir(
@@ -599,7 +736,7 @@ def test_generated_spec_loads_as_xnatapp(tmp_path, whitelist_file, monkeypatch):
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
 
     # Full sync path: reads the downloaded bundle for its metadata, writes the spec.
-    written = mm.sync(download_bundle=lambda entry: bundle)
+    written, _ = mm.sync(download_bundle=lambda entry: bundle)
     assert len(written) == 1
     spec_path = written[0]
 
