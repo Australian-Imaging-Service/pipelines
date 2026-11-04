@@ -13,6 +13,8 @@ from pydra2app.core.command import ContainerCommand
 from pydra2app.xnat import XnatApp
 from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
 
+from conftest import BidsAppTestBlueprint
+
 SKIP_BUILD = False
 
 PKG_DIR = Path(__file__).parent.parent
@@ -23,14 +25,14 @@ FREESURFER_LICENSE_PATH = Path(
 
 
 def test_bids_app(
-    bids_app_blueprint,
-    run_prefix,
+    bids_app_blueprint_with_data: BidsAppTestBlueprint,
+    run_prefix: str,
     xnat_repository: Xnat,
     xnat_connect: ty.Any,
     cli_runner: ty.Any,
 ):
 
-    bp = bids_app_blueprint
+    bp = bids_app_blueprint_with_data
 
     build_dir = bp.spec_path.parent / ".build-test" / bp.spec_path.stem
 
@@ -41,7 +43,7 @@ def test_bids_app(
     else:
         build_arg = "--build"
 
-    frameset = xnat_repository.define_frameset(bids_app_blueprint.project_id)
+    frameset = xnat_repository.define_frameset(bids_app_blueprint_with_data.project_id)
     frameset.install_license("freesurfer", PlainText(FREESURFER_LICENSE_PATH))
 
     result = cli_runner(
@@ -81,8 +83,8 @@ def test_bids_app(
         inputs_json = {}
 
         for src in image_spec.command().sources:
-            if (bids_app_blueprint.test_data / src.name).exists():
-                test_data = bids_app_blueprint.test_data / src.name
+            if (bids_app_blueprint_with_data.test_data / src.name).exists():
+                test_data = bids_app_blueprint_with_data.test_data / src.name
                 input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
                 if isinstance(input_file, DicomDir):
                     inpt = input_file.contents[0].metadata["SeriesDescription"]

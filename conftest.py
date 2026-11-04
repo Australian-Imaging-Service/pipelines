@@ -79,11 +79,24 @@ def bids_app_spec_path(request):
 
 
 @pytest.fixture(params=bids_specs)
-def bids_app_blueprint(run_prefix, xnat_connect, request):
+def bids_app_blueprint_with_data(run_prefix, xnat_connect, request):
     bids_app_name = request.param
     project_id = make_project_id(bids_app_name, run_prefix=run_prefix)
     test_data = test_bids_data_dir / bids_app_name
     upload_test_dataset_to_xnat(project_id, test_data, xnat_connect)
+    return BidsAppTestBlueprint(
+        spec_path=bids_apps_dir / (bids_app_name + ".yaml"),
+        project_id=project_id,
+        parameters=BIDS_APP_PARAMETERS.get(bids_app_name, {}),
+        test_data=test_data,
+    )
+
+
+@pytest.fixture(params=bids_specs)
+def bids_app_blueprint(run_prefix: str, request: pytest.FixtureRequest):
+    bids_app_name = request.param
+    project_id = make_project_id(bids_app_name, run_prefix=run_prefix)
+    test_data = test_bids_data_dir / bids_app_name
     return BidsAppTestBlueprint(
         spec_path=bids_apps_dir / (bids_app_name + ".yaml"),
         project_id=project_id,

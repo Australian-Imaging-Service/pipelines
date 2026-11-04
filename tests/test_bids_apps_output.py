@@ -1,120 +1,58 @@
-import itertools
 import json
 import typing as ty
 from pathlib import Path
+from types import SimpleNamespace
 
-from fileformats.medimage import DicomDir
-from fileformats.text import Plain as PlainText
-from frametree.core.utils import show_cli_trace
-from frametree.xnat import Xnat
-from pydra.utils.typing import TypeParser
-from pydra2app.core.cli import make
-from pydra2app.core.command import ContainerCommand
+from frametree.bids.store import Bids
+from pydra.utils import get_fields
+from pydra.utils.typing import TypeParser, optional_type
 from pydra2app.xnat import XnatApp
-from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
 
-SKIP_BUILD = False
+SKIP_BUILD = True
 
 PKG_DIR = Path(__file__).parent.parent
 
 FREESURFER_LICENSE_PATH = Path(
-    PKG_DIR / "tests" / "data" / "licenses" / "freesurfer_license.txt"
+    PKG_DIR / "tests" / "data" / "output" / "frmiprepunittest"
 )
 
 
-def test_bids_app(
+def test_bids_app_output(
     bids_app_blueprint,
-    run_prefix,
-    xnat_repository: Xnat,
-    xnat_connect: ty.Any,
     cli_runner: ty.Any,
 ):
 
     bp = bids_app_blueprint
 
-    build_dir = bp.spec_path.parent / ".build-test" / bp.spec_path.stem
-
-    build_dir.mkdir(exist_ok=True, parents=True)
-
-    if SKIP_BUILD:
-        build_arg = "--generate-only"
-    else:
-        build_arg = "--build"
-
-    frameset = xnat_repository.define_frameset(bids_app_blueprint.project_id)
-    frameset.install_license("freesurfer", PlainText(FREESURFER_LICENSE_PATH))
-
-    result = cli_runner(
-        make,
-        list(
-            itertools.chain(
-                [
-                    "xnat",
-                    str(bp.spec_path),
-                    "--registry",
-                    "pipelines-core-test",
-                    "--build-dir",
-                    str(build_dir),
-                    build_arg,
-                    "--for-localhost",
-                    "--use-local-packages",
-                    "--raise-errors",
-                ],
-            )
-        ),
-    )
-
-    assert result.exit_code == 0, show_cli_trace(result)
-
     image_spec = XnatApp.load(bp.spec_path)
 
-    with xnat_connect() as xlogin:
+    command = image_spec.commands[0]
 
-        build_name = image_spec.name.split(".")[-1]
+    task = command.task()
+    fields = get_fields(task)
 
-        with open(build_dir / "xnat_commands" / (build_name + ".json")) as f:
-            xnat_command = json.load(f)
-        xnat_command["name"] = xnat_command["label"] = image_spec.name + run_prefix
-
-        test_xsession = next(iter(xlogin.projects[bp.project_id].experiments.values()))
-
-        inputs_json = {}
-
-        for src in image_spec.command().sources:
-            if (bids_app_blueprint.test_data / src.name).exists():
-                test_data = bids_app_blueprint.test_data / src.name
-                input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
-                if isinstance(input_file, DicomDir):
-                    inpt = input_file.contents[0].metadata["SeriesDescription"]
-                else:
-                    inpt = src.name
-                # Load qualifiers from a JSON file if it exists
-                qualifiers_path = test_data / "qualifiers.json"
-                if qualifiers_path.exists():
-                    with open(qualifiers_path) as f:
-                        dct = json.load(f)
-                    inpt = ContainerCommand.format_qualifiers(path=inpt, qualifiers=dct)
-                inputs_json[src.name] = inpt
+    for src in image_spec.command().sources:
+        if (bp.test_data / src.name).exists():
+            test_data = bp.test_data / src.name
+            fspaths = list(test_data.iterdir())
+            input_file = TypeParser(src.type).coerce(fspaths)
+            field_type = optional_type(fields[src.field].type)
+            converter_json = test_data / "converter.json"
+            if converter_json in fspaths:
+                with open(converter_json) as f:
+                    kwargs = json.load(f)
             else:
-                inputs_json[src.name] = ""
+                kwargs = {}
+            converted = field_type.convert(input_file, **kwargs)
+            setattr(task, src.field, converted)
 
-        for pname, pval in bp.parameters.items():
-            inputs_json[pname] = pval
+    outputs_dir = (
+        PKG_DIR / "tests" / "data" / "output" / "specific-cases" / bp.test_data.name
+    )
 
-        inputs_json["pydra2app_flags"] = (
-            "--worker debug "
-            "--work /work "  # NB: work dir moved inside container due to file-locking issue on some mounted volumes (see https://github.com/tox-dev/py-filelock/issues/147)
-            "--dataset-name default "
-            "--logger frametree debug "
-            "--logger pydra2app debug "
-        )
+    # Stand-in for the pickled job, which can only be loaded by the Python version that
+    # wrote it, as _from_job only needs its cache directory and frameset
+    frameset = Bids().load_frameset(str(outputs_dir / "bids-dataset"), "DEFAULT")
+    job = SimpleNamespace(cache_dir=outputs_dir, return_values={"frameset": frameset})
 
-        workflow_id, status, out_str = install_and_launch_xnat_cs_command(
-            command_json=xnat_command,
-            project_id=bp.project_id,
-            session_id=test_xsession.id,
-            inputs=inputs_json,
-            xlogin=xlogin,
-            timeout=30000,
-        )
-        assert status == "Complete", f"Workflow {workflow_id} failed.\n{out_str}"
+    task.Outputs._from_job(job)

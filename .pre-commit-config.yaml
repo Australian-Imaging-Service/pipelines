@@ -42,8 +42,9 @@ repos:
     hooks:
       - id: mypy
         args: [--strict, --install-types, --non-interactive, --no-warn-unused-ignores, --config-file=src/pyproject.toml]
-        exclude: tests
-        additional_dependencies: [pytest, attrs, imageio, pydicom]
+        exclude: tests|conftest\.py
+        # numpy 2.5 stubs use Python 3.12 syntax, which can't be parsed when targeting 3.11
+        additional_dependencies: [pytest, attrs, imageio, pydicom, numpy<2.5]
   - repo: https://github.com/google/yamlfmt
     rev: v0.19.0
     hooks:
