@@ -54,7 +54,6 @@ commands:
         mriqc:
           type: generic/directory
           help: Generated QC outputs
-          path: mriqc
     configuration:
       work_dir: /work/nipype-work
-      flags: '--nprocs 1'  # Avoid mem-gb bug https://github.com/nipreps/mriqc/pull/1447
+      flags: '--nprocs 1' # Avoid mem-gb bug https://github.com/nipreps/mriqc/pull/1447

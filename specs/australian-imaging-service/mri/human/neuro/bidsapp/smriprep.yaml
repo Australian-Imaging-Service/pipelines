@@ -52,7 +52,6 @@ commands:
         smriprep:
           type: generic/directory
           help: Preprocessed sMRI data
-          path: smriprep
     parameters:
       - flags
       - json_edits
