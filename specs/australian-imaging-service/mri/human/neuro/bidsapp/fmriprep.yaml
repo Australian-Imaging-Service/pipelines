@@ -134,7 +134,6 @@ commands:
         fmriprep:
           type: generic/directory
           help: Preprocessed fMRI data
-          path: fmriprep
     parameters:
       - flags
     operates_on: medimage/session
