@@ -207,7 +207,9 @@ def JoinTaskCatalogue(
     elif parcellation == "Yeo7":
         yeo_dir = os.path.join(resources_dir, "yeo2011-parcellations")
         fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage5")
-        parc_lut_file = os.path.join(yeo_dir, "Yeo2011_7networks_Split_Components_LUT.txt")
+        parc_lut_file = os.path.join(
+            yeo_dir, "Yeo2011_7networks_Split_Components_LUT.txt"
+        )
         mrtrix_lut_file = os.path.join(neuro_luts, "Yeo2011_7N_split.txt")
         output_parcellation_filename = os.path.join(
             FS_dir, "mri", f"{parcellation}.nii.gz"
@@ -244,7 +246,9 @@ def JoinTaskCatalogue(
     elif parcellation == "Yeo17":
         yeo_dir = os.path.join(resources_dir, "yeo2011-parcellations")
         fsavg_dir = os.path.join(freesurfer_home, "subjects", "fsaverage5")
-        parc_lut_file = os.path.join(yeo_dir, "Yeo2011_17networks_Split_Components_LUT.txt")
+        parc_lut_file = os.path.join(
+            yeo_dir, "Yeo2011_17networks_Split_Components_LUT.txt"
+        )
         mrtrix_lut_file = os.path.join(neuro_luts, "Yeo2011_17N_split.txt")
         output_parcellation_filename = os.path.join(
             FS_dir, "mri", f"{parcellation}.nii.gz"

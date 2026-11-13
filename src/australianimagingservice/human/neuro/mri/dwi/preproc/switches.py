@@ -62,9 +62,7 @@ def DetermineStrategy(
         # TODO: Rob to do — implement PE-scheme conflict checking
         #   (manual_pe_dir / manual_trt vs. header values)
         if se_epi is None:
-            raise RuntimeError(
-                "SE-EPI image must be provided for pe_design='Pair'"
-            )
+            raise RuntimeError("SE-EPI image must be provided for pe_design='Pair'")
         if align_seepi:
             return "se_epi_concat_first_bzero", se_epi
         else:
