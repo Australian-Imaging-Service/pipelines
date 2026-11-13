@@ -52,9 +52,7 @@ def VolumeRecombination(
             for dwirecon -pairs_in."""
             import tempfile
 
-            f = tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False
-            )
+            f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
             for a, b in volume_pairs:
                 f.write(f"{a} {b}\n")
             f.close()

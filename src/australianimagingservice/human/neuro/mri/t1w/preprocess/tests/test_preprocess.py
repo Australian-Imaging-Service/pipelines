@@ -24,7 +24,10 @@ def test_t1w_preprocess():
         subjects_dir=subjects_dir,
         freesurfer_home=os.environ["FREESURFER_HOME"],
         mrtrix_lut_dir=(
-            Path(shutil.which("mrconvert")).resolve().parents[1] / "share" / "mrtrix3" / "labelconvert"
+            Path(shutil.which("mrconvert")).resolve().parents[1]
+            / "share"
+            / "mrtrix3"
+            / "labelconvert"
         ),
         fs_license=Path(os.environ["FREESURFER_HOME"]).parent / "license.txt",
         resources_dir=Path(__file__).parents[8] / "resources",

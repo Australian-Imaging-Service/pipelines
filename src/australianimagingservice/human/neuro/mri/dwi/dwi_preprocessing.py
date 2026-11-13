@@ -199,7 +199,16 @@ def MeanBzero(in_file: File, out_file: str = "meanb0.mif.gz") -> File:
             check=True,
         )
         subprocess.run(
-            ["mrmath", str(bzero_path), "mean", str(out_path), "-axis", "3", "-force", "-quiet"],
+            [
+                "mrmath",
+                str(bzero_path),
+                "mean",
+                str(out_path),
+                "-axis",
+                "3",
+                "-force",
+                "-quiet",
+            ],
             check=True,
         )
     return out_path
@@ -453,7 +462,9 @@ def DwiPreprocessing(
 
     elif rpe_mode == "rpe_pair":
         fwd_b0_extract = workflow.add(
-            DwiExtract(in_file=dwi_raw_mif, out_file="fwd_bzero.mif.gz", bzero=True, config=[]),
+            DwiExtract(
+                in_file=dwi_raw_mif, out_file="fwd_bzero.mif.gz", bzero=True, config=[]
+            ),
             name="DwiExtract_fwd_b0",
         )
         fwd_meanb0 = workflow.add(
