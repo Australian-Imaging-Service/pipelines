@@ -41,6 +41,7 @@ def test_bids_app(
                 str(lic_path),
             ],
         )
+        assert result.exit_code == 0, show_cli_trace(result)
 
     result = cli_runner(
         make,
