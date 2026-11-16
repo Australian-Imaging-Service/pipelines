@@ -128,7 +128,9 @@ commands:
           type: medimage/nifti-gz-x?
           path: fmap/epi
           help: >-
-            Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field
+            Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding
+            directions to estimate the distortion map corresponding to the nonuniformities
+            of the B0 field
           default: null
       outputs:
         fmriprep:
