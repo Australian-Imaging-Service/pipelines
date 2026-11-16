@@ -39,8 +39,8 @@ def test_bids_app(
         result = cli_runner(
             install_license,
             [
-                name,
-                str(path),
+                lic_name,
+                str(lic_path),
             ],
         )
 
