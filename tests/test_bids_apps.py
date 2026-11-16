@@ -15,6 +15,8 @@ from conftest import BidsAppTestBlueprint
 
 SKIP_BUILD = False
 
+QUALIFIERS_FNAME = "qualifiers.json"
+
 
 def test_bids_app(
     bids_app_blueprint: BidsAppTestBlueprint,
@@ -88,22 +90,27 @@ def test_bids_app(
 
         inputs_json = {}
 
-        for src in image_spec.command().sources:
+        command = image_spec.command()
+        for src in command.sources:
             if (bids_app_blueprint.test_data / src.name).exists():
                 test_data = bids_app_blueprint.test_data / src.name
-                converter_args_path = test_data / "converter.json"
-                converter_args = ""
-                if converter_args_path.exists():
-                    with open(converter_args_path) as f:
-                        dct = json.load(f)
-                    for name, val in dct.items():
-                        converter_args += f" converter.{name}={val}"
-                input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
+                # Optional qualifiers for the input, e.g.
+                # {"converter": {...}, "criteria": {"required_metadata": {...}}},
+                # which are needed to tell apart scans that share a series
+                # description, e.g. the magnitude and phase-difference fieldmaps
+                qualifiers: dict[str, dict[str, ty.Any]] = {}
+                qualifiers_path = test_data / QUALIFIERS_FNAME
+                if qualifiers_path.exists():
+                    with open(qualifiers_path) as f:
+                        qualifiers = json.load(f)
+                input_file = TypeParser(src.type).coerce(
+                    [p for p in test_data.iterdir() if p.name != QUALIFIERS_FNAME]
+                )
                 if isinstance(input_file, DicomDir):
                     inpt = input_file.metadata["SeriesDescription"]
                 else:
                     inpt = src.name
-                inputs_json[src.name] = inpt + converter_args
+                inputs_json[src.name] = command.format_qualifiers(inpt, qualifiers)
             else:
                 inputs_json[src.name] = ""
 
