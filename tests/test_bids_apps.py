@@ -1,24 +1,26 @@
 import json
 import typing as ty
 
-from anyio import Path
 from fileformats.medimage import DicomDir
 from frametree.core.utils import show_cli_trace
+from frametree.xnat import Xnat
 from pydra.utils.typing import TypeParser
-from frametree.core.cli import install_license
+from frametree.core.cli import install_license, define
 from pydra2app.core.cli import make
 from pydra2app.xnat import XnatApp
 from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
+
+from conftest import BidsAppTestBlueprint
 
 
 SKIP_BUILD = False
 
 
 def test_bids_app(
-    bids_app_blueprint,
-    run_prefix,
+    bids_app_blueprint: BidsAppTestBlueprint,
+    run_prefix: str,
     xnat_connect: ty.Any,
-    license_src: Path,
+    xnat_repository: Xnat,
     cli_runner: ty.Any,
 ):
 
@@ -33,12 +35,23 @@ def test_bids_app(
     else:
         build_arg = "--build"
 
+    frameset_id = f"{xnat_repository.name}//{bp.project_id}"
+
+    result = cli_runner(
+        define,
+        [
+            frameset_id,
+        ],
+    )
+    assert result.exit_code == 0, show_cli_trace(result)
+
     for lic_name, lic_path in bp.licenses.items():
         result = cli_runner(
             install_license,
             [
                 lic_name,
                 str(lic_path),
+                frameset_id,
             ],
         )
         assert result.exit_code == 0, show_cli_trace(result)

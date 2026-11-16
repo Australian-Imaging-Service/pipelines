@@ -5,6 +5,9 @@ import typing as ty
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from tempfile import mkdtemp
+from unittest.mock import patch
+
 
 import pytest
 import xnat
@@ -29,6 +32,13 @@ logger.addHandler(sch)
 
 
 TEST_NIFTI_DATA_DIR = Path(__file__).parent / "tests" / "data" / "nifti"
+
+
+@pytest.fixture(scope="session")
+def frametree_home() -> ty.Generator[Path, None, None]:
+    frametree_home = Path(mkdtemp()) / "frametree-home"
+    with patch.dict(os.environ, {"FRAMETREE_HOME": str(frametree_home)}):
+        yield frametree_home
 
 
 @pytest.fixture(scope="session")
@@ -78,6 +88,8 @@ BIDS_APP_LICENSES = {
     "fmriprep": {"freesurfer": test_data_dir / "licenses" / "freesurfer.txt"}
 }
 
+TEST_XNAT_NICKNAME = "test-xnat"
+
 
 @pytest.fixture(params=bids_specs)
 def bids_app_spec_path(request):
@@ -107,7 +119,9 @@ def xnat_connect() -> xnat.XNATSession:
 
 
 @pytest.fixture(scope="session")
-def xnat_repository(run_prefix: str, xnat_connect: xnat.XNATSession) -> Xnat:
+def xnat_repository(
+    run_prefix: str, xnat_connect: xnat.XNATSession, frametree_home: Path
+) -> Xnat:
 
     config = xnat4tests.Config()
 
@@ -117,6 +131,8 @@ def xnat_repository(run_prefix: str, xnat_connect: xnat.XNATSession) -> Xnat:
         password=config.xnat_password,
         cache_dir=tempfile.mkdtemp(),
     )
+
+    repository.save(TEST_XNAT_NICKNAME)
 
     # Stash a project prefix in the repository object
     repository.__annotations__["run_prefix"] = run_prefix
