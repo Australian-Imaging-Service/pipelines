@@ -1,6 +1,6 @@
 title: "Structural MRI data preprocessing pipeline"
 schema_version: 2.0
-version: &package_version "0.19.1"
+version: &package_version "0.20.0"
 authors:
   - name: Mahdieh Dashtbani-Moghari
     email: mahdieh.dashtbanimoghari@sydney.edu.au
@@ -37,7 +37,7 @@ commands:
   smriprep:
     task:
       type: bidsapp
-      app: /opt/conda/bin/smriprep
+      app: /opt/conda/envs/smriprep/bin/smriprep
       inputs:
         t1w:
           type: medimage/nifti-gz-x
