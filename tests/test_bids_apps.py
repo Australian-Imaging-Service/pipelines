@@ -10,6 +10,7 @@ from pydra2app.core.cli import make
 from pydra2app.xnat import XnatApp
 from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
 
+
 SKIP_BUILD = False
 
 
@@ -32,7 +33,7 @@ def test_bids_app(
     else:
         build_arg = "--build"
 
-    licenses = [["--license", p.stem, str(p)] for p in license_src.glob("*")]
+    licenses = [["--license", name, str(path)] for name, path in bp.licenses.items()]
 
     result = cli_runner(
         make,

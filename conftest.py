@@ -53,14 +53,10 @@ class BidsAppTestBlueprint:
 
     spec_path: str
     project_id: str
-    parameters: dict[str, str]
+    parameters: ty.Dict[str, str]
+    licenses: ty.Dict[str, str]
     test_data: Path
 
-
-BIDS_APP_PARAMETERS = {
-    # "fmriprep": {"json_edits": 'func/.*bold ".SliceTiming[] /= 1000.0"'},
-    # "qsiprep": {"qsiprep_flags": "--output-resolution 2.5"},
-}
 
 specs_dir = Path(__file__).parent / "specs"
 
@@ -71,6 +67,16 @@ test_data_dir = Path(__file__).parent / "tests" / "data"
 test_bids_data_dir = test_data_dir / "specs" / "mri" / "human" / "neuro" / "bidsapp"
 
 bids_specs = [str(p.stem) for p in bids_apps_dir.glob("*.yaml")]
+
+
+BIDS_APP_PARAMETERS = {
+    # "fmriprep": {"json_edits": 'func/.*bold ".SliceTiming[] /= 1000.0"'},
+    # "qsiprep": {"qsiprep_flags": "--output-resolution 2.5"},
+}
+
+BIDS_APP_LICENSES = {
+    "fmriprep": {"freesurfer": test_data_dir / "licenses" / "freesurfer.txt"}
+}
 
 
 @pytest.fixture(params=bids_specs)
@@ -88,6 +94,7 @@ def bids_app_blueprint(run_prefix, xnat_connect, request):
         spec_path=bids_apps_dir / (bids_app_name + ".yaml"),
         project_id=project_id,
         parameters=BIDS_APP_PARAMETERS.get(bids_app_name, {}),
+        licenses=BIDS_APP_LICENSES.get(bids_app_name, {}),
         test_data=test_data,
     )
 
