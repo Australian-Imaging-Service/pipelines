@@ -48,9 +48,17 @@ commands:
           path: func/task-rest_bold
           default: null
       outputs:
-        mriqc:
+        t1w_iqms:
+          type: application/json
+          help: Image quality metrics of the T1-weighted image
+          path: anat/T1w/json
+        t1w_report:
+          type: text/html
+          help: Visual QC report of the T1-weighted image
+          path: ../sub-subject_T1w.html
+        figures:
           type: generic/directory
-          help: Generated QC outputs
-          path: mriqc
+          help: Figures of the QC reports
+          path: figures
     configuration:
       work_dir: /work/nipype-work

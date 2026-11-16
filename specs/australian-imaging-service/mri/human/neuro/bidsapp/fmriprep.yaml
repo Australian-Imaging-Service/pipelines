@@ -128,15 +128,49 @@ commands:
           type: medimage/nifti-gz-x?
           path: fmap/epi
           help: >-
-            Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding
-            directions to estimate the distortion map corresponding to the nonuniformities
-            of the B0 field
+            Field map - BIDS Case 4: Spin Echo EPI scans with different phase encoding directions to estimate the distortion map corresponding to the nonuniformities of the B0 field
           default: null
       outputs:
-        fmriprep:
+        t1w_preproc:
+          type: medimage/nifti-gz-x
+          help: Preprocessed T1-weighted image in native space
+          path: anat/T1w/desc=preproc/nii.gz
+        t1w_preproc_mni:
+          type: medimage/nifti-gz-x
+          help: Preprocessed T1-weighted image in MNI152NLin2009cAsym space
+          path: anat/T1w/desc=preproc/space=MNI152NLin2009cAsym/nii.gz
+        t1w_brain_mask:
+          type: medimage/nifti-gz-x
+          help: Brain mask of the T1-weighted image in native space
+          path: anat/mask/desc=brain/nii.gz
+        t1w_dseg:
+          type: medimage/nifti-gz
+          help: Tissue segmentation (CSF, GM, WM) of the T1-weighted image in native space
+          path: anat/dseg/nii.gz
+        bold_preproc_mni:
+          type: medimage/nifti-gz-x
+          help: Preprocessed BOLD series in MNI152NLin2009cAsym space
+          path: func/bold/desc=preproc/space=MNI152NLin2009cAsym/task=rest/nii.gz
+        bold_brain_mask_mni:
+          type: medimage/nifti-gz-x
+          help: Brain mask of the BOLD series in MNI152NLin2009cAsym space
+          path: func/mask/desc=brain/space=MNI152NLin2009cAsym/task=rest/nii.gz
+        bold_confounds:
+          type: text/tsv
+          help: Confound regressors of the BOLD series (motion, CompCor, DVARS, FD etc.)
+          path: func/timeseries/desc=confounds/task=rest/tsv
+        figures:
           type: generic/directory
-          help: Preprocessed fMRI data
-          path: fmriprep
+          help: Figures referenced by the HTML report
+          path: figures
+        log:
+          type: generic/directory
+          help: Logs and the citation boilerplate of the run
+          path: log
+        report:
+          type: text/html
+          help: HTML report summarising the preprocessing
+          path: ../sub-subject.html
     parameters:
       - flags
     operates_on: medimage/session
