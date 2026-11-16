@@ -33,8 +33,6 @@ def test_bids_app(
     else:
         build_arg = "--build"
 
-    licenses = [["--license", name, str(path)] for name, path in bp.licenses.items()]
-
     for lic_name, lic_path in bp.licenses.items():
         result = cli_runner(
             install_license,
