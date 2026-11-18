@@ -5,6 +5,6 @@
 # pydra2app >=0.23.2 can defer loading a task whose files only exist inside the
 # image being built (see the `monai` extra in src/pyproject.toml), and
 # pydra2app-xnat >=0.9.1 is needed for that to work through XnatApp.
-pydra2app >=0.23.3
-pydra2app-xnat >=0.9.2
+pydra2app >=0.23.4
+pydra2app-xnat >=0.9.3
 frametree >=0.17.4
