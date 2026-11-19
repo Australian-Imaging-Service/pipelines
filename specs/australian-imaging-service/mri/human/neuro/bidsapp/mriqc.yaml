@@ -60,5 +60,7 @@ commands:
           type: generic/directory
           help: Figures of the QC reports
           path: figures
+    parameters:
+      - flags
     configuration:
       work_dir: /work/nipype-work
