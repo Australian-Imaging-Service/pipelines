@@ -68,7 +68,7 @@ jobs:
           # a path that matches no spec fails the job rather than silently
           # excluding nothing.
           EXCLUDED: |
-            mri/human/neuro/bidsapp/smriprep   # BIDS app, unverified against the current pydra2app schema
+            human/neuro/mri/anat/smriprep   # BIDS app, unverified against the current pydra2app schema
         run: |
           set -euo pipefail
           find specs/australian-imaging-service -name '*.yaml' \
@@ -181,8 +181,32 @@ jobs:
       # and already versioned in the Model Zoo), so the bundle each generated
       # spec declares as a resource must be fetched before the build. Pinned to
       # the version recorded in the spec. No-op for non-MONAI specs.
+      # Generated MONAI specs sit alongside the hand-written ones, so they are
+      # recognised by the MONAI base image they are built on (as
+      # scripts.monai_specs.is_monai_spec does; that module can't be imported
+      # until the monai extra is installed, which is what this decides).
+      - name: Detect MONAI spec
+        id: spec-kind
+        env:
+          SPEC: ${{ matrix.spec }}
+        # Specs can use custom tags (e.g. `!join`), which are loaded as plain values
+        # here, as only the base image is needed.
+        run: |
+          python - "specs/australian-imaging-service/$SPEC.yaml" >> "$GITHUB_OUTPUT" <<'PY'
+          import sys
+          import yaml
+
+          class Loader(yaml.SafeLoader):
+              pass
+
+          Loader.add_multi_constructor("!", lambda loader, suffix, node: None)
+          with open(sys.argv[1]) as f:
+              spec = yaml.load(f, Loader=Loader) or {}
+          name = (spec.get("base_image") or {}).get("name")
+          print("monai=" + str(name == "projectmonai/monai").lower())
+          PY
       - name: Fetch MONAI bundle resources
-        if: contains(matrix.spec, '/monai/')
+        if: steps.spec-kind.outputs.monai == 'true'
         run: |
           pip install -e "./src[monai]"
           python -m scripts.monai_specs fetch-resources --resources-dir ./resources

@@ -2,20 +2,20 @@
 # awaiting a decision are derived as (Zoo listing - models - declined) and
 # reported by `python -m scripts.monai_specs triage`, so nothing here needs
 # editing when the Zoo changes.
-
 # Approved: generate and publish a spec.
-# Each entry: version pin (null = latest) and anatomy placement in specs/ tree.
-# The anatomy fields are human classification -- they are not present in bundle
+# Each entry: version pin (null = latest) and placement in the specs/ tree, which
+# follows docs/pipeline-naming.md: <species>/<anatomy>/<technique>[/<datatype>].
+# The placement fields are human classification -- they are not present in bundle
 # metadata, and they determine where the generated spec lands in the tree.
 models:
-  # Segments 104 structures from a single-channel CT, so it spans regions
+  # Segments 104 structures from a single-channel CT, so it spans anatomy
   # rather than sitting in one -- hence `whole-body` rather than picking a
-  # dominant region and misfiling the rest.
+  # dominant anatomy and misfiling the rest.
   wholeBody_ct_segmentation:
     version: null
-    modality: ct
     species: human
-    region: whole-body
+    anatomy: whole-body
+    technique: ct
     # Overrides what the bundle declares in metadata.json's
     # required_packages_version, for pins that don't work in the built image.
     package_overrides:
@@ -28,7 +28,6 @@ models:
       # NB: trades exact fidelity (the model was validated against 0.4.11) for
       # being runnable at all. Revisit if the bundle is republished.
       pytorch-ignite: ">=0.5"
-
 # Reviewed and deliberately not published.
 #   reason:     why, for whoever reads the triage report later
 #   at_version: the version reviewed. The model resurfaces in triage once the

@@ -20,9 +20,9 @@ def whitelist_file(tmp_path: Path) -> Path:
                 "models": {
                     "spleen_ct_segmentation": {
                         "version": None,
-                        "modality": "ct",
                         "species": "human",
-                        "region": "abdomen",
+                        "anatomy": "abdomen",
+                        "technique": "ct",
                     }
                 }
             }
@@ -36,23 +36,52 @@ def test_whitelist_parses_entries(tmp_path: Path, whitelist_file: Path):
     entries = mm.whitelist()
     assert len(entries) == 1
     e = entries[0]
-    assert e == WhitelistEntry("spleen_ct_segmentation", None, "ct", "human", "abdomen")
+    assert e == WhitelistEntry("spleen_ct_segmentation", None, "human", "abdomen", "ct")
 
 
-def test_spec_path_follows_monai_namespace(tmp_path: Path, whitelist_file: Path):
+def test_spec_path_follows_naming_convention(tmp_path: Path, whitelist_file: Path):
+    """<species>/<anatomy>/<technique>/<model>.yaml, with no MONAI-specific level"""
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]
     expected = (
         tmp_path
         / "specs"
         / "australian-imaging-service"
-        / "ct"
         / "human"
         / "abdomen"
-        / "monai"
+        / "ct"
         / "spleen_ct_segmentation.yaml"
     )
     assert mm.spec_path(entry) == expected
+
+
+def test_spec_path_includes_datatype(tmp_path: Path, whitelist_file: Path):
+    """MRI models sit under their BIDS datatype"""
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(
+        anatomy="neuro", technique="mri", datatype="anat"
+    )
+    assert mm.spec_path(entry).relative_to(
+        tmp_path / "specs" / "australian-imaging-service"
+    ) == Path("human/neuro/mri/anat/spleen_ct_segmentation.yaml")
+
+
+def test_monai_specs_identified_by_base_image(tmp_path: Path, whitelist_file: Path):
+    """Generated specs sit alongside hand-written ones, so are found by content"""
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    specs_dir = (
+        tmp_path / "specs" / "australian-imaging-service" / "human" / "abdomen" / "ct"
+    )
+    specs_dir.mkdir(parents=True)
+    monai = specs_dir / "spleen.yaml"
+    monai.write_text(yaml.safe_dump({"base_image": {"name": "projectmonai/monai"}}))
+    (specs_dir / "other.yaml").write_text(
+        yaml.safe_dump({"base_image": {"name": "nipreps/fmriprep"}})
+    )
+    hidden = specs_dir / ".build" / "spleen.yaml"
+    hidden.parent.mkdir()
+    hidden.write_text(monai.read_text())
+    assert mm.monai_specs() == [monai]
 
 
 def test_filter_whitelist_keeps_available_and_fills_latest(
@@ -74,9 +103,9 @@ def test_filter_whitelist_respects_pin(tmp_path: Path):
                 "models": {
                     "spleen_ct_segmentation": {
                         "version": "0.5.0",
-                        "modality": "ct",
                         "species": "human",
-                        "region": "abdomen",
+                        "anatomy": "abdomen",
+                        "technique": "ct",
                     }
                 }
             }
@@ -93,7 +122,8 @@ def test_fetch_available_uses_monai_api(tmp_path, whitelist_file, monkeypatch):
     # get_all_bundles_list() returns one (bundle_name, latest_version) tuple
     # per bundle, already reduced to the latest version.
     monkeypatch.setattr(
-        ms, "get_all_bundles_list",
+        ms,
+        "get_all_bundles_list",
         lambda **kw: [("spleen_ct_segmentation", "0.5.3")],
     )
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
@@ -131,19 +161,26 @@ def test_is_changed_compares_whole_spec_not_just_version(tmp_path, whitelist_fil
 def test_orphaned_specs_finds_a_model_that_moved(tmp_path, whitelist_file):
     """Changing a model's anatomy fields must not leave the old spec behind.
 
-    ``spec_path`` is derived from modality/species/region, so a relocation
+    ``spec_path`` is derived from species/anatomy/technique, so a relocation
     writes to a new path. The spec at the old one still builds, so leaving it
     would publish two images for one model.
     """
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]._replace(version="0.5.3")
 
-    # Spec written at the original region ...
-    old_path = mm.write_spec(entry, {"name": entry.name, "version": "0.5.3"})
+    # Spec written at the original anatomy ...
+    old_path = mm.write_spec(
+        entry,
+        {
+            "name": entry.name,
+            "version": "0.5.3",
+            "base_image": {"name": "projectmonai/monai"},
+        },
+    )
     assert mm.orphaned_specs([entry]) == []
 
-    # ... then the whitelist moves the model to a new region.
-    moved = entry._replace(region="whole-body")
+    # ... then the whitelist moves the model to a new anatomy.
+    moved = entry._replace(anatomy="whole-body")
     assert mm.orphaned_specs([moved]) == [old_path]
 
     # A spec for a model that is no longer whitelisted at all is a withdrawal,
@@ -151,18 +188,27 @@ def test_orphaned_specs_finds_a_model_that_moved(tmp_path, whitelist_file):
     assert mm.orphaned_specs([]) == []
 
 
-
-
 def test_generate_spec_shape(tmp_path, whitelist_file, monkeypatch):
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {
-            "sources": {"image": {"datatype": "medimage/nifti-gz-x",
-                                  "help": "in", "path": "network_data_format/inputs/image"}},
-            "sinks": {"pred": {"datatype": "medimage/nifti-gz-x",
-                               "help": "out", "path": "network_data_format/outputs/pred"}},
+            "sources": {
+                "image": {
+                    "datatype": "medimage/nifti-gz-x",
+                    "help": "in",
+                    "path": "network_data_format/inputs/image",
+                }
+            },
+            "sinks": {
+                "pred": {
+                    "datatype": "medimage/nifti-gz-x",
+                    "help": "out",
+                    "path": "network_data_format/outputs/pred",
+                }
+            },
             "parameters": {},
         },
     )
@@ -204,7 +250,8 @@ def test_generate_spec_points_bundle_at_runtime_resource(
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
@@ -228,12 +275,23 @@ def test_generated_spec_bundle_is_not_a_user_parameter(
     from pydra2app.xnat import XnatApp
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {
-            "sources": {"image": {"datatype": "medimage/nifti-gz-x",
-                                  "help": "in", "path": "network_data_format/inputs/image"}},
-            "sinks": {"pred": {"datatype": "medimage/nifti-gz-x",
-                               "help": "out", "path": "network_data_format/outputs/pred"}},
+            "sources": {
+                "image": {
+                    "datatype": "medimage/nifti-gz-x",
+                    "help": "in",
+                    "path": "network_data_format/inputs/image",
+                }
+            },
+            "sinks": {
+                "pred": {
+                    "datatype": "medimage/nifti-gz-x",
+                    "help": "out",
+                    "path": "network_data_format/outputs/pred",
+                }
+            },
             "parameters": {},
         },
     )
@@ -263,7 +321,8 @@ def test_generated_spec_commands_match_release_workflow_contract(
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
@@ -280,7 +339,9 @@ def test_generated_spec_commands_match_release_workflow_contract(
 def test_write_spec_creates_yaml(tmp_path, whitelist_file):
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]._replace(version="0.5.3")
-    path = mm.write_spec(entry, {"name": entry.name, "version": "0.5.3", "commands": []})
+    path = mm.write_spec(
+        entry, {"name": entry.name, "version": "0.5.3", "commands": []}
+    )
     assert path == mm.spec_path(entry)
     reloaded = yaml.safe_load(path.read_text())
     assert reloaded["version"] == "0.5.3"
@@ -289,10 +350,12 @@ def test_write_spec_creates_yaml(tmp_path, whitelist_file):
 def test_sync_writes_only_changed(tmp_path, whitelist_file, monkeypatch):
     import scripts.monai_specs as ms
 
-    monkeypatch.setattr(ms, "get_all_bundles_list",
-                        lambda **kw: [("spleen_ct_segmentation", "0.5.3")])
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms, "get_all_bundles_list", lambda **kw: [("spleen_ct_segmentation", "0.5.3")]
+    )
+    monkeypatch.setattr(
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
 
@@ -325,10 +388,12 @@ def _stub_zoo(monkeypatch, version: str = "0.5.3") -> None:
     """Patch out the network: the Zoo listing and the bundle's spec fragment."""
     import scripts.monai_specs as ms
 
-    monkeypatch.setattr(ms, "get_all_bundles_list",
-                        lambda **kw: [("spleen_ct_segmentation", version)])
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms, "get_all_bundles_list", lambda **kw: [("spleen_ct_segmentation", version)]
+    )
+    monkeypatch.setattr(
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
 
@@ -336,9 +401,9 @@ def _stub_zoo(monkeypatch, version: str = "0.5.3") -> None:
 def _write_whitelist(path: Path, **fields) -> Path:
     base = {
         "version": None,
-        "modality": "ct",
         "species": "human",
-        "region": "abdomen",
+        "anatomy": "abdomen",
+        "technique": "ct",
     }
     base.update(fields)
     path.write_text(yaml.safe_dump({"models": {"spleen_ct_segmentation": base}}))
@@ -362,7 +427,10 @@ def test_sync_regenerates_on_a_whitelist_only_change(tmp_path, monkeypatch):
     mm = MonaiModels(root=tmp_path, whitelist_path=wl)
     written, _ = mm.sync(download_bundle=lambda entry: bundle)
     assert len(written) == 1
-    assert "pytorch-ignite" not in yaml.safe_load(written[0].read_text())["packages"]["pip"]
+    assert (
+        "pytorch-ignite"
+        not in yaml.safe_load(written[0].read_text())["packages"]["pip"]
+    )
 
     # Only the whitelist changes -- the Zoo version is untouched.
     _write_whitelist(wl, package_overrides={"pytorch-ignite": ">=0.5"})
@@ -409,13 +477,13 @@ def test_sync_relocates_a_moved_model_and_removes_the_old_spec(tmp_path, monkeyp
     (bundle / "configs").mkdir(parents=True)
     (bundle / "configs" / "metadata.json").write_text("{}")
 
-    wl = _write_whitelist(tmp_path / "wl.yaml", region="abdomen")
+    wl = _write_whitelist(tmp_path / "wl.yaml", anatomy="abdomen")
     mm = MonaiModels(root=tmp_path, whitelist_path=wl)
     written, _ = mm.sync(download_bundle=lambda entry: bundle)
     old_path = written[0]
     assert old_path.parent.parent.name == "abdomen"
 
-    _write_whitelist(wl, region="whole-body")
+    _write_whitelist(wl, anatomy="whole-body")
     written2, removed = mm.sync(download_bundle=lambda entry: bundle)
 
     assert len(written2) == 1
@@ -428,7 +496,7 @@ def test_sync_relocates_a_moved_model_and_removes_the_old_spec(tmp_path, monkeyp
     assert not old_path.exists()
     # ... and exactly one spec for this model remains in the tree.
     assert mm.monai_specs() == [new_path]
-    # the emptied region directory is pruned rather than left as a stub
+    # the emptied anatomy directory is pruned rather than left as a stub
     assert not old_path.parent.exists()
 
 
@@ -445,7 +513,8 @@ def test_fetch_resources_reads_specs_and_populates_resources_dir(
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
@@ -476,14 +545,13 @@ def test_fetch_resources_reads_specs_and_populates_resources_dir(
     assert (target / "configs" / "metadata.json").is_file()
 
 
-def test_fetch_resources_is_idempotent(
-    tmp_path, whitelist_file, monkeypatch
-):
+def test_fetch_resources_is_idempotent(tmp_path, whitelist_file, monkeypatch):
     """Re-running replaces the staged copy rather than merging into it."""
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
@@ -509,7 +577,14 @@ def test_fetch_resources_is_idempotent(
 def test_fetch_resources_ignores_non_monai_specs(tmp_path, whitelist_file):
     """Only MONAI specs declare a bundle resource; others must be skipped."""
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    other = tmp_path / "specs" / "australian-imaging-service" / "quality-control"
+    other = (
+        tmp_path
+        / "specs"
+        / "australian-imaging-service"
+        / "human"
+        / "any-anatomy"
+        / "any-technique"
+    )
     other.mkdir(parents=True)
     (other / "phi-finder.yaml").write_text(
         yaml.safe_dump({"name": "phi-finder", "version": "1.0", "commands": {}})
@@ -549,7 +624,8 @@ def test_spec_fields_come_from_bundle_and_defaults_not_an_overlay(
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
     bundle = _write_bundle_metadata(
@@ -586,10 +662,13 @@ def test_title_uses_an_already_spaced_bundle_name_verbatim(
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
-    bundle = _write_bundle_metadata(tmp_path / "bundle", name="Whole Body CT Segmentation")
+    bundle = _write_bundle_metadata(
+        tmp_path / "bundle", name="Whole Body CT Segmentation"
+    )
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]._replace(version="0.2.7")
 
@@ -614,9 +693,9 @@ def test_whitelist_package_overrides_beat_bundle_pins(tmp_path, monkeypatch):
                 "models": {
                     "wholeBody_ct_segmentation": {
                         "version": None,
-                        "modality": "ct",
                         "species": "human",
-                        "region": "whole-body",
+                        "anatomy": "whole-body",
+                        "technique": "ct",
                         "package_overrides": {"pytorch-ignite": ">=0.5"},
                     }
                 }
@@ -624,7 +703,8 @@ def test_whitelist_package_overrides_beat_bundle_pins(tmp_path, monkeypatch):
         )
     )
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
     bundle = _write_bundle_metadata(
@@ -660,7 +740,8 @@ def test_generate_spec_includes_bundle_required_packages(
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
     bundle = _write_bundle_metadata(
@@ -688,7 +769,8 @@ def test_generate_spec_without_required_packages_is_unchanged(
     import scripts.monai_specs as ms
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
     bundle = _write_bundle_metadata(tmp_path / "bundle")
@@ -702,18 +784,33 @@ def test_generate_spec_without_required_packages_is_unchanged(
 def _make_synthetic_bundle(dest: Path) -> Path:
     configs = dest / "configs"
     configs.mkdir(parents=True, exist_ok=True)
-    (configs / "metadata.json").write_text(json.dumps({
-        "name": "SpleenCtSegmentation",
-        "network_data_format": {
-            "inputs": {"image": {"type": "image", "modality": "CT"}},
-            "outputs": {"pred": {"type": "image", "format": "segmentation"}},
-        },
-    }))
-    (configs / "inference.json").write_text(json.dumps({
-        "postprocessing": {"_target_": "Compose", "transforms": [
-            {"_target_": "SaveImaged", "keys": ["pred"], "output_postfix": "seg"}
-        ]}
-    }))
+    (configs / "metadata.json").write_text(
+        json.dumps(
+            {
+                "name": "SpleenCtSegmentation",
+                "network_data_format": {
+                    "inputs": {"image": {"type": "image", "modality": "CT"}},
+                    "outputs": {"pred": {"type": "image", "format": "segmentation"}},
+                },
+            }
+        )
+    )
+    (configs / "inference.json").write_text(
+        json.dumps(
+            {
+                "postprocessing": {
+                    "_target_": "Compose",
+                    "transforms": [
+                        {
+                            "_target_": "SaveImaged",
+                            "keys": ["pred"],
+                            "output_postfix": "seg",
+                        }
+                    ],
+                }
+            }
+        )
+    )
     return dest
 
 
@@ -723,12 +820,23 @@ def test_generated_spec_loads_as_xnatapp(tmp_path, whitelist_file, monkeypatch):
     from pydra2app.xnat import XnatApp
 
     monkeypatch.setattr(
-        ms, "spec_fragment",
+        ms,
+        "spec_fragment",
         lambda bundle: {
-            "sources": {"image": {"datatype": "medimage/nifti-gz-x",
-                                  "help": "in", "path": "network_data_format/inputs/image"}},
-            "sinks": {"pred": {"datatype": "medimage/nifti-gz-x",
-                               "help": "out", "path": "network_data_format/outputs/pred"}},
+            "sources": {
+                "image": {
+                    "datatype": "medimage/nifti-gz-x",
+                    "help": "in",
+                    "path": "network_data_format/inputs/image",
+                }
+            },
+            "sinks": {
+                "pred": {
+                    "datatype": "medimage/nifti-gz-x",
+                    "help": "out",
+                    "path": "network_data_format/outputs/pred",
+                }
+            },
             "parameters": {},
         },
     )
@@ -771,15 +879,16 @@ def triage_whitelist_file(tmp_path: Path) -> Path:
                 "models": {
                     "spleen_ct_segmentation": {
                         "version": None,
-                        "modality": "ct",
                         "species": "human",
-                        "region": "abdomen",
+                        "anatomy": "abdomen",
+                        "technique": "ct",
                     },
                     "withdrawn_model": {
                         "version": None,
-                        "modality": "mri",
                         "species": "human",
-                        "region": "neuro",
+                        "anatomy": "neuro",
+                        "technique": "mri",
+                        "datatype": "anat",
                     },
                 },
                 "declined": {
@@ -799,9 +908,9 @@ def triage_whitelist_file(tmp_path: Path) -> Path:
 
 AVAILABLE = {
     "spleen_ct_segmentation": "0.6.1",
-    "mednist_gan": "0.5.0",           # declined at 0.4.4 -> stale
+    "mednist_gan": "0.5.0",  # declined at 0.4.4 -> stale
     "classification_template": "0.0.4",  # declined with no at_version -> never stale
-    "brand_new_model": "1.0.0",       # neither approved nor declined -> candidate
+    "brand_new_model": "1.0.0",  # neither approved nor declined -> candidate
 }
 
 
@@ -840,7 +949,9 @@ def test_decline_without_at_version_never_goes_stale(
     tmp_path: Path, triage_whitelist_file: Path
 ):
     mm = MonaiModels(root=tmp_path, whitelist_path=triage_whitelist_file)
-    assert "classification_template" not in {s.name for s in mm.stale_declines(AVAILABLE)}
+    assert "classification_template" not in {
+        s.name for s in mm.stale_declines(AVAILABLE)
+    }
 
 
 def test_withdrawn_reports_approved_models_missing_from_zoo(
@@ -859,13 +970,11 @@ def test_triage_report_covers_all_three_sections(
     assert "brand_new_model" in body
     assert "mednist_gan" in body and "0.4.4" in body and "0.5.0" in body
     assert "withdrawn_model" in body
-    # candidates are emitted paste-ready, with the anatomy fields to fill in
-    assert "modality:" in body and "species:" in body and "region:" in body
+    # candidates are emitted paste-ready, with the placement fields to fill in
+    assert "species:" in body and "anatomy:" in body and "technique:" in body
 
 
-def test_triage_report_quiet_when_nothing_to_do(
-    tmp_path: Path, whitelist_file: Path
-):
+def test_triage_report_quiet_when_nothing_to_do(tmp_path: Path, whitelist_file: Path):
     """Nothing to triage is a normal outcome, not a failure."""
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     needs_attention, body = mm.triage_report({"spleen_ct_segmentation": "0.6.1"})

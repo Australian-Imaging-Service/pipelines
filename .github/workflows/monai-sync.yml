@@ -50,13 +50,15 @@ jobs:
           # Only the spec is generated now -- no task module, no vendored
           # bundle -- so nothing under src/ needs staging.
           #
-          # This must also carry *deletions*: when a model's anatomy fields
+          # This must also carry *deletions*: when a model's placement fields
           # change, sync writes the spec at the new path and removes the one
           # left at the old. The action stages with `git add -A -- <paths>`,
           # which picks up a removal as long as the deleted path matches the
-          # glob -- the old path is under specs/**/monai/** too, so it does.
+          # glob. Generated specs sit alongside the hand-written ones (there is
+          # no monai/ level), so the whole specs tree is staged -- sync only
+          # ever writes or removes MONAI specs, so nothing else changes in it.
           add-paths: |
-            specs/**/monai/**
+            specs/**
       # Triage runs after the sync PR so the report reflects decisions already
       # recorded. It reports models needing a human decision -- new Zoo bundles,
       # declined models whose version has moved on, and approved models that have

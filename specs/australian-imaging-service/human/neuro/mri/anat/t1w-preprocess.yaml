@@ -1,0 +1,164 @@
+title: "Preprocess T1-weighted MRI" # Short name for the pipeline referenced in the UI
+schema_version: "2.0" # the version of the specification format used for this file
+version: "1.1.5"
+base_image:
+  # The FastSurfer image, so FastSurfer runs inside this container
+  name: deepmi/fastsurfer
+  package_manager: apt # It is not obvious from the base image what the package manager is
+  # FastSurfer's GPU images are tagged by CUDA version since v2.5 (gpu-latest is no
+  # longer published). This one needs an NVIDIA driver supporting CUDA 12.6 or later
+  # (>= 560) on GPU nodes; it also runs on the CPU. Keep the FastSurfer version in
+  # step with the separate-container fallback in t1w_preprocess/single_parc.py.
+  tag: cu126-v2.6.1
+packages:
+  conda:
+    pip:
+  # Install dependencies for DICOM->NIfTI conversion
+  pip:
+    setuptools:
+    simplejson:
+    acres:
+    looseversion:
+    fileformats-datascience:
+    fileformats-medimage:
+    fileformats-vendor-fsl:
+    pydra: '>=1.0a11'
+    pydra-tasks-mrtrix3:
+    pydra-tasks-fsl:
+    fileformats:
+    pydra-tasks-fastsurfer:
+    pydra-tasks-freesurfer:
+    fileformats-medimage-extras:
+    pydra2app:
+    frametree:
+    frametree-xnat:
+    australianimagingservice:
+  neurodocker:
+    dcm2niix: v1.0.20250506
+    mrtrix3:
+      version: "3.0.4"
+      args:
+        method: source
+        build_processes: "4"
+    freesurfer:
+      version: &freesurfer_version 7.4.1
+      args:
+        exclude_paths: |
+          average/mult-comp-cor
+          lib/cuda
+          lib/qt
+          subjects/V1_average
+          subjects/bert
+          subjects/cvs_avg35
+          subjects/cvs_avg35_inMNI152
+          subjects/fsaverage3
+          subjects/fsaverage4
+          subjects/fsaverage6
+          subjects/fsaverage_sym
+          trctrain
+    fsl: 6.0.5.1
+authors:
+  # Authors of the pipeline. The first email will be considered to be the maintainer of
+  # the generated container images
+  - name: Arkiev D'Souza
+    email: arkiev.dsouza@sydney.edu.au
+  - name: Thomas G. Close
+    email: thomas.close@sydney.edu.au
+licenses:
+  freesurfer:
+    destination: &freesurfer_license !join ["/opt/freesurfer-", *freesurfer_version, "/license.txt"]
+    info_url: https://surfer.nmr.mgh.harvard.edu/registration.html
+    description: >
+      FastSurfer, which is used to perform segmentation and surface recon, requires a FreeSurfer license to run.
+
+docs:
+  info_url: "https://placeholder.org" # Link to external documentation for underlying tool
+  description: | # Description of tool for auto-docs
+    Generate a 5TT image (HSVS) and parcellation image (Desikan, Destrieux, HCPMMP1,
+    Yeo7 and Yeo17) from a single input anatomical image. Input image should satisfy
+    the input requirements for FastSurfer
+commands:
+  single_parc:
+    task: australianimagingservice.human.neuro.mri.anat.t1w_preprocess:SingleParcellation
+    operates_on: medimage/session
+    sources:
+      T1w:
+        field: t1w
+        help: "The T1-weighted MRI dataset to preprocess"
+    sinks:
+      t1w_preprocess_parc_image:
+        field: parc_image
+      t1w_preprocess_vis_image_fsl:
+        field: vis_image_fsl
+        type: medimage/vnd.mrtrix3.image-format-gz
+      t1w_preprocess_ftt_image_fsl:
+        field: ftt_image_fsl
+        type: medimage/vnd.mrtrix3.image-format-gz
+      t1w_preprocess_vis_image_freesurfer:
+        field: vis_image_freesurfer
+        type: medimage/vnd.mrtrix3.image-format-gz
+      t1w_preprocess_ftt_image_freesurfer:
+        field: ftt_image_freesurfer
+        type: medimage/vnd.mrtrix3.image-format-gz
+      t1w_preprocess_vis_image_hsvs:
+        field: vis_image_hsvs
+        type: medimage/vnd.mrtrix3.image-format-gz
+      t1w_preprocess_ftt_image_hsvs:
+        field: ftt_image_hsvs
+        type: medimage/vnd.mrtrix3.image-format-gz
+      t1w_preprocess_fastsurfer_output:
+        field: fastsurfer_output
+    parameters:
+      Parcellation:
+        field: parcellation
+        help: "The parcellation to parcelate the cortex with"
+      FastSurferBatchSize:
+        field: fastsurfer_batch
+        help: "Batch size to use for FastSurfer inference"
+        default: 16
+      FastSurferNThreads:
+        field: fastsurfer_nthreads
+        help: "Number of threads to use for FastSurfer inference"
+        default: 24
+    configuration: # Additional args passed to arcana.common:shell_cmd
+      mrtrix_lut_dir: /ais_resources/neuro-parcellations
+      freesurfer_home: &freesurfer_home !join ["/opt/freesurfer-", *freesurfer_version]
+      fs_license: *freesurfer_license
+      subjects_dir: /work/subjects
+      in_fastsurfer_container: true
+      labelsgmfirst_executable: labelsgmfix
+      resources_dir: /ais_resources
+  all_parcs:
+    task: australianimagingservice.human.neuro.mri.anat.t1w_preprocess:AllParcellations
+    operates_on: medimage/session
+    sources:
+      T1w:
+        field: t1w
+        help: "The T1-weighted MRI dataset to preprocess"
+    sinks:
+      t1w_preprocess:
+        field: out_dir
+    parameters:
+      FastSurferBatchSize:
+        field: fastsurfer_batch
+        help: "Batch size to use for FastSurfer inference"
+        default: 16
+      FastSurferNThreads:
+        field: fastsurfer_nthreads
+        help: "Number of threads to use for FastSurfer inference"
+        default: 24
+    configuration: # Additional args passed to arcana.common:shell_cmd
+      mrtrix_lut_dir: /ais_resources/neuro-parcellations
+      freesurfer_home: *freesurfer_home
+      fs_license: *freesurfer_license
+      subjects_dir: /work/subjects
+      in_fastsurfer_container: true
+      labelsgmfirst_executable: labelsgmfix
+      resources_dir: /ais_resources
+resources:
+  neuro-parcellations: /ais_resources/neuro-parcellations
+  yeo2011-parcellations: /ais_resources/yeo2011-parcellations
+  mica-mni-parcellations: /ais_resources/mica-mni-parcellations
+  mica-mni-surfaces: /ais_resources/mica-mni-surfaces
+  hcpmmp1-parcellations: /ais_resources/hcpmmp1-parcellations
+  fastsurfer: /fastsurfer-run

@@ -1,4 +1,5 @@
 """Generate pipeline2app XNAT specs from whitelisted MONAI Model Zoo bundles."""
+
 import json
 import os
 import re
@@ -42,9 +43,12 @@ PYDRA_COMPOSE_MONAI_REQ = ">=0.2.0"
 class WhitelistEntry(ty.NamedTuple):
     name: str
     version: Optional[str]
-    modality: str
     species: str
-    region: str
+    anatomy: str
+    technique: str
+    #: BIDS datatype (e.g. ``anat``), for techniques that BIDS splits into several
+    #: datatypes, i.e. MRI. Left out otherwise.
+    datatype: Optional[str] = None
     #: pip requirements that override what the bundle declares in its
     #: `required_packages_version`, for pins that don't work in the image.
     package_overrides: Dict[str, str] = {}
@@ -88,9 +92,10 @@ class MonaiModels:
                 WhitelistEntry(
                     name=name,
                     version=cfg.get("version"),
-                    modality=cfg["modality"],
                     species=cfg["species"],
-                    region=cfg["region"],
+                    anatomy=cfg["anatomy"],
+                    technique=cfg["technique"],
+                    datatype=cfg.get("datatype"),
                     package_overrides={
                         str(k): str(v)
                         for k, v in (cfg.get("package_overrides") or {}).items()
@@ -148,9 +153,7 @@ class MonaiModels:
         """
         known = {e.name for e in self.whitelist()} | {e.name for e in self.declined()}
         return sorted(
-            (name, version)
-            for name, version in available.items()
-            if name not in known
+            (name, version) for name, version in available.items() if name not in known
         )
 
     def stale_declines(self, available: Dict[str, str]) -> List[StaleDecline]:
@@ -184,16 +187,19 @@ class MonaiModels:
         return sorted(e.name for e in self.whitelist() if e.name not in available)
 
     def spec_path(self, entry: WhitelistEntry) -> Path:
-        return (
+        """``<species>/<anatomy>/<technique>[/<datatype>]/<model>.yaml``, following the
+        naming convention in docs/pipeline-naming.md"""
+        path = (
             self.root
             / "specs"
             / "australian-imaging-service"
-            / entry.modality
             / entry.species
-            / entry.region
-            / "monai"
-            / f"{entry.name}.yaml"
+            / entry.anatomy
+            / entry.technique
         )
+        if entry.datatype:
+            path /= entry.datatype
+        return path / f"{entry.name}.yaml"
 
     def existing_version(self, entry: WhitelistEntry) -> Optional[str]:
         path = self.spec_path(entry)
@@ -218,7 +224,7 @@ class MonaiModels:
         output covers all three. The previous check compared only the version
         recorded in the spec, which left whitelist and generator changes
         silently unapplied: correcting a pin, adding ``package_overrides`` and
-        moving a model's ``region`` each produced no regeneration during #532
+        moving a model's anatomy each produced no regeneration during #532
         and had to be forced by deleting the spec by hand (#495).
 
         Comparing output was originally rejected as costing a bundle download
@@ -230,8 +236,8 @@ class MonaiModels:
     def orphaned_specs(self, entries: List[WhitelistEntry]) -> List[Path]:
         """Specs for whitelisted models that sit somewhere other than their path.
 
-        ``spec_path`` is derived from the entry's anatomy fields, so changing
-        ``region`` (or ``modality``/``species``) makes the generator write to a
+        ``spec_path`` is derived from the entry's placement fields, so changing
+        ``anatomy`` (or ``species``/``technique``/``datatype``) makes the generator write to a
         new path and leave the old spec behind. The stale copy still builds, so
         it is worse than one that is merely out of date -- the Zoo would be
         serving two images for one model.
@@ -299,7 +305,16 @@ class MonaiModels:
     #: Words to keep upper-cased in a generated title; without these, "ct"
     #: becomes "Ct" rather than "CT".
     TITLE_ACRONYMS = {
-        "ct", "mri", "mr", "pet", "spect", "us", "xray", "dwi", "3d", "2d",
+        "ct",
+        "mri",
+        "mr",
+        "pet",
+        "spect",
+        "us",
+        "xray",
+        "dwi",
+        "3d",
+        "2d",
     }
 
     @classmethod
@@ -455,7 +470,7 @@ class MonaiModels:
     def _prune_empty_dirs(self, directory: Path) -> None:
         """Remove ``directory`` and empty ancestors, stopping at the specs root.
 
-        A relocated model otherwise leaves its old ``<region>/monai/`` behind as
+        A relocated model otherwise leaves its old ``<anatomy>/<technique>/`` behind as
         an empty directory. Git does not track those, but they are noise in a
         working tree and make the anatomy layout misleading to read.
         """
@@ -471,7 +486,9 @@ class MonaiModels:
 
     def _download(self, entry: WhitelistEntry) -> Path:
         """Download a bundle from the Model Zoo into ``<root>/.monai-bundles``."""
-        return self._download_bundle(entry.name, entry.version, self.root / ".monai-bundles")
+        return self._download_bundle(
+            entry.name, entry.version, self.root / ".monai-bundles"
+        )
 
     @staticmethod
     def _download_bundle(name: str, version: Optional[str], dest: Path) -> Path:
@@ -483,11 +500,23 @@ class MonaiModels:
         return dest / name
 
     def monai_specs(self) -> List[Path]:
-        """Every generated MONAI spec on disk, i.e. those under a ``monai`` dir."""
+        """Every generated MONAI spec on disk.
+
+        Specs are filed by the images they operate on alongside the hand-written
+        ones, so generated specs are identified by the MONAI base image they are
+        built on rather than by where they sit.
+        """
         specs_root = self.root / "specs" / "australian-imaging-service"
         if not specs_root.is_dir():
             return []
-        return sorted(specs_root.glob("**/monai/*.yaml"))
+        return sorted(
+            path
+            for path in specs_root.glob("**/*.yaml")
+            if not any(
+                part.startswith(".") for part in path.relative_to(specs_root).parts
+            )
+            and is_monai_spec(path)
+        )
 
     def triage_report(self, available: Dict[str, str]) -> ty.Tuple[bool, str]:
         """Markdown summary of everything needing a human decision.
@@ -503,16 +532,18 @@ class MonaiModels:
         if candidates:
             lines.append(f"### New bundles to triage ({len(candidates)})\n")
             lines.append(
-                "Add to `models:` with `modality`/`species`/`region` to publish, "
+                "Add to `models:` with `species`/`anatomy`/`technique` (and "
+                "`datatype` for MRI) to publish, "
                 "or to `declined:` with a reason. Paste-ready:\n"
             )
             lines.append("```yaml")
             for name, version in candidates:
                 lines.append(f"  {name}:")
                 lines.append(f"    version: null  # latest is {version}")
-                lines.append("    modality:  # ct | mri | ...")
-                lines.append("    species:   # human | ...")
-                lines.append("    region:    # abdomen | neuro | ...")
+                lines.append("    species:    # human | mouse | ...")
+                lines.append("    anatomy:    # abdomen | neuro | whole-body | ...")
+                lines.append("    technique:  # ct | mri | pet | ...")
+                lines.append("    datatype:   # MRI only: anat | func | dwi | perf")
             lines.append("```\n")
 
         if stale:
@@ -528,10 +559,14 @@ class MonaiModels:
             )
 
         if withdrawn:
-            lines.append(f"### Approved models missing from the Zoo ({len(withdrawn)})\n")
+            lines.append(
+                f"### Approved models missing from the Zoo ({len(withdrawn)})\n"
+            )
             for name in withdrawn:
-                lines.append(f"- **{name}** — its spec will build against a model "
-                             "that is no longer published")
+                lines.append(
+                    f"- **{name}** — its spec will build against a model "
+                    "that is no longer published"
+                )
             lines.append("")
 
         if not lines:
@@ -586,6 +621,25 @@ class MonaiModels:
         return staged
 
 
+class _IgnoreTagsLoader(yaml.SafeLoader):
+    """Loads custom tags used in specs (e.g. ``!join``) as None, for when only plain
+    fields are needed"""
+
+
+_IgnoreTagsLoader.add_multi_constructor("!", lambda loader, suffix, node: None)
+
+
+def is_monai_spec(path: Path) -> bool:
+    """Whether the spec at ``path`` was generated from a MONAI bundle, i.e. is built
+    on the MONAI base image"""
+    try:
+        spec = yaml.load(path.read_text(), Loader=_IgnoreTagsLoader) or {}
+    except yaml.YAMLError:
+        return False
+    base_image = spec.get("base_image") if isinstance(spec, dict) else None
+    return isinstance(base_image, dict) and base_image.get("name") == MONAI_BASE_IMAGE
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     import argparse
 
@@ -603,15 +657,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     parser.add_argument("--root", type=Path, default=Path(__file__).parent.parent)
     parser.add_argument(
-        "--whitelist", type=Path,
+        "--whitelist",
+        type=Path,
         default=Path(__file__).parent / "monai_whitelist.yaml",
     )
     parser.add_argument(
-        "--resources-dir", type=Path, default=None,
+        "--resources-dir",
+        type=Path,
+        default=None,
         help="destination for fetch-resources (default: <root>/resources)",
     )
     parser.add_argument(
-        "--output", type=Path, default=None,
+        "--output",
+        type=Path,
+        default=None,
         help="write the triage report here instead of stdout",
     )
     args = parser.parse_args(argv)
