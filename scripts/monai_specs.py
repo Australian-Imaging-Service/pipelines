@@ -52,6 +52,7 @@ class WhitelistEntry(ty.NamedTuple):
     #: pip requirements that override what the bundle declares in its
     #: `required_packages_version`, for pins that don't work in the image.
     package_overrides: Dict[str, str] = {}
+    license: Optional[str] = None
 
 
 class DeclinedEntry(ty.NamedTuple):
@@ -100,6 +101,7 @@ class MonaiModels:
                         str(k): str(v)
                         for k, v in (cfg.get("package_overrides") or {}).items()
                     },
+                    license=cfg.get("license"),
                 )
             )
         return entries
@@ -415,6 +417,8 @@ class MonaiModels:
             },
             "commands": {entry.name: command},
         }
+        if entry.license is not None:
+            spec["license"] = entry.license
         return spec
 
     def write_spec(self, entry: WhitelistEntry, spec: dict) -> Path:
