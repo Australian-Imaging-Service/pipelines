@@ -1,0 +1,95 @@
+title: "Tractography and structural connectomics" # Short name for the pipeline referenced in the UI
+schema_version: "2.0" # the version of the specification format used for this file
+version: "0.1.0"
+base_image:
+  # Same base image as dwi/preprocess.yaml and t1w/preprocess.yaml, so the
+  # MRtrix3 source build and FSL install below are known to work on it
+  name: deepmi/fastsurfer
+  package_manager: apt
+  tag: gpu-latest
+packages:
+  pip:
+    setuptools:
+    simplejson:
+    looseversion:
+    fileformats-datascience:
+    fileformats-medimage:
+    fileformats-vendor-fsl:
+    pydra: '>=1.0a11'
+    pydra-tasks-mrtrix3:
+    pydra-tasks-fsl:
+    # tractography_connectomics.py imports MrcalcMax from dwi_preprocessing.py,
+    # which imports mri_synthstrip from the t1w pipeline's preprocess package;
+    # importing that runs the package's __init__.py, which pulls in
+    # pydra-tasks-freesurfer/pydra-tasks-fastsurfer too (see dwi/preprocess.yaml)
+    pydra-tasks-freesurfer:
+    pydra-tasks-fastsurfer:
+    fileformats:
+    fileformats-medimage-extras:
+    # dwi_preprocessing.py imports MrConvertWithFslGrad from this package
+    fileformats-vendor-mrtrix3-extras: '>=3.1.0a9'
+    pydra2app:
+    frametree:
+    frametree-xnat:
+    australianimagingservice:
+  neurodocker:
+    mrtrix3:
+      version: "3.0.4"
+      args:
+        method: source
+        build_processes: "4"
+    fsl: 6.0.5.1
+authors:
+  - name: Arkiev D'Souza
+    email: arkiev.dsouza@sydney.edu.au
+  - name: Thomas G. Close
+    email: thomas.close@sydney.edu.au
+docs:
+  info_url: "https://placeholder.org" # Link to external documentation for underlying tool
+  description: | # Description of tool for auto-docs
+    Register preprocessed DWI to T1 space (FSL epi_reg, boundary-based),
+    estimate and normalise multi-tissue FODs in T1 space, run
+    anatomically-constrained iFOD2 tractography with SIFT2 streamline
+    weighting, generate TDI and DEC-TDI maps, and build one structural
+    connectome per parcellation. Inputs are the bundled outputs of the DWI
+    preprocessing pipeline (dwi_preprocess) and the T1w preprocessing
+    pipeline's all_parcs command (t1w_preprocess) for the same session.
+commands:
+  tractography:
+    task: australianimagingservice.mri.human.neuro.dwi.tractography_connectomics:TractographyConnectomics
+    operates_on: medimage/session
+    sources:
+      DWI_PREPROC:
+        field: dwi_preproc_dir
+        help: >-
+          Output directory of the DWI preprocessing pipeline (its
+          dwi_preprocess derivative, e.g. "dwi_preprocess@")
+      T1_PREPROC:
+        field: t1_preproc_dir
+        help: >-
+          Output directory of the T1w preprocessing pipeline's all_parcs
+          command (its t1w_preprocess derivative, e.g. "t1w_preprocess@")
+    sinks:
+      tractography:
+        field: out_dir
+    parameters:
+      FodAlgorithm:
+        field: fod_algorithm
+        help: >-
+          FOD estimation algorithm: msmt_csd (multi-shell multi-tissue CSD) or
+          ss3t (single-shell 3-tissue CSD; requires MRtrix3Tissue's
+          ss3t_csd_beta1, which is not installed in this image)
+        default: msmt_csd
+      FttMethod:
+        field: ftt_method
+        help: "Which 5TT image from the T1w outputs to use for ACT: hsvs, fsl or freesurfer"
+        default: hsvs
+      NumStreamlines:
+        field: num_streamlines
+        help: "Number of streamlines to select with tckgen"
+        default: 10000000
+    configuration: # Additional args passed to arcana.common:shell_cmd
+      # Matches the --work /work flag passed via pydra2app_flags at launch, so
+      # the execution log and bundled outputs are written alongside the
+      # pipeline's actual work directory (as in dwi/preprocess.yaml)
+      cache_root: /work
