@@ -32,6 +32,10 @@ from australianimagingservice.mri.human.neuro.dwi.dwi_preprocessing import Mrcal
 # flirt_import inputs as one list. pydra-tasks-fsl's EpiReg types its `.mat`
 # transform output as NIfTI, which fails output validation. These thin
 # wrappers expose only the arguments used here.
+#
+# FLAG: these are interface bugs that other users of those packages will hit
+# too, so they should be fixed upstream (pending discussion with tclose) and
+# these wrappers replaced with the upstream tasks once they are.
 
 
 @shell.define
@@ -666,6 +670,10 @@ def TractographyConnectomics(
     )
 
     # ── Step 6: Apply transform — reslice DWI and mask to T1 space ────────────
+    # mrtransform treats any 4D image with an SH-compatible volume count (6, 15,
+    # 28, 45, 66, ...) as an FOD and reorients it unless told otherwise, so
+    # "-reorient_fod no" is required for DWI. MrTransform's reorient_fod field
+    # is a bare bool flag that can't render the "no" value, hence append_args.
     dwi_t1_task = workflow.add(
         MrTransform(
             in_file=resolved.dwi_preprocessed,
@@ -673,6 +681,7 @@ def TractographyConnectomics(
             linear=transformconvert_task.out_file,
             template=resolved.fttvis_image,
             strides=resolved.fttvis_image,
+            append_args=["-reorient_fod", "no"],
             config=[],
         ),
         name="MrTransform_dwi",
@@ -685,6 +694,7 @@ def TractographyConnectomics(
             linear=transformconvert_task.out_file,
             template=resolved.fttvis_image,
             strides=resolved.fttvis_image,
+            append_args=["-reorient_fod", "no"],
             config=[],
         ),
         name="MrTransform_mask",
