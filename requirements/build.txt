@@ -1,9 +1,10 @@
-# Build/release tooling. The version floors live in src/pyproject.toml's
-# `build` extra so they are declared once -- they were previously duplicated
-# here and had drifted (this file still pinned pydra2app >=0.22.2 after the
-# test extra had moved on to >=0.23.2).
+# Build/release tooling: planning builds, building images, and producing the
+# release catalogue. These are not dependencies of the pipelines package in
+# src/, which is installed separately (`pip install ./src`) alongside this file.
 #
-# This installs the australianimagingservice package itself as well as the
-# tooling. Every workflow step that reads this file already runs
-# `pip install ./src` straight afterwards, so that is not extra work.
-./src[build]
+# pydra2app >=0.23.2 can defer loading a task whose files only exist inside the
+# image being built (see the `monai` extra in src/pyproject.toml), and
+# pydra2app-xnat >=0.9.1 is needed for that to work through XnatApp.
+pydra2app >=0.23.4
+pydra2app-xnat >=0.9.3
+frametree >=0.17.4
