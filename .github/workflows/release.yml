@@ -26,7 +26,7 @@ jobs:
       - name: Test release producer
         run: |
           pip install -r requirements/catalogue.txt pytest
-          python -m pytest --noconftest -q tests/test_release_catalogue.py tests/test_release_workflow.py
+          python -m pytest --noconftest -q tests/test_release_catalogue.py tests/test_release_workflow.py tests/test_zenodo.py
   # Every spec under specs/ is built unless it is listed in EXCLUDED below.
   # Include-by-default means adding a pipeline needs no edit here, and generated
   # MONAI specs need no rule of their own -- they are just specs. The trade is
@@ -134,6 +134,15 @@ jobs:
           echo "specs=$specs" >> "$GITHUB_OUTPUT"
           echo "has-builds=$(jq -r '.build | length > 0' release-plan.json)" \
             >> "$GITHUB_OUTPUT"
+      - name: Validate Zenodo Sandbox release metadata
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          ZENODO_SANDBOX_TOKEN: ${{ secrets.ZENODO_SANDBOX_TOKEN }}
+        run: |
+          python -m scripts.zenodo validate \
+            --inventory release-inventory.json \
+            --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" \
+            --spec-dir specs/australian-imaging-service
       - name: Upload release plan
         uses: actions/upload-artifact@v4
         with:
@@ -285,6 +294,15 @@ jobs:
           python -m scripts.release_catalogue record \
             --inventory release-inventory.json --spec "$SPEC" \
             --commands-dir xnat_commands --output-dir release-entry
+      - name: Prepare Zenodo Sandbox draft
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          ZENODO_SANDBOX_TOKEN: ${{ secrets.ZENODO_SANDBOX_TOKEN }}
+        run: |
+          python -m scripts.zenodo prepare-entry \
+            --entry release-entry/entry.json \
+            --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" \
+            --spec-dir specs/australian-imaging-service
       - name: Upload immutable release entry
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
@@ -429,11 +447,27 @@ jobs:
           name: pipeline-release-catalogue
           path: release-assets/
           if-no-files-found: error
+      - name: Prepare Zenodo Sandbox release drafts
+        env:
+          ZENODO_SANDBOX_TOKEN: ${{ secrets.ZENODO_SANDBOX_TOKEN }}
+        run: |
+          python -m scripts.zenodo prepare \
+            --catalogue release-assets/pipeline-release.json --previous previous \
+            --repository "$GITHUB_REPOSITORY" --commit "$SOURCE_COMMIT" \
+            --spec-dir specs/australian-imaging-service
       - name: Publish complete GitHub Release
         run: |
           python -m scripts.release_catalogue publish \
             --repository "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" \
             --commit "$SOURCE_COMMIT" --assets-dir release-assets
+      - name: Publish Zenodo Sandbox references
+        env:
+          ZENODO_SANDBOX_TOKEN: ${{ secrets.ZENODO_SANDBOX_TOKEN }}
+        run: |
+          python -m scripts.zenodo publish \
+            --catalogue release-assets/pipeline-release.json --previous previous \
+            --repository "$GITHUB_REPOSITORY" --commit "$SOURCE_COMMIT" \
+            --spec-dir specs/australian-imaging-service
   reconciler-image:
     runs-on: ubuntu-24.04
     permissions:

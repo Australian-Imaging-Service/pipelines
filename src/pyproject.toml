@@ -39,7 +39,7 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["ruff", "pre-commit", "codespell"]
+dev = ["pre-commit", "ruff"]
 
 # Build tooling for MONAI specs, needed only by scripts/monai_specs.py (sync,
 # fetch-resources, triage) -- not by the installed package, and not by any
@@ -67,7 +67,7 @@ test = [
     "frametree>=0.17.4",
     "frametree-xnat>=0.6.16",
     "xnat4tests>=0.3.14",
-    "pydra2app>=0.23.3",
+    "pydra2app>=0.23.4",
     "pydra2app-xnat>=0.9.1",
     "australianimagingservice[monai]",
 ]

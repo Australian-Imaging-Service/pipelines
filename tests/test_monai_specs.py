@@ -37,6 +37,10 @@ def test_whitelist_parses_entries(tmp_path: Path, whitelist_file: Path):
     assert len(entries) == 1
     e = entries[0]
     assert e == WhitelistEntry("spleen_ct_segmentation", None, "human", "abdomen", "ct")
+    data = yaml.safe_load(whitelist_file.read_text())
+    data["models"]["spleen_ct_segmentation"]["license"] = "mit"
+    whitelist_file.write_text(yaml.safe_dump(data))
+    assert mm.whitelist()[0].license == "mit"
 
 
 def test_spec_path_follows_naming_convention(tmp_path: Path, whitelist_file: Path):
@@ -218,6 +222,9 @@ def test_generate_spec_shape(tmp_path, whitelist_file, monkeypatch):
 
     assert spec["title"] == "MONAI Spleen CT Segmentation"
     assert spec["version"] == "0.5.3"
+    assert "license" not in spec
+    licensed = mm.generate_spec(entry._replace(license="mit"), bundle_dir=tmp_path / "bundle")
+    assert licensed["license"] == "mit"
     # commands is a mapping keyed by command name, matching the convention in
     # the hand-written specs and the `yq '.commands | keys'` step in release.yml
     assert isinstance(spec["commands"], dict)
