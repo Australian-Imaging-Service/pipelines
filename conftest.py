@@ -5,6 +5,9 @@ import typing as ty
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from tempfile import mkdtemp
+from unittest.mock import patch
+
 
 import pytest
 import xnat
@@ -32,6 +35,13 @@ TEST_NIFTI_DATA_DIR = Path(__file__).parent / "tests" / "data" / "nifti"
 
 
 @pytest.fixture(scope="session")
+def frametree_home() -> ty.Generator[Path, None, None]:
+    frametree_home = Path(mkdtemp()) / "frametree-home"
+    with patch.dict(os.environ, {"FRAMETREE_HOME": str(frametree_home)}):
+        yield frametree_home
+
+
+@pytest.fixture(scope="session")
 def license_src():
     return Path(__file__).parent / "licenses"
 
@@ -53,14 +63,10 @@ class BidsAppTestBlueprint:
 
     spec_path: str
     project_id: str
-    parameters: dict[str, str]
+    parameters: ty.Dict[str, str]
+    licenses: ty.Dict[str, str]
     test_data: Path
 
-
-BIDS_APP_PARAMETERS = {
-    "fmriprep": {"json_edits": 'func/.*bold ".SliceTiming[] /= 1000.0"'},
-    "qsiprep": {"qsiprep_flags": "--output-resolution 2.5"},
-}
 
 specs_dir = Path(__file__).parent / "specs"
 
@@ -71,6 +77,18 @@ test_data_dir = Path(__file__).parent / "tests" / "data"
 test_bids_data_dir = test_data_dir / "specs" / "mri" / "human" / "neuro" / "bidsapp"
 
 bids_specs = [str(p.stem) for p in bids_apps_dir.glob("*.yaml")]
+
+
+BIDS_APP_PARAMETERS = {
+    # "fmriprep": {"json_edits": 'func/.*bold ".SliceTiming[] /= 1000.0"'},
+    # "qsiprep": {"qsiprep_flags": "--output-resolution 2.5"},
+}
+
+BIDS_APP_LICENSES = {
+    "fmriprep": {"freesurfer": test_data_dir / "licenses" / "freesurfer.txt"}
+}
+
+TEST_XNAT_NICKNAME = "test-xnat"
 
 
 @pytest.fixture(params=bids_specs)
@@ -88,6 +106,7 @@ def bids_app_blueprint(run_prefix, xnat_connect, request):
         spec_path=bids_apps_dir / (bids_app_name + ".yaml"),
         project_id=project_id,
         parameters=BIDS_APP_PARAMETERS.get(bids_app_name, {}),
+        licenses=BIDS_APP_LICENSES.get(bids_app_name, {}),
         test_data=test_data,
     )
 
@@ -100,7 +119,9 @@ def xnat_connect() -> xnat.XNATSession:
 
 
 @pytest.fixture(scope="session")
-def xnat_repository(run_prefix: str, xnat_connect: xnat.XNATSession) -> Xnat:
+def xnat_repository(
+    run_prefix: str, xnat_connect: xnat.XNATSession, frametree_home: Path
+) -> Xnat:
 
     config = xnat4tests.Config()
 
@@ -110,6 +131,8 @@ def xnat_repository(run_prefix: str, xnat_connect: xnat.XNATSession) -> Xnat:
         password=config.xnat_password,
         cache_dir=tempfile.mkdtemp(),
     )
+
+    repository.save(TEST_XNAT_NICKNAME)
 
     # Stash a project prefix in the repository object
     repository.__annotations__["run_prefix"] = run_prefix

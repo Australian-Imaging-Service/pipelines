@@ -1,23 +1,28 @@
-import itertools
 import json
 import typing as ty
 
-from anyio import Path
 from fileformats.medimage import DicomDir
 from frametree.core.utils import show_cli_trace
+from frametree.xnat import Xnat
 from pydra.utils.typing import TypeParser
+from frametree.core.cli import install_license, define
 from pydra2app.core.cli import make
 from pydra2app.xnat import XnatApp
 from pydra2app.xnat.deploy import install_and_launch_xnat_cs_command
 
+from conftest import BidsAppTestBlueprint
+
+
 SKIP_BUILD = False
+
+QUALIFIERS_FNAME = "qualifiers.json"
 
 
 def test_bids_app(
-    bids_app_blueprint,
-    run_prefix,
+    bids_app_blueprint: BidsAppTestBlueprint,
+    run_prefix: str,
     xnat_connect: ty.Any,
-    license_src: Path,
+    xnat_repository: Xnat,
     cli_runner: ty.Any,
 ):
 
@@ -32,27 +37,41 @@ def test_bids_app(
     else:
         build_arg = "--build"
 
-    licenses = [["--license", p.stem, str(p)] for p in license_src.glob("*")]
+    frameset_id = f"{xnat_repository.name}//{bp.project_id}"
+
+    result = cli_runner(
+        define,
+        [
+            frameset_id,
+        ],
+    )
+    assert result.exit_code == 0, show_cli_trace(result)
+
+    for lic_name, lic_path in bp.licenses.items():
+        result = cli_runner(
+            install_license,
+            [
+                lic_name,
+                str(lic_path),
+                frameset_id,
+            ],
+        )
+        assert result.exit_code == 0, show_cli_trace(result)
 
     result = cli_runner(
         make,
-        list(
-            itertools.chain(
-                [
-                    "xnat",
-                    str(bp.spec_path),
-                    "--registry",
-                    "pipelines-core-test",
-                    "--build-dir",
-                    str(build_dir),
-                    build_arg,
-                    "--for-localhost",
-                    "--use-local-packages",
-                    "--raise-errors",
-                ],
-                *licenses,
-            )
-        ),
+        [
+            "xnat",
+            str(bp.spec_path),
+            "--registry",
+            "pipelines-core-test",
+            "--build-dir",
+            str(build_dir),
+            build_arg,
+            "--for-localhost",
+            "--use-local-packages",
+            "--raise-errors",
+        ],
     )
 
     assert result.exit_code == 0, show_cli_trace(result)
@@ -71,22 +90,27 @@ def test_bids_app(
 
         inputs_json = {}
 
-        for src in image_spec.command().sources:
+        command = image_spec.command()
+        for src in command.sources:
             if (bids_app_blueprint.test_data / src.name).exists():
                 test_data = bids_app_blueprint.test_data / src.name
-                converter_args_path = test_data / "converter.json"
-                converter_args = ""
-                if converter_args_path.exists():
-                    with open(converter_args_path) as f:
-                        dct = json.load(f)
-                    for name, val in dct.items():
-                        converter_args += f" converter.{name}={val}"
-                input_file = TypeParser(src.type).coerce(list(test_data.iterdir()))
+                # Optional qualifiers for the input, e.g.
+                # {"converter": {...}, "criteria": {"required_metadata": {...}}},
+                # which are needed to tell apart scans that share a series
+                # description, e.g. the magnitude and phase-difference fieldmaps
+                qualifiers: dict[str, dict[str, ty.Any]] = {}
+                qualifiers_path = test_data / QUALIFIERS_FNAME
+                if qualifiers_path.exists():
+                    with open(qualifiers_path) as f:
+                        qualifiers = json.load(f)
+                input_file = TypeParser(src.type).coerce(
+                    [p for p in test_data.iterdir() if p.name != QUALIFIERS_FNAME]
+                )
                 if isinstance(input_file, DicomDir):
                     inpt = input_file.metadata["SeriesDescription"]
                 else:
                     inpt = src.name
-                inputs_json[src.name] = inpt + converter_args
+                inputs_json[src.name] = command.format_qualifiers(inpt, qualifiers)
             else:
                 inputs_json[src.name] = ""
 

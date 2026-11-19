@@ -10,8 +10,8 @@ weight: 10
 |---|-----|
 |Name|human.neuro.bidsapp.smriprep|
 |Title|Structural MRI data preprocessing pipeline|
-|Version|0.19.1|
-|Base image|`nipreps/smriprep:0.19.1`|
+|Version|0.20.0|
+|Base image|`nipreps/smriprep:0.20.0`|
 |Maintainer|Mahdieh Dashtbani-Moghari (mahdieh.dashtbanimoghari@sydney.edu.au)|
 |Info URL|https://www.nipreps.org/smriprep/master/index.html|
 

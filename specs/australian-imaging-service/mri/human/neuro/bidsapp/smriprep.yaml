@@ -1,6 +1,6 @@
 title: "Structural MRI data preprocessing pipeline"
 schema_version: 2.0
-version: &package_version "0.19.1"
+version: &package_version "0.20.0"
 authors:
   - name: Mahdieh Dashtbani-Moghari
     email: mahdieh.dashtbanimoghari@sydney.edu.au
@@ -37,7 +37,7 @@ commands:
   smriprep:
     task:
       type: bidsapp
-      app: /opt/conda/bin/smriprep
+      app: /opt/conda/envs/smriprep/bin/smriprep
       inputs:
         t1w:
           type: medimage/nifti-gz-x
@@ -49,13 +49,32 @@ commands:
           path: anat/T2w
           default: null
       outputs:
-        smriprep:
+        t1w_preproc:
+          type: medimage/nifti-gz-x
+          help: Preprocessed T1-weighted image in native space
+          path: anat/T1w/desc=preproc/nii.gz
+        t1w_preproc_mni:
+          type: medimage/nifti-gz-x
+          help: Preprocessed T1-weighted image in MNI152NLin2009cAsym space
+          path: anat/T1w/desc=preproc/space=MNI152NLin2009cAsym/nii.gz
+        t1w_brain_mask:
+          type: medimage/nifti-gz-x
+          help: Brain mask of the T1-weighted image in native space
+          path: anat/mask/desc=brain/nii.gz
+        t1w_dseg:
+          type: medimage/nifti-gz
+          help: Tissue segmentation (CSF, GM, WM) of the T1-weighted image in native space
+          path: anat/dseg/nii.gz
+        figures:
           type: generic/directory
-          help: Preprocessed sMRI data
-          path: smriprep
+          help: Figures referenced by the HTML report
+          path: figures
+        report:
+          type: text/html
+          help: HTML report summarising the preprocessing
+          path: ../sub-subject.html
     parameters:
       - flags
-      - json_edits
     operates_on: medimage/session
     configuration:
       work_dir: /work/nipype-work # We need to give a work directory outside of the pydra node as otherwise the file paths exceed Freesurfer's file-path char buffers

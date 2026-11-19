@@ -1,12 +1,12 @@
 schema_version: 2.0
 title: "Extract quality control metrics from T1w, T2W and fMRI data"
-version: "24.0.2post1"
+version: &package_version "26.1.1"
 authors:
   - name: Thomas G. Close
     email: thomas.close@sydney.edu.au
 base_image:
   name: nipreps/mriqc
-  tag: "24.0.2"
+  tag: *package_version
   package_manager: apt
 docs:
   info_url: https://mriqc.readthedocs.io
@@ -31,7 +31,7 @@ commands:
     operates_on: medimage/session
     task:
       type: bidsapp
-      app: /usr/local/miniconda/bin/mriqc
+      app: /app/.pixi/envs/mriqc/bin/mriqc
       inputs:
         t1w:
           type: medimage/nifti-gz-x
@@ -48,9 +48,19 @@ commands:
           path: func/task-rest_bold
           default: null
       outputs:
-        mriqc:
+        t1w_iqms:
+          type: application/json
+          help: Image quality metrics of the T1-weighted image
+          path: anat/T1w/json
+        t1w_report:
+          type: text/html
+          help: Visual QC report of the T1-weighted image
+          path: ../sub-subject_T1w.html
+        figures:
           type: generic/directory
-          help: Generated QC outputs
-          path: mriqc
+          help: Figures of the QC reports
+          path: figures
+    parameters:
+      - flags
     configuration:
       work_dir: /work/nipype-work
