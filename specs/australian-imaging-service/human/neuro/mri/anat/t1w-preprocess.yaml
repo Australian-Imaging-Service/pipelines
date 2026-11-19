@@ -2,10 +2,14 @@ title: "Preprocess T1-weighted MRI" # Short name for the pipeline referenced in 
 schema_version: "2.0" # the version of the specification format used for this file
 version: "1.1.5"
 base_image:
-  # Chose a NeuroDesk FSL container as the base
+  # The FastSurfer image, so FastSurfer runs inside this container
   name: deepmi/fastsurfer
   package_manager: apt # It is not obvious from the base image what the package manager is
-  tag: gpu-latest
+  # FastSurfer's GPU images are tagged by CUDA version since v2.5 (gpu-latest is no
+  # longer published). This one needs an NVIDIA driver supporting CUDA 12.6 or later
+  # (>= 560) on GPU nodes; it also runs on the CPU. Keep the FastSurfer version in
+  # step with the separate-container fallback in t1w_preprocess/single_parc.py.
+  tag: cu126-v2.6.1
 packages:
   conda:
     pip:

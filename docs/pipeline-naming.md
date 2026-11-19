@@ -110,6 +110,11 @@ are installed.
 | `mri.human.neuro.t1w.preprocess` | `human.neuro.mri.anat.t1w-preprocess` |
 | `quality-control.phi-finder` | `human.any-anatomy.any-technique.phi-finder` |
 
+`human.neuro.mri.anat.t1w-preprocess` is also upgraded from FastSurfer 2.2.0 to 2.6.1,
+so its segmentations and surfaces differ from those of
+`mri.human.neuro.t1w.preprocess` 1.1.4. Its GPU image needs an NVIDIA driver that
+supports CUDA 12.6 or later.
+
 Images are published under the new names. Reconciler configs that use the old
 patterns (e.g. `mri.human.neuro.*`) need updating, because they no longer match
 anything.

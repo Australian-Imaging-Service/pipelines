@@ -82,7 +82,7 @@ def SingleParcellation(
     else:
         fs_environment = Docker(
             image="deepmi/fastsurfer",
-            tag="cpu-v2.4.2",
+            tag="cpu-v2.6.1",  # Same FastSurfer version as the spec's base image
             xargs=[
                 "--user",
                 "1000:1000",
@@ -126,7 +126,7 @@ def SingleParcellation(
     if (
         parcellation
         == parcellation  # this loop is a placeholder for if/when we decide to iterate through each parcellation image"aparc-a2009s"
-    ):  # to avoid repeating this on every iteration of loop, only exectute on one (first) parcellation
+    ):  # to avoid repeating this on every iteration of loop, only execute on one (first) parcellation
         # Five tissue-type task HSVS
         fTTgen_task_hsvs = workflow.add(
             FivettGen_Hsvs(
