@@ -7,6 +7,7 @@
 # follows docs/pipeline-naming.md: <species>/<anatomy>/<technique>[/<datatype>].
 # The placement fields are human classification -- they are not present in bundle
 # metadata, and they determine where the generated spec lands in the tree.
+# Set `license` explicitly for each model before its generated spec is released.
 models:
   # Segments 104 structures from a single-channel CT, so it spans anatomy
   # rather than sitting in one -- hence `whole-body` rather than picking a

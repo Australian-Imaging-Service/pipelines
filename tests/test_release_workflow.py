@@ -49,7 +49,19 @@ def test_release_gating_permissions_and_queue(jobs):
         condition = step(jobs["build-and-deploy"], name)["if"]
         assert "github.event_name == 'push'" in condition
         assert "startsWith(github.ref, 'refs/tags/')" in condition
-    assert publisher["steps"][-1]["name"] == "Publish complete GitHub Release"
+    names = [item.get("name") for item in publisher["steps"]]
+    assert (
+        names.index("Prepare Zenodo Sandbox release drafts")
+        < names.index("Publish complete GitHub Release")
+        < names.index("Publish Zenodo Sandbox references")
+    )
+    assert (
+        "startsWith(github.ref, 'refs/tags/')"
+        in step(jobs["build-and-deploy"], "Prepare Zenodo Sandbox draft")["if"]
+    )
+    preflight = step(jobs["discover-specs"], "Validate Zenodo Sandbox release metadata")
+    assert "startsWith(github.ref, 'refs/tags/')" in preflight["if"]
+    assert "--inventory release-inventory.json" in preflight["run"]
     assert publisher["permissions"]["contents"] == "write"
     assert jobs["build-and-deploy"]["permissions"]["contents"] == "read"
     assert (
