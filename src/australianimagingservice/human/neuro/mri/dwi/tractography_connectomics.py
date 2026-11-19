@@ -22,6 +22,14 @@ from fileformats.vendor.mrtrix3.medimage import (  # noqa: F401
 
 from australianimagingservice.mri.human.neuro.dwi.dwi_preprocessing import MrcalcMax
 
+# FLAG: MRtrix pads the first header line of .tck files ("mrtrix tracks    \n"),
+# but fileformats-vendor-mrtrix3 <=3.1.0a9 expects a newline straight after
+# "tracks", so it rejects every real track file. Magic numbers are compared
+# against the file's leading bytes, so dropping the newline accepts both. Remove
+# once the upstream fix (pydra-tasks-mrtrix3 branch
+# fix/v3_1-positional-tracks-bool-pairs, commit 7ff343f) is released.
+Tracks.magic_number = b"mrtrix tracks"
+
 # ── Custom shell task wrappers ─────────────────────────────────────────────────
 #
 # pydra-tasks-mrtrix3 3.1.0a9's auto-generated TckGen, Dwi2Fod, MtNormalise and
