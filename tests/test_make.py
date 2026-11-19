@@ -12,7 +12,7 @@ def test_make_fmriprep():
     results = runner.invoke(
         make,
         [
-            f"{PKG_PATH}/australian-imaging-service/mri/human/neuro/bidsapps/fmriprep.yaml",
+            f"{PKG_PATH}/specs/australian-imaging-service/human/neuro/mri/func/fmriprep.yaml",
             "xnat:XnatApp",
             "--raise-errors",
         ],

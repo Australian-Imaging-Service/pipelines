@@ -2,7 +2,6 @@ import json
 import typing as ty
 from pathlib import Path
 from pydra2app.core.cli import make
-from frametree.core.cli import install_license
 from pydra2app.xnat import XnatApp
 from frametree.core.utils import show_cli_trace
 from frametree.xnat import Xnat
@@ -16,11 +15,11 @@ SPEC_PATH = (
     PKG_DIR
     / "specs"
     / "australian-imaging-service"
-    / "mri"
     / "human"
     / "neuro"
-    / "t1w"
-    / "preprocess.yaml"
+    / "mri"
+    / "anat"
+    / "t1w-preprocess.yaml"
 )
 
 FREESURFER_LICENSE_PATH = Path(
@@ -95,7 +94,6 @@ def test_t1_preprocess_app(
     }
 
     with xnat_connect() as xlogin:
-
         for command_obj in image_spec.commands:
             with open(build_dir / "xnat_commands" / (command_obj.name + ".json")) as f:
                 command_json = json.load(f)

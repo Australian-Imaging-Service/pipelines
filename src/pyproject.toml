@@ -39,7 +39,7 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
+dev = ["ruff", "pre-commit", "codespell"]
 
 # Build tooling for MONAI specs, needed only by scripts/monai_specs.py (sync,
 # fetch-resources, triage) -- not by the installed package, and not by any
@@ -98,25 +98,50 @@ reportAssignmentType = false
 [tool.hatch.build.targets.wheel]
 packages = ["australianimagingservice"]
 
-[tool.black]
-target-version = ['py311', 'py312', 'py313', 'py314']
-exclude = "australianimagingservice/_version.py"
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+extend-exclude = ["australianimagingservice/_version.py"]
+
+[tool.ruff.lint]
+# As in accessionflow, apart from "I" (import sorting), left out for now to avoid
+# reordering the imports of every module
+select = ["E4", "E7", "E9", "F", "W"]
+ignore = ["E501", "E701"]
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+# TODO: remove once the node wiring in these workflows is finished (see the matching
+# mypy override below)
+"**/human/neuro/mri/dwi/preproc/examine_metadata.py" = ["F821", "F841"]
+"**/human/neuro/mri/dwi/preproc/eddy_current_corr.py" = ["F821", "F841"]
+"**/human/neuro/mri/dwi/preproc/susceptibility_est.py" = ["F841"]
 
 [tool.codespell]
 ignore-words = ".codespell-ignorewords"
-
-[tool.flake8]
-doctests = true
-per-file-ignores = ["__init__.py:F401"]
-max-line-length = 88
-select = "C,E,F,W,B,B950"
-extend-ignore = ['E203', 'E501', 'E129', 'W503']
 
 
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
 strict = true
+# pydra has no type information (no py.typed), so its task decorators and the base
+# classes of shell tasks are untyped. These checks flag every task definition rather
+# than anything wrong with them.
+disallow_untyped_decorators = false
+disallow_subclassing_any = false
 namespace_packages = true
 explicit_package_bases = true
+# Resolve module names relative to src/, not the directory mypy is run from (the repo
+# root, under pre-commit), so they match the package's real import paths
+mypy_path = "$MYPY_CONFIG_FILE_DIR"
 exclude = ["tests", "scripts", "docs", "build", "dist"]
+
+# TODO: remove once the node wiring in these workflows is finished. They reference
+# nodes that haven't been added yet (e.g. `dwi_permvols_posteddy`), so the type errors
+# are unfinished workflow logic rather than anything an annotation would fix.
+[[tool.mypy.overrides]]
+module = [
+    "australianimagingservice.human.neuro.mri.dwi.preproc.examine_metadata",
+    "australianimagingservice.human.neuro.mri.dwi.preproc.eddy_current_corr",
+]
+ignore_errors = true

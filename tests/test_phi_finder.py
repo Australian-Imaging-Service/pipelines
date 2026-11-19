@@ -15,9 +15,7 @@ runner = CliRunner()
 
 @pytest.mark.skip
 def test_phi_finder():
-    yaml_spec_path = (
-        f"{PKG_PATH}/specs/australian-imaging-service/quality-control/phi-finder.yaml"
-    )
+    yaml_spec_path = f"{PKG_PATH}/specs/australian-imaging-service/human/any-anatomy/any-technique/phi-finder.yaml"
     with open(yaml_spec_path) as f:
         yaml_spec = yaml.safe_load(f)
 
@@ -27,7 +25,7 @@ def test_phi_finder():
             "xnat",
             (
                 f"{PKG_PATH}/specs/"
-                "australian-imaging-service/quality-control/phi-finder.yaml"
+                "australian-imaging-service/human/any-anatomy/any-technique/phi-finder.yaml"
             ),
             "--spec-root",
             f"{PKG_PATH}/specs",
@@ -44,7 +42,7 @@ def test_phi_finder():
     xlogin = xnat4tests.connect()
 
     cmd_id = install_cs_command(
-        f"ghcr.io/australian-imaging-service/quality-control.phi-finder:{yaml_spec['version']}",
+        f"ghcr.io/australian-imaging-service/human.any-anatomy.any-technique.phi-finder:{yaml_spec['version']}",
         xlogin,
         enable=True,
         projects_to_enable=["dummydicomproject"],
@@ -56,11 +54,11 @@ def test_phi_finder():
         cmd_id,
         xlogin=xlogin,
         inputs={
-           "score_threshold": 0.5,
-           "spacy_model_name": "en_core_web_md",
-           "destroy_pixels": True,
-           "use_transformers": False,
-           "dry_run": False
+            "score_threshold": 0.5,
+            "spacy_model_name": "en_core_web_md",
+            "destroy_pixels": True,
+            "use_transformers": False,
+            "dry_run": False,
         },
         project_id="dummydicomproject",
         session_id="dummydicomsession",
