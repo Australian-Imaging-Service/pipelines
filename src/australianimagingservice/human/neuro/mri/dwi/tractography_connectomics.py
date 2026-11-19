@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from pydra.compose import python, shell, workflow
+from fileformats.core import FileSet
 from fileformats.generic import File, Directory
 from fileformats.medimage import MghGz
 from pydra.tasks.mrtrix3.v3_1 import (
@@ -302,8 +303,8 @@ class EpiRegMat(shell.Task):
     ]
 )
 def ResolveTractographyInputs(
-    dwi_preproc_dir: Directory,
-    t1_preproc_dir: Directory,
+    dwi_preproc_dir: FileSet,
+    t1_preproc_dir: FileSet,
     ftt_method: str = "hsvs",
 ) -> tuple[
     ImageFormatGz,
@@ -319,11 +320,12 @@ def ResolveTractographyInputs(
     list[ImageFormatGz],
     list[str],
 ]:
-    """Locate tractography inputs within the bundled output directories of the
-    DWI preprocessing (dwi_preprocess) and T1w preprocessing (t1w_preprocess)
-    pipelines. Files are found by name anywhere below each directory, so it
-    doesn't matter whether the sourced resource keeps the bundle's top-level
-    folder or not.
+    """Locate tractography inputs within the bundled outputs of the DWI
+    preprocessing (dwi_preprocess) and T1w preprocessing (t1w_preprocess)
+    pipelines. Each bundle arrives as a file set of the resource's top-level
+    entries (see TractographyConnectomics); files are found by name anywhere
+    below them, so it doesn't matter whether the resource keeps the bundle's
+    top-level folder or not.
 
     Expected (relative) layouts::
 
@@ -339,23 +341,33 @@ def ResolveTractographyInputs(
             FS_outputs/.../mri/{brainmask,norm,wm.seg}.mgz
     """
     from pathlib import Path
+    from fileformats.core import FileSet
     from fileformats.generic import File
     from fileformats.medimage import MghGz
     from fileformats.vendor.mrtrix3.medimage import ImageFormatGz
 
-    def find_one(root: Path, *names: str) -> Path:
+    def all_files(bundle: FileSet) -> list[Path]:
+        files = []
+        for root in (Path(p) for p in bundle.fspaths):
+            if root.is_dir():
+                files.extend(p for p in root.rglob("*") if p.is_file())
+            elif root.is_file():
+                files.append(root)
+        return sorted(files)
+
+    def find_one(files: list[Path], label: str, *names: str) -> Path:
         for name in names:
-            matches = sorted(p for p in root.rglob(name) if p.is_file())
+            matches = [p for p in files if p.name == name]
             if len(matches) == 1:
                 return matches[0]
             if len(matches) > 1:
                 raise ValueError(
-                    f"Found multiple '{name}' files in {root}: "
+                    f"Found multiple '{name}' files in {label}: "
                     + ", ".join(str(m) for m in matches)
                 )
         raise FileNotFoundError(
-            f"None of {list(names)} found anywhere in {root}. Contents:\n  "
-            + "\n  ".join(str(p.relative_to(root)) for p in sorted(root.rglob("*")))
+            f"None of {list(names)} found anywhere in {label}. Contents:\n  "
+            + "\n  ".join(str(p) for p in files)
         )
 
     ftt_key = ftt_method.lower()
@@ -364,29 +376,37 @@ def ResolveTractographyInputs(
             f"Unknown ftt_method {ftt_method!r}. Choose from: hsvs, fsl, freesurfer."
         )
 
-    dwi_root = Path(dwi_preproc_dir)
-    t1_root = Path(t1_preproc_dir)
+    dwi_files = all_files(dwi_preproc_dir)
+    t1_files = all_files(t1_preproc_dir)
 
-    parcellation_paths = sorted(
-        p for p in t1_root.rglob("Atlas_*.mif.gz") if p.parent.name == "Atlases"
-    )
+    parcellation_paths = [
+        p
+        for p in t1_files
+        if p.parent.name == "Atlases"
+        and p.name.startswith("Atlas_")
+        and p.name.endswith(".mif.gz")
+    ]
     if not parcellation_paths:
-        raise FileNotFoundError(f"No Atlases/Atlas_*.mif.gz images found in {t1_root}")
+        raise FileNotFoundError("No Atlases/Atlas_*.mif.gz images found in t1w_preprocess")
     parcellation_stems = [p.name[: -len(".mif.gz")] for p in parcellation_paths]
 
     return (
-        ImageFormatGz(find_one(dwi_root, "dwi_preprocessed.mif.gz")),
-        ImageFormatGz(find_one(dwi_root, "dwimask_preprocessed.mif.gz")),
-        File(find_one(dwi_root, "response_wm.txt")),
-        File(find_one(dwi_root, "response_gm.txt")),
-        File(find_one(dwi_root, "response_csf.txt")),
-        ImageFormatGz(find_one(t1_root, f"5TT_{ftt_key}.mif.gz")),
-        ImageFormatGz(find_one(t1_root, f"5TTvis_{ftt_key}.mif.gz")),
-        MghGz(find_one(t1_root, "brainmask.mgz")),
-        MghGz(find_one(t1_root, "norm.mgz")),
+        ImageFormatGz(find_one(dwi_files, "dwi_preprocess", "dwi_preprocessed.mif.gz")),
+        ImageFormatGz(
+            find_one(dwi_files, "dwi_preprocess", "dwimask_preprocessed.mif.gz")
+        ),
+        File(find_one(dwi_files, "dwi_preprocess", "response_wm.txt")),
+        File(find_one(dwi_files, "dwi_preprocess", "response_gm.txt")),
+        File(find_one(dwi_files, "dwi_preprocess", "response_csf.txt")),
+        ImageFormatGz(find_one(t1_files, "t1w_preprocess", f"5TT_{ftt_key}.mif.gz")),
+        ImageFormatGz(
+            find_one(t1_files, "t1w_preprocess", f"5TTvis_{ftt_key}.mif.gz")
+        ),
+        MghGz(find_one(t1_files, "t1w_preprocess", "brainmask.mgz")),
+        MghGz(find_one(t1_files, "t1w_preprocess", "norm.mgz")),
         # FreeSurfer's recon-all writes wm.seg.mgz; fall back to wm.mgz, which
         # is likewise non-zero exactly inside white matter
-        MghGz(find_one(t1_root, "wm.seg.mgz", "wm.mgz")),
+        MghGz(find_one(t1_files, "t1w_preprocess", "wm.seg.mgz", "wm.mgz")),
         [ImageFormatGz(p) for p in parcellation_paths],
         parcellation_stems,
     )
@@ -563,8 +583,13 @@ def FinalizeTractographyOutputs(
 
 @workflow.define(outputs=["out_dir"])
 def TractographyConnectomics(
-    dwi_preproc_dir: Directory,
-    t1_preproc_dir: Directory,
+    # FLAG: typed as a generic FileSet rather than Directory because frametree
+    # (XnatViaCS.get_fileset and RemoteStore.get_fileset) hands back a
+    # resource's top-level entries rather than the resource folder itself, and
+    # Directory accepts exactly one directory path. Switch back to Directory
+    # once that's fixed upstream.
+    dwi_preproc_dir: FileSet,
+    t1_preproc_dir: FileSet,
     fod_algorithm: str = "msmt_csd",
     ftt_method: str = "hsvs",
     num_streamlines: int = 10_000_000,
