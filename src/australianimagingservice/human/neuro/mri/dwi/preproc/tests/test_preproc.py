@@ -3,7 +3,8 @@ from australianimagingservice.human.neuro.mri.dwi.preproc import DwiPreproc
 
 
 def test_dwi_preproc():
-    wf = DwiPreproc(
+    # Checks that the workflow can be defined with these inputs
+    DwiPreproc(
         in_file=Mif.sample("dwi.mif"),
         se_epi=Mif.sample("se_epi.mif"),
         field_estimation_data_formation_strategy="se_epi_standalone",

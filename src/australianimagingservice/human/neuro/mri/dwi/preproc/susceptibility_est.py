@@ -1,4 +1,5 @@
 import logging
+import typing as ty
 from pydra.compose import workflow, python, shell
 from fileformats.vendor.mrtrix3.medimage import ImageFormat as Mif
 from pydra.tasks.mrtrix3.v3_1 import MrTransform, MrCat, MrConvert, DwiExtract, MrGrid
@@ -87,7 +88,7 @@ def SusceptibilityEstimation(
         regrid_seepi_to_dwi_transform = workflow.add(
             MrTransform(
                 input=se_epi,
-                tempate=in_file,
+                template=in_file,
                 reorient_fod="no",
                 interp="sinc",
             )
@@ -132,7 +133,7 @@ def SusceptibilityEstimation(
         se_epi_for_concatenation = se_epi
 
     @python.define
-    def MergeList(in_1, in_2) -> list:
+    def MergeList(in_1: ty.Any, in_2: ty.Any) -> ty.List[ty.Any]:
         return [in_1, in_2]
 
     # Done regridding if necessary

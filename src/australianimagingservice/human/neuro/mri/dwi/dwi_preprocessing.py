@@ -1,3 +1,4 @@
+import typing as ty
 from pathlib import Path
 
 from pydra.compose import python, shell, workflow
@@ -578,7 +579,7 @@ def DwiPreprocessing(
     else:
         _rpe_kw = {"rpe_split": True}
 
-    _fslpreproc_kw: dict = {
+    _fslpreproc_kw: dict[str, ty.Any] = {
         "in_file": dwi_degibbs_task.out,
         "out_file": "DWI_preproc.mif.gz",
         **_rpe_kw,

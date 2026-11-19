@@ -62,7 +62,7 @@ def ExamineMetadata(
         examine_slice_encoding.slice_timings,
         num_encodings.se_dims_match,
         examine_diffusion_scheme.index_of_first_bzero,
-        determine_volume_pairs.out,
+        determine_volume_pairs.volume_pairs,
     )
 
 
@@ -89,7 +89,7 @@ def ParseMrinfoOutput(
 )
 def ExamineImageDims(
     in_image: Mif, se_epi: Mif
-) -> ty.Tuple[int, int, bool, ty.List[ty.List[float]]]:
+) -> ty.Tuple[int, int, ty.Optional[ty.List[ty.List[float]]], bool]:
     if not len(in_image.dims()) == 4:
         raise RuntimeError(
             f"Input DWI must be a 4D image (found {in_image.dims()} dimensions)"
@@ -113,11 +113,12 @@ def ExamineImageDims(
     num_encodings = len(in_image.encoding.array)
     if not num_encodings == num_volumes:
         raise RuntimeError(
-            f"Number of lines in gradient table ({len(num_encodings)}) "
+            f"Number of lines in gradient table ({num_encodings}) "
             f") does not match input image ({num_volumes})"
             " volumes); check your input data"
         )
-    return num_volumes, num_slices, dims_match, se_epi_pe_scheme
+    # In the order of the outputs: num_encodings, num_slices, pe_scheme, se_dims_match
+    return num_encodings, num_slices, se_epi_pe_scheme, dims_match
 
 
 @python.define(outputs=["axis", "direction", "timings"])
@@ -187,7 +188,7 @@ def FindFirstBzero(
     index_of_first_bzero = None
     for i, bval in enumerate(in_image.b_vals):
         if bval <= bzero_threshold:
-            logger.debug("Index of first b=0 image in DWIs is %s" + i)
+            logger.debug("Index of first b=0 image in DWIs is %s", i)
             index_of_first_bzero = i
             break
     if index_of_first_bzero is None:
@@ -198,7 +199,7 @@ def FindFirstBzero(
     return index_of_first_bzero
 
 
-@python.define(outputs=["index_of_first_bzero"])
+@python.define(outputs=["volume_pairs"])
 def DetermineVolumePairs(
     in_image: Mif,
     bzero_threshold: float,
@@ -217,7 +218,7 @@ def DetermineVolumePairs(
             vol2shell[volume] = index
     assert all(index >= 0 for index in vol2shell)
 
-    def grads_match(one, two):
+    def grads_match(one: int, two: int) -> bool:
         # Are the two volumes assigned to different b-value shells?
         if vol2shell[one] != vol2shell[two]:
             return False
@@ -251,10 +252,10 @@ def DetermineVolumePairs(
     else:
         # Determine whether or not volume recombination should be performed
         # This could be either due to use of -rpe_all option, or just due to the data provided with -rpe_header
-        # Rather than trying to re-use the code that was used in the case of -rpe_all, run fresh code
+        # Rather than trying to reuse the code that was used in the case of -rpe_all, run fresh code
         # The phase-encoding scheme needs to be checked also
         volume_matchings = [dwi_num_volumes] * dwi_num_volumes
-        volume_pairs = []
+        volume_pairs: ty.List[ty.Tuple[int, int]] = []
         logger.debug(
             "Commencing gradient direction matching; "
             + str(dwi_num_volumes)
@@ -272,7 +273,7 @@ def DetermineVolumePairs(
                         ) and grads_match(index1, index2):
                             volume_matchings[index1] = index2
                             volume_matchings[index2] = index1
-                            volume_pairs.append([index1, index2])
+                            volume_pairs.append((index1, index2))
                             logger.debug(
                                 "Matched volume %s with %s\nPhase encoding: %s %s\nGradients: %s %s",
                                 index1,

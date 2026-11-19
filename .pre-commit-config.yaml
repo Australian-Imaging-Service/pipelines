@@ -37,8 +37,12 @@ repos:
     rev: v1.19.1
     hooks:
       - id: mypy
-        args: [--strict, --install-types, --non-interactive, --no-warn-unused-ignores, --config-file=src/pyproject.toml]
-        exclude: tests
+        # Strict mode is set in src/pyproject.toml rather than with --strict here, as
+        # --strict would override the exceptions made there
+        args: [--install-types, --non-interactive, --no-warn-unused-ignores, --config-file=src/pyproject.toml]
+        # Matches the exclude in src/pyproject.toml's [tool.mypy], which only applies to
+        # files mypy finds itself, not to those pre-commit passes it
+        exclude: (^|/)tests/|^(scripts|docs)/|^conftest\.py$
         # numpy is pinned below 2.5, the first release to require Python 3.12, because
         # mypy checks against Python 3.11 (src/pyproject.toml) and can't parse the
         # 3.12-only syntax in its stubs. imageio would otherwise pull in the latest.

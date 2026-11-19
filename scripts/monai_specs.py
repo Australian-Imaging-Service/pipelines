@@ -621,11 +621,19 @@ class MonaiModels:
         return staged
 
 
+class _IgnoreTagsLoader(yaml.SafeLoader):
+    """Loads custom tags used in specs (e.g. ``!join``) as None, for when only plain
+    fields are needed"""
+
+
+_IgnoreTagsLoader.add_multi_constructor("!", lambda loader, suffix, node: None)
+
+
 def is_monai_spec(path: Path) -> bool:
     """Whether the spec at ``path`` was generated from a MONAI bundle, i.e. is built
     on the MONAI base image"""
     try:
-        spec = yaml.safe_load(path.read_text()) or {}
+        spec = yaml.load(path.read_text(), Loader=_IgnoreTagsLoader) or {}
     except yaml.YAMLError:
         return False
     base_image = spec.get("base_image") if isinstance(spec, dict) else None

@@ -1,5 +1,7 @@
 import shutil
 import subprocess
+import sys
+import typing as ty
 from pathlib import Path
 from fileformats.generic import File, Directory
 from fileformats.medimage import NiftiGz
@@ -39,7 +41,9 @@ parcellation_list = [
 # ---------------------------------- #
 #  FinalizeOutputs input type map    #
 # ---------------------------------- #
-_finalize_inputs: dict = {p: Mif | ImageFormatGz for p in parcellation_list}
+_finalize_inputs: dict[str, ty.Any] = {
+    p: Mif | ImageFormatGz for p in parcellation_list
+}
 _finalize_inputs.update(
     {
         "out_dir": Path | None,
@@ -231,9 +235,10 @@ if __name__ == "__main__":
     resources_dir = Path(get_arg(8, "RESOURCES_DIR", _default_resources))
     output_dir = Path(get_arg(9, "OUTPUT_DIR", str(cache_dir / "t1w_preprocess")))
 
-    try:
+    # sched_getaffinity respects CPU limits set on the process, but is Linux-only
+    if sys.platform == "linux":
         n_threads = len(os.sched_getaffinity(0))
-    except AttributeError:
+    else:
         n_threads = os.cpu_count() or 1
     os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = str(n_threads)
     print(

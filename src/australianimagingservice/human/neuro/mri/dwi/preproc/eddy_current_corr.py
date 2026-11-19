@@ -244,7 +244,7 @@ def EddyCurrentCorrection(
         else:
 
             @python.define(outputs=["corrected_dwis"])
-            def GetOnlyItemFromList(input_list: ty.List) -> ty.Any:
+            def GetOnlyItemFromList(input_list: ty.List[ty.Any]) -> ty.Any:
                 assert len(input_list) == 1
                 return input_list[0]
 
@@ -325,12 +325,16 @@ def EddyCurrentCorrection(
             dwi_padding: ty.List[ty.Tuple[int, str]],
         ) -> TextArray:
             # Slice timing vector must be of same length as number of slices
-            # For padded slices, pretend they were acquired at time 0
-            slice_timings.extend([0.0] * dwi_padding[2])
+            # For padded slices, pretend they were acquired at time 0. The padding is
+            # given as (axis, "0:<size>") pairs, for only the axes that are padded
+            slice_padding = next(
+                (int(arg.split(":")[1]) for axis, arg in dwi_padding if axis == 2), 0
+            )
+            slice_timings.extend([0.0] * slice_padding)
 
             # TODO Not sure if the need for this was ever tested using real data?
             if sum(slice_encoding_direction) < 0:
-                slice_timings = reversed(slice_timings)
+                slice_timings = list(reversed(slice_timings))
 
             slice_groups = [
                 [x[0] for x in g]
@@ -428,7 +432,7 @@ def EddyCurrentCorrection(
     #   Could add very early check of data shelled-ness using mrinfo, and if that succeeds,
     #   just always include the --data-is-shelled option
     # - What if eddy fails due to not being able to find any individual slice that does
-    #   not contain any outliers? One potential solution to at least succeeed with processing
+    #   not contain any outliers? One potential solution to at least succeed with processing
     #   is to increase the stringency of the thresholding by which outlier slices are detected,
     #   making it more likely for there to be at least one volume with precisely zero outliers.
 

@@ -191,7 +191,7 @@ def Qc(
                 eddy_mask=eddy_mask_qc,
             )
         )
-        qc_dir = gather_qc.qc_dir
+        qc_dir: str = gather_qc.qc_dir
 
     else:
         get_qc_dir = workflow.add(GetEddyQuadOutputDir(qc_json=eddy_quad.qc_json))
