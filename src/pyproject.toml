@@ -39,7 +39,7 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["black", "pre-commit", "codespell", "flake8", "flake8-pyproject"]
+dev = ["ruff", "pre-commit", "codespell"]
 
 # Build tooling for MONAI specs, needed only by scripts/monai_specs.py (sync,
 # fetch-resources, triage) -- not by the installed package, and not by any
@@ -98,19 +98,20 @@ reportAssignmentType = false
 [tool.hatch.build.targets.wheel]
 packages = ["australianimagingservice"]
 
-[tool.black]
-target-version = ['py311', 'py312', 'py313', 'py314']
-exclude = "australianimagingservice/_version.py"
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+extend-exclude = ["australianimagingservice/_version.py"]
+
+[tool.ruff.lint]
+# As in accessionflow, apart from "I" (import sorting), left out for now to avoid
+# reordering the imports of every module
+select = ["E4", "E7", "E9", "F", "W"]
+ignore = ["E501", "E701"]
+per-file-ignores = { "__init__.py" = ["F401"] }
 
 [tool.codespell]
 ignore-words = ".codespell-ignorewords"
-
-[tool.flake8]
-doctests = true
-per-file-ignores = ["__init__.py:F401"]
-max-line-length = 88
-select = "C,E,F,W,B,B950"
-extend-ignore = ['E203', 'E501', 'E129', 'W503']
 
 
 [tool.mypy]

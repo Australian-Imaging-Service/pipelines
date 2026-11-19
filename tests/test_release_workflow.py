@@ -122,7 +122,7 @@ def test_run_steps_have_valid_bash_syntax(jobs):
                 )
 
 
-@pytest.mark.parametrize("builds", [[], ["quality-control/phi-finder"]])
+@pytest.mark.parametrize("builds", [[], ["human/any-anatomy/any-technique/phi-finder"]])
 def test_planning_shell_hands_off_changed_and_unchanged_candidates(
     jobs, tmp_path, builds
 ):
@@ -144,7 +144,7 @@ def test_planning_shell_hands_off_changed_and_unchanged_candidates(
         executable = fake_bin / name
         executable.write_text("#!/bin/sh\nset -eu\n" + body)
         executable.chmod(0o755)
-    selected = ["quality-control/phi-finder", "ct/human/abdomen/monai/spleen"]
+    selected = ["human/any-anatomy/any-technique/phi-finder", "human/abdomen/ct/spleen"]
     plan = {
         "build": builds,
         "unchanged": [spec for spec in selected if spec not in builds],

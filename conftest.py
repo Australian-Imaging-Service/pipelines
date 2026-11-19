@@ -60,7 +60,6 @@ def work_dir():
 
 @dataclass
 class BidsAppTestBlueprint:
-
     spec_path: str
     project_id: str
     parameters: ty.Dict[str, str]
@@ -70,13 +69,19 @@ class BidsAppTestBlueprint:
 
 specs_dir = Path(__file__).parent / "specs"
 
-bids_apps_dir = (
-    specs_dir / "australian-imaging-service" / "mri" / "human" / "neuro" / "bidsapp"
-)
+# BIDS apps are filed by the images they operate on rather than in a folder of their
+# own, so they are found by the type of their task
+bids_app_spec_paths = {
+    p.stem: p
+    for p in sorted((specs_dir / "australian-imaging-service").glob("**/*.yaml"))
+    if not any(part.startswith(".") for part in p.parts)
+    and "type: bidsapp" in p.read_text()
+}
 test_data_dir = Path(__file__).parent / "tests" / "data"
+# Test data is still laid out by the old spec paths, inside tests/data.zip
 test_bids_data_dir = test_data_dir / "specs" / "mri" / "human" / "neuro" / "bidsapp"
 
-bids_specs = [str(p.stem) for p in bids_apps_dir.glob("*.yaml")]
+bids_specs = list(bids_app_spec_paths)
 
 
 BIDS_APP_PARAMETERS = {
@@ -93,7 +98,7 @@ TEST_XNAT_NICKNAME = "test-xnat"
 
 @pytest.fixture(params=bids_specs)
 def bids_app_spec_path(request):
-    return bids_apps_dir / (request.param + ".yaml")
+    return bids_app_spec_paths[request.param]
 
 
 @pytest.fixture(params=bids_specs)
@@ -103,7 +108,7 @@ def bids_app_blueprint(run_prefix, xnat_connect, request):
     test_data = test_bids_data_dir / bids_app_name
     upload_test_dataset_to_xnat(project_id, test_data, xnat_connect)
     return BidsAppTestBlueprint(
-        spec_path=bids_apps_dir / (bids_app_name + ".yaml"),
+        spec_path=bids_app_spec_paths[bids_app_name],
         project_id=project_id,
         parameters=BIDS_APP_PARAMETERS.get(bids_app_name, {}),
         licenses=BIDS_APP_LICENSES.get(bids_app_name, {}),
@@ -212,7 +217,6 @@ def upload_test_dataset_to_xnat(
             xscan = xclasses.MrScanData(id=scan_id, type=scan_type, parent=xsession)
 
             for resource_path in test_scan_dir.iterdir():
-
                 if not resource_path.is_dir():
                     continue
                 # Create the resource

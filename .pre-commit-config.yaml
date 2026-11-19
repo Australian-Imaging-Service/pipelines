@@ -15,14 +15,16 @@ repos:
         language: python
         additional_dependencies: [pydra2app>=0.22.2]
         types: [yaml]
-  - repo: https://github.com/psf/black
-    rev: 25.12.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.2
     hooks:
-      - id: black
-        language_version: python3.13
-        exclude: ^(src/australianimagingservice/_version\.py)$
+      # The ruff settings are in src/pyproject.toml, as that is where the package is
+      - id: ruff-check
         args:
-          - -l 88
+          - --fix
+          - --config=src/pyproject.toml
+      - id: ruff-format
+        args:
           - --config=src/pyproject.toml
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
@@ -31,19 +33,16 @@ repos:
         exclude: ^(src/australianimagingservice/_version\.py)$
         args:
           - --ignore-words=.codespell-ignorewords
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.3.0
-    hooks:
-      - id: flake8
-        args:
-          - --extend-ignore=E203,E501,E129,W503,E701
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
     hooks:
       - id: mypy
         args: [--strict, --install-types, --non-interactive, --no-warn-unused-ignores, --config-file=src/pyproject.toml]
         exclude: tests
-        additional_dependencies: [pytest, attrs, imageio, pydicom]
+        # numpy is pinned below 2.5, the first release to require Python 3.12, because
+        # mypy checks against Python 3.11 (src/pyproject.toml) and can't parse the
+        # 3.12-only syntax in its stubs. imageio would otherwise pull in the latest.
+        additional_dependencies: [pytest, attrs, imageio, pydicom, "numpy<2.5"]
   - repo: https://github.com/google/yamlfmt
     rev: v0.19.0
     hooks:

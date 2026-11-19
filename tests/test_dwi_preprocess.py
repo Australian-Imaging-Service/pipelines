@@ -15,9 +15,9 @@ SPEC_PATH = (
     PKG_DIR
     / "specs"
     / "australian-imaging-service"
-    / "mri"
     / "human"
     / "neuro"
+    / "mri"
     / "dwi"
     / "preprocess.yaml"
 )
@@ -143,7 +143,6 @@ def test_dwi_preprocess_app(
         project_ids[scenario_name] = project_id
 
     with xnat_connect() as xlogin:
-
         for command_obj in image_spec.commands:
             with open(build_dir / "xnat_commands" / (command_obj.name + ".json")) as f:
                 command_json_template = json.load(f)
@@ -178,6 +177,6 @@ def test_dwi_preprocess_app(
                     xlogin=xlogin,
                     timeout=30000,
                 )
-                assert (
-                    status == "Complete"
-                ), f"Workflow {workflow_id} ({scenario_name}) failed.\n{out_str}"
+                assert status == "Complete", (
+                    f"Workflow {workflow_id} ({scenario_name}) failed.\n{out_str}"
+                )

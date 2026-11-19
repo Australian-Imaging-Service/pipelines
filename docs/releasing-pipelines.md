@@ -58,7 +58,8 @@ as empty successful results.
 
 Only the currently selected pipelines enter the catalogue. Removing a selection
 removes its catalogue entry but does not delete its published image. Renaming a
-spec changes its stable ID.
+spec changes its stable ID. Spec paths follow the
+[pipeline naming convention](pipeline-naming.md).
 
 ## Reconciler image
 
@@ -83,7 +84,7 @@ reports every pipeline as `installed`, `updated`, `unchanged` or `failed` with a
 pipeline fails. For example:
 
 ```text
-mri.human.neuro.t1w.preprocess: installed (installed=1, updated=0, unchanged=0, enabled=1)
+human.neuro.mri.anat.t1w-preprocess: installed (installed=1, updated=0, unchanged=0, enabled=1)
 ```
 
 It reads the latest release's catalogue unless `PIPELINE_CATALOGUE_URL` is set.
@@ -95,9 +96,9 @@ whether their commands are enabled:
 
 ```yaml
 include:              # optional; leave out to take every pipeline
-  - mri.human.neuro.*
+  - human.*.mri.*
 exclude:              # optional; wins over include
-  - mri.human.neuro.bidsapp.*
+  - human.neuro.mri.func.fmriprep
 enablement: approval  # or "auto"; default is approval
 ```
 
@@ -145,7 +146,7 @@ requested commit are rejected rather than rolling the latest channel backwards.
 
 Tag pushes share a non-cancelling concurrency group with `queue: max` to prevent
 overlapping publication without replacing pending releases. GitHub allows up to
-100 pending runs in this queue. Ordering is based on when runs enter the queue. 
+100 pending runs in this queue. Ordering is based on when runs enter the queue.
 The ancestry check still protects against publishing an older commit after a newer one.
 
 The publisher uses the repository's `GITHUB_TOKEN` with `contents: write`.
