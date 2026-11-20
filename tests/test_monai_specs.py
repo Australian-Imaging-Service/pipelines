@@ -240,7 +240,7 @@ def test_generate_spec_shape(tmp_path, whitelist_file, monkeypatch):
     assert "configuration" not in cmd
     # namespace-qualified: a bare "session" is not a valid axes reference
     assert cmd["operates_on"] == "medimage/session"
-    assert cmd["sources"]["image"]["datatype"] == "medimage/nifti-gz-x"
+    assert cmd["sources"]["image"]["datatype"] == "medimage/nifti-gz-x+convertible-to"
     # sink path rewritten to the frametree store path
     assert cmd["sinks"]["pred"]["path"] == "monai/spleen_ct_segmentation/pred"
 
@@ -786,6 +786,54 @@ def test_generate_spec_without_required_packages_is_unchanged(
     spec = mm.generate_spec(entry, bundle_dir=bundle)
 
     assert list(spec["packages"]["pip"]) == ["pydra-compose-monai"]
+    # no NIfTI source, so nothing to convert DICOM for
+    assert "neurodocker" not in spec["packages"]
+
+
+def test_generate_spec_converts_dicom_to_nifti_sources(
+    tmp_path, whitelist_file, monkeypatch
+):
+    """XNAT holds scans as DICOM, but bundles read NIfTI.
+
+    The source is marked `+convertible-to` so a DICOM scan matches it, and
+    dcm2niix is installed so the conversion can actually run. The MONAI base
+    image has no dcm2niix, so without it a DICOM scan is accepted at launch and
+    then fails at the conversion step.
+    """
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms,
+        "spec_fragment",
+        lambda bundle: {
+            "sources": {
+                "image": {
+                    "datatype": "medimage/nifti-gz",
+                    "help": "in",
+                    "path": "network_data_format/inputs/image",
+                }
+            },
+            "sinks": {},
+            "parameters": {},
+        },
+    )
+    bundle = _write_bundle_metadata(tmp_path / "bundle")
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    spec = mm.generate_spec(entry, bundle_dir=bundle)
+
+    source = spec["commands"]["spleen_ct_segmentation"]["sources"]["image"]
+    assert source["datatype"] == "medimage/nifti-gz+convertible-to"
+    assert spec["packages"]["neurodocker"] == {"dcm2niix": ms.DCM2NIIX_VERSION}
+    assert "pydra-tasks-dcm2niix" in spec["packages"]["pip"]
+
+    # regenerating from an already-convertible datatype doesn't stack suffixes
+    fragment = ms.spec_fragment(bundle)
+    fragment["sources"]["image"]["datatype"] = "medimage/nifti-gz+convertible-to"
+    monkeypatch.setattr(ms, "spec_fragment", lambda bundle: fragment)
+    again = mm.generate_spec(entry, bundle_dir=bundle)
+    source = again["commands"]["spleen_ct_segmentation"]["sources"]["image"]
+    assert source["datatype"] == "medimage/nifti-gz+convertible-to"
 
 
 def _make_synthetic_bundle(dest: Path) -> Path:

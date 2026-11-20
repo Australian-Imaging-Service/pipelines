@@ -19,6 +19,9 @@ packages:
     pytorch-ignite: '>=0.5'
     tensorboard: 2.17.0
     pydra-compose-monai: '>=0.2.0'
+    pydra-tasks-dcm2niix: null
+  neurodocker:
+    dcm2niix: v1.0.20250506
 name: wholeBody_ct_segmentation
 version: 0.2.7
 resources:
@@ -32,7 +35,7 @@ commands:
     operates_on: medimage/session
     sources:
       image:
-        datatype: medimage/nifti-gz
+        datatype: medimage/nifti-gz+convertible-to
         help: 'CT image, format: hounsfield, 1 channel(s), patch size: [96, 96, 96]'
         path: network_data_format/inputs/image
     sinks:
