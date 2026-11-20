@@ -1,0 +1,44 @@
+title: MONAI Whole Body CT Segmentation
+authors:
+- name: MONAI Consortium
+  email: monai.contact@gmail.com
+docs:
+  info_url: https://monai.io/model-zoo.html
+  description: A SegResNet-based volumetric segmentation model that segments 104 distinct
+    anatomical structures from CT scans. The model processes 96x96x96 pixel patches
+    and provides segmentation masks for major organs, bones, muscles, and vascular
+    structures throughout the body, trained on TotalSegmentator data.
+base_image:
+  name: projectmonai/monai
+  tag: 1.6.1
+  package_manager: apt
+packages:
+  pip:
+    itk: 5.4.0
+    nibabel: 5.2.1
+    pytorch-ignite: '>=0.5'
+    tensorboard: 2.17.0
+    pydra-compose-monai: '>=0.2.0'
+name: wholeBody_ct_segmentation
+version: 0.2.7
+resources:
+  wholeBody_ct_segmentation-bundle:
+    path: /monai-bundles/wholeBody_ct_segmentation
+commands:
+  wholeBody_ct_segmentation:
+    task:
+      type: monai
+      bundle: /monai-bundles/wholeBody_ct_segmentation
+    operates_on: medimage/session
+    sources:
+      image:
+        datatype: medimage/nifti-gz
+        help: 'CT image, format: hounsfield, 1 channel(s), patch size: [96, 96, 96]'
+        path: network_data_format/inputs/image
+    sinks:
+      pred:
+        datatype: medimage/nifti-gz
+        help: 'format: segmentation, 105 channel(s), patch size: [96, 96, 96]'
+        path: monai/wholeBody_ct_segmentation/pred
+    parameters: {}
+license: apache-2.0
