@@ -1,4 +1,5 @@
 title: "Structural MRI data preprocessing pipeline"
+license: apache-2.0
 schema_version: 2.0
 version: &package_version "0.20.0"
 authors:

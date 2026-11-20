@@ -131,22 +131,18 @@ SpecLoader.add_constructor(
 )
 
 
-def build_metadata(entry, repository, commit, spec_dir):
-    repository_name(repository)
-    commit_sha(commit)
-    spec = spec_name(entry["spec"])
-    require(entry["id"] == spec.replace("/", "."), "Pipeline ID mismatch")
-    require(
-        re.fullmatch(r"ghcr\.io/\S+@sha256:[0-9a-f]{64}", entry["image"]),
-        "Pipeline image must be digest-pinned",
-    )
+def load_spec_metadata(spec, spec_dir):
+    spec_name(spec)
     path = (Path(spec_dir) / f"{spec}.yaml").resolve()
     require(
         path.is_relative_to(Path(spec_dir).resolve()) and path.is_file(),
-        "Pipeline spec not found within spec directory",
+        f"{spec}: pipeline spec not found within spec directory",
     )
     content = path.read_bytes()
-    data = yaml.load(content, Loader=SpecLoader)
+    try:
+        data = yaml.load(content, Loader=SpecLoader)
+    except yaml.YAMLError as exc:
+        raise ZenodoError(f"{spec}: invalid YAML: {exc}") from exc
     require(isinstance(data, dict), f"{spec}: spec must be a mapping")
     for key in ("title", "version", "license"):
         require(
@@ -157,7 +153,6 @@ def build_metadata(entry, repository, commit, spec_dir):
         bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.+-]*", data["license"])),
         f"{spec}: invalid license identifier",
     )
-    require(str(data["version"]) == entry["version"], f"{spec}: version mismatch")
     docs = data.get("docs")
     require(
         isinstance(docs, dict)
@@ -179,6 +174,33 @@ def build_metadata(entry, repository, commit, spec_dir):
         if author.get("affliation"):
             creator["affiliation"] = author["affliation"]
         creators.append(creator)
+    return content, data, creators
+
+
+def validate_selected_specs(selected_specs, spec_dir):
+    specs = Path(selected_specs).read_text().splitlines()
+    require(bool(specs), "No pipeline specs were selected")
+    errors = []
+    for spec in specs:
+        try:
+            load_spec_metadata(spec, spec_dir)
+        except ZenodoError as exc:
+            errors.append(str(exc))
+    require(not errors, "Invalid release metadata:\n" + "\n".join(errors))
+    print(f"Validated Zenodo metadata for {len(specs)} selected pipelines")
+
+
+def build_metadata(entry, repository, commit, spec_dir):
+    repository_name(repository)
+    commit_sha(commit)
+    spec = spec_name(entry["spec"])
+    require(entry["id"] == spec.replace("/", "."), "Pipeline ID mismatch")
+    require(
+        re.fullmatch(r"ghcr\.io/\S+@sha256:[0-9a-f]{64}", entry["image"]),
+        "Pipeline image must be digest-pinned",
+    )
+    content, data, creators = load_spec_metadata(spec, spec_dir)
+    require(data["version"] == entry["version"], f"{spec}: version mismatch")
     marker = f"ais-pipeline:{repository.lower()}:{entry['id']}"
     source_url = f"https://github.com/{repository}/blob/{commit}/specs/australian-imaging-service/{spec}.yaml"
     manifest = {
@@ -190,7 +212,7 @@ def build_metadata(entry, repository, commit, spec_dir):
         "spec_sha256": hashlib.sha256(content).hexdigest(),
     }
     description = (
-        f"<p>{html.escape(docs['description'].strip())}</p>"
+        f"<p>{html.escape(data['docs']['description'].strip())}</p>"
         f'<p>Source: <a href="{html.escape(source_url, quote=True)}">'
         f"pipeline specification</a>. Image: <code>{html.escape(entry['image'])}</code>.</p>"
     )
@@ -348,6 +370,9 @@ def verify_files(client, deposit, files):
 
 
 def process(args):
+    if args.action == "validate-specs":
+        validate_selected_specs(args.selected_specs, args.spec_dir)
+        return
     client = Client(os.environ.get("ZENODO_SANDBOX_TOKEN"))
     if args.action == "validate":
         inventory = json.loads(Path(args.inventory).read_text())
@@ -404,16 +429,23 @@ def process(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "action", choices=["validate", "prepare-entry", "prepare", "publish"]
+        "action",
+        choices=["validate-specs", "validate", "prepare-entry", "prepare", "publish"],
     )
+    parser.add_argument("--selected-specs")
     parser.add_argument("--entry")
     parser.add_argument("--inventory")
     parser.add_argument("--catalogue")
     parser.add_argument("--previous")
-    parser.add_argument("--repository", required=True)
-    parser.add_argument("--commit", required=True)
+    parser.add_argument("--repository")
+    parser.add_argument("--commit")
     parser.add_argument("--spec-dir", required=True)
     args = parser.parse_args()
+    if args.action == "validate-specs":
+        if not args.selected_specs:
+            parser.error("validate-specs requires --selected-specs")
+    elif not (args.repository and args.commit):
+        parser.error(f"{args.action} requires --repository and --commit")
     try:
         process(args)
     except ZenodoError as exc:

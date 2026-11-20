@@ -101,6 +101,11 @@ jobs:
           cat excluded-specs.txt
           echo "Selected specs:"
           cat selected-specs.txt
+      - name: Dry-run Zenodo metadata validation
+        run: |
+          python -m scripts.zenodo validate-specs \
+            --selected-specs selected-specs.txt \
+            --spec-dir specs/australian-imaging-service
       - name: Plan pipeline builds
         id: plan
         env:

@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import json
+import sys
 
 import pytest
 
@@ -97,6 +98,37 @@ def entry():
         "version": "1.0",
         "image": "ghcr.io/ais/example@sha256:" + "a" * 64,
     }
+
+
+def test_dry_run_without_token_checks_only_selected_specs(
+    spec_dir, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.delenv("ZENODO_SANDBOX_TOKEN", raising=False)
+    selected = tmp_path / "selected-specs.txt"
+    selected.write_text("quality-control/example\n")
+    (spec_dir / "excluded.yaml").write_text("title: No licence\n")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "zenodo",
+            "validate-specs",
+            "--selected-specs",
+            str(selected),
+            "--spec-dir",
+            str(spec_dir),
+        ],
+    )
+    assert zenodo.main() == 0
+    assert "1 selected pipelines" in capsys.readouterr().out
+
+    example = spec_dir / "quality-control/example.yaml"
+    example.write_text(example.read_text().replace("license: mit\n", ""))
+    selected.write_text("quality-control/example\nexcluded\n")
+    assert zenodo.main() == 1
+    errors = capsys.readouterr().err
+    assert "quality-control/example: missing license" in errors
+    assert "excluded: missing version" in errors
 
 
 def test_draft_and_new_version_are_reused(spec_dir, entry):

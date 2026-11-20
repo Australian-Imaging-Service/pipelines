@@ -95,6 +95,22 @@ def test_inventory_is_shared_with_builds_and_publication(jobs):
     )
 
 
+def test_zenodo_metadata_dry_run_precedes_registry_planning(jobs):
+    discover = jobs["discover-specs"]
+    names = [item.get("name") for item in discover["steps"]]
+    dry_run = "Dry-run Zenodo metadata validation"
+    assert (
+        names.index("Discover selected specs")
+        < names.index(dry_run)
+        < names.index("Plan pipeline builds")
+    )
+    validation = step(discover, dry_run)
+    assert "if" not in validation
+    assert "env" not in validation
+    assert "validate-specs" in validation["run"]
+    assert "--selected-specs selected-specs.txt" in validation["run"]
+
+
 def test_matrix_artifacts_feed_publication(jobs):
     assert step(jobs["build-and-deploy"], "Upload immutable release entry")["with"][
         "name"
