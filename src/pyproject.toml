@@ -18,7 +18,7 @@ dependencies = [
     "pydra-tasks-freesurfer",
     "pydra-tasks-mrtrix3 >=3.1.0a9",
 ]
-license = "CC-BY-4.0"
+license = "Apache-2.0"
 authors = [{ name = "Thomas G. Close", email = "tom.g.close@gmail.com" }]
 maintainers = [{ name = "Thomas G. Close", email = "tom.g.close@gmail.com" }]
 keywords = ["file formats", "data"]

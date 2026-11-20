@@ -8,5 +8,4 @@ publication process.
 See [Pipeline naming](docs/pipeline-naming.md) for how pipelines are organised and
 named.
 
-This work is licensed under a
-[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-nc-sa/4.0/>).
+This work is licensed under the [Apache License 2.0](LICENSE).
