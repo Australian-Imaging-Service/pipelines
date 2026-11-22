@@ -17,6 +17,9 @@ models:
     species: human
     anatomy: whole-body
     technique: ct
+    # From the bundle's LICENSE file; metadata.json does not declare one. The
+    # weights are trained on TotalSegmentator data, which is CC BY 4.0.
+    license: apache-2.0
     # Overrides what the bundle declares in metadata.json's
     # required_packages_version, for pins that don't work in the built image.
     package_overrides:
