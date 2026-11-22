@@ -39,6 +39,12 @@ MONAI_OPERATES_ON = "medimage/session"
 #: isn't on the host, which is what pydra2app's `can_defer_task` keys on.
 PYDRA_COMPOSE_MONAI_REQ = ">=0.2.0"
 
+#: XNAT holds scans as DICOM, but bundles read NIfTI, so NIfTI sources are
+#: marked convertible and dcm2niix is installed to do the conversion. The MONAI
+#: base image has no dcm2niix of its own. Same version as the hand-written specs.
+CONVERTIBLE_TO = "+convertible-to"
+DCM2NIIX_VERSION = "v1.0.20250506"
+
 
 class WhitelistEntry(ty.NamedTuple):
     name: str
@@ -357,9 +363,28 @@ class MonaiModels:
         metadata = self.bundle_metadata(bundle_dir)
         fragment = spec_fragment(bundle_dir)
         # The bundle's own pins first, then the whitelist's overrides.
-        pip = self.required_packages(bundle_dir)
+        # Optional: a None version installs the package unpinned
+        pip: Dict[str, Optional[str]] = dict(self.required_packages(bundle_dir))
         pip.update(entry.package_overrides)
         pip["pydra-compose-monai"] = PYDRA_COMPOSE_MONAI_REQ
+
+        # pydra2app already accepts anything convertible to a source's datatype,
+        # but saying so in the spec keeps it explicit, and the conversion only
+        # works if dcm2niix is in the image.
+        sources = {}
+        converts_dicom = False
+        for in_name, source in fragment["sources"].items():
+            source = dict(source)
+            datatype = source.get("datatype", "")
+            if datatype.startswith("medimage/nifti"):
+                converts_dicom = True
+                if not datatype.endswith(CONVERTIBLE_TO):
+                    source["datatype"] = datatype + CONVERTIBLE_TO
+            sources[in_name] = source
+        packages: Dict[str, dict] = {"pip": pip}
+        if converts_dicom:
+            pip["pydra-tasks-dcm2niix"] = None
+            packages["neurodocker"] = {"dcm2niix": DCM2NIIX_VERSION}
 
         # Rewrite sink paths from bundle metadata paths to frametree store paths.
         sinks = {}
@@ -374,7 +399,7 @@ class MonaiModels:
                 "bundle": self.runtime_bundle_path(entry),
             },
             "operates_on": MONAI_OPERATES_ON,
-            "sources": fragment["sources"],
+            "sources": sources,
             "sinks": sinks,
             "parameters": fragment["parameters"],
         }
@@ -400,7 +425,7 @@ class MonaiModels:
                 "tag": MONAI_BASE_IMAGE_TAG,
                 "package_manager": "apt",
             },
-            "packages": {"pip": pip},
+            "packages": packages,
             "name": entry.name,
             "version": entry.version,
             # The full bundle (weights included) is delivered at build time and
