@@ -1,5 +1,5 @@
 ---
-source_file: /pydra2app-spec.yaml
+source_file: /home/runner/work/pipelines/pipelines/specs/australian-imaging-service/human/whole-body/ct/wholeBody_ct_segmentation.yaml
 title: wholeBody_ct_segmentation
 weight: 10
 
@@ -20,19 +20,7 @@ A SegResNet-based volumetric segmentation model that segments 104 distinct anato
 ## Commands
 |Key|Value|
 |---|-----|
-|Task|WholeBodyCtSegmentation|
+|Task|DeferredMonaiTask|
 |Operates on|session|
-#### Inputs
-|Name|Data-type(s)|Required|Description|
-|----|------------|--------|-----------|
-|`image`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz+convertible-to" aria-label="medimage/nifti-gz+convertible-to">medimage/nifti-gz+convertible-to</span>|Y|CT image, format: hounsfield, 1 channel(s), patch size: [96, 96, 96]|
-
-#### Outputs
-|Name|Data-type(s)|Always generated|Description|
-|----|------------|----------------|-----------|
-|`pred`|<span data-toggle="tooltip" data-placement="bottom" title="medimage/nifti-gz" aria-label="medimage/nifti-gz">medimage/nifti-gz</span>|Y|format: segmentation, 105 channel(s), patch size: [96, 96, 96]|
-
-#### Parameters
-|Name|Data-type(s)|Default|Description|
-|----|------------|-------|-----------|
+Inputs, outputs and parameters could not be introspected in this environment (the task's package isn't installed here); see the docs generated from within the built image.
 
