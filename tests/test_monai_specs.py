@@ -44,8 +44,8 @@ def test_whitelist_parses_entries(tmp_path: Path, whitelist_file: Path):
 
 
 def test_spec_path_follows_naming_convention(tmp_path: Path, whitelist_file: Path):
-    """<species>/<anatomy>/<technique>/monai-<pipeline>.yaml, with no MONAI-specific
-    level"""
+    """<species>/<anatomy>/<technique>/monai-<pipeline_name>.yaml, with no
+    MONAI-specific level"""
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]
     expected = (
@@ -60,20 +60,20 @@ def test_spec_path_follows_naming_convention(tmp_path: Path, whitelist_file: Pat
     assert mm.spec_path(entry) == expected
 
 
-def test_pipeline_name_defaults_to_the_zoo_name_in_lowercase_and_hyphens(
+def test_spec_stem_defaults_to_the_zoo_name_in_lowercase_and_hyphens(
     tmp_path: Path, whitelist_file: Path
 ):
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]
-    assert mm.pipeline_name(entry) == "monai-spleen-ct-segmentation"
+    assert mm.spec_stem(entry) == "monai-spleen-ct-segmentation"
     # camelCase in a Zoo name is split too
     assert (
-        mm.pipeline_name(entry._replace(name="wholeBody_ct_segmentation"))
+        mm.spec_stem(entry._replace(name="wholeBody_ct_segmentation"))
         == "monai-whole-body-ct-segmentation"
     )
 
 
-def test_whitelist_pipeline_overrides_the_file_and_command_name(
+def test_whitelist_pipeline_name_overrides_the_file_and_command_name(
     tmp_path: Path, monkeypatch
 ):
     """#546: the Zoo name often repeats the directories, e.g.
@@ -85,10 +85,10 @@ def test_whitelist_pipeline_overrides_the_file_and_command_name(
         "spec_fragment",
         lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
     )
-    wl = _write_whitelist(tmp_path / "wl.yaml", pipeline="segmentation")
+    wl = _write_whitelist(tmp_path / "wl.yaml", pipeline_name="segmentation")
     mm = MonaiModels(root=tmp_path, whitelist_path=wl)
     entry = mm.whitelist()[0]._replace(version="0.5.3")
-    assert entry.pipeline == "segmentation"
+    assert entry.pipeline_name == "segmentation"
     assert mm.spec_path(entry).name == "monai-segmentation.yaml"
 
     spec = mm.generate_spec(entry, bundle_dir=tmp_path / "b")
@@ -101,11 +101,13 @@ def test_whitelist_pipeline_overrides_the_file_and_command_name(
 
 
 @pytest.mark.parametrize(
-    "pipeline", ["Segmentation", "ct_segmentation", "monai-segmentation", "-x"]
+    "pipeline_name", ["Segmentation", "ct_segmentation", "monai-segmentation", "-x"]
 )
-def test_whitelist_rejects_a_malformed_pipeline(tmp_path: Path, pipeline: str):
-    wl = _write_whitelist(tmp_path / "wl.yaml", pipeline=pipeline)
-    with pytest.raises(ValueError, match="pipeline"):
+def test_whitelist_rejects_a_malformed_pipeline_name(
+    tmp_path: Path, pipeline_name: str
+):
+    wl = _write_whitelist(tmp_path / "wl.yaml", pipeline_name=pipeline_name)
+    with pytest.raises(ValueError, match="pipeline_name"):
         MonaiModels(root=tmp_path, whitelist_path=wl).whitelist()
 
 
@@ -113,7 +115,7 @@ def test_check_unique_paths_rejects_two_models_with_one_file(
     tmp_path: Path, whitelist_file: Path
 ):
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
-    a = mm.whitelist()[0]._replace(pipeline="segmentation")
+    a = mm.whitelist()[0]._replace(pipeline_name="segmentation")
     b = a._replace(name="other_ct_segmentation")
     mm.check_unique_paths([a])
     with pytest.raises(ValueError, match="other_ct_segmentation"):
@@ -122,8 +124,8 @@ def test_check_unique_paths_rejects_two_models_with_one_file(
     mm.check_unique_paths([a, b._replace(anatomy="neuro")])
 
 
-def test_sync_renames_the_spec_when_pipeline_is_set(tmp_path, monkeypatch):
-    """Setting ``pipeline`` moves the spec to a new file. The old one must go,
+def test_sync_renames_the_spec_when_pipeline_name_is_set(tmp_path, monkeypatch):
+    """Setting ``pipeline_name`` moves the spec to a new file. The old one must go,
     or both would build."""
     _stub_zoo(monkeypatch)
     bundle = tmp_path / "bundle"
@@ -135,7 +137,7 @@ def test_sync_renames_the_spec_when_pipeline_is_set(tmp_path, monkeypatch):
     (old_path,), _ = mm.sync(download_bundle=lambda entry: bundle)
     assert old_path.name == "monai-spleen-ct-segmentation.yaml"
 
-    _write_whitelist(wl, pipeline="segmentation")
+    _write_whitelist(wl, pipeline_name="segmentation")
     (new_path,), removed = mm.sync(download_bundle=lambda entry: bundle)
     assert new_path.name == "monai-segmentation.yaml"
     assert removed == [old_path]
@@ -762,7 +764,7 @@ def test_spec_fields_come_from_bundle_and_defaults_not_an_overlay(
     assert spec["base_image"]["tag"] == ms.MONAI_BASE_IMAGE_TAG
     assert spec["authors"][0]["name"] == "MONAI Consortium"
     assert spec["docs"]["info_url"] == "https://monai.io/model-zoo.html"
-    assert spec["commands"][mm.pipeline_name(entry)]["operates_on"] == "medimage/session"
+    assert spec["commands"][mm.spec_stem(entry)]["operates_on"] == "medimage/session"
     assert spec["packages"]["pip"]["pydra-compose-monai"] == ms.PYDRA_COMPOSE_MONAI_REQ
 
 

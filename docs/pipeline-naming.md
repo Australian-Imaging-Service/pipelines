@@ -139,5 +139,5 @@ by their `projectmonai/monai` base image.
 Generated MONAI specs no longer set `name`, so their ID comes from the file path like
 every other spec. In 26.11.0 the whole-body CT model was published as
 `wholebody_ct_segmentation`, outside the naming scheme. Its file is now
-`monai-segmentation.yaml`, set by a new optional `pipeline` field in the whitelist,
+`monai-segmentation.yaml`, set by a new optional `pipeline_name` field in the whitelist,
 and its XNAT command is `monai-segmentation`.

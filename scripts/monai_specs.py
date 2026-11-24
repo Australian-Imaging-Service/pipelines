@@ -46,7 +46,7 @@ CONVERTIBLE_TO = "+convertible-to"
 DCM2NIIX_VERSION = "v1.0.20250506"
 
 #: Generated spec file names start with this, so MONAI pipelines stand out in the
-#: tree. The rest comes from the whitelist's ``pipeline`` field or the Zoo name.
+#: tree. The rest comes from the whitelist's ``pipeline_name`` field or the Zoo name.
 PIPELINE_PREFIX = "monai-"
 #: Lowercase words joined by hyphens, as docs/pipeline-naming.md asks for.
 PIPELINE_NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -67,7 +67,7 @@ class WhitelistEntry(ty.NamedTuple):
     license: Optional[str] = None
     #: Overrides the part of the file name after ``monai-``, for when the Zoo
     #: name repeats what the spec's directories already say.
-    pipeline: Optional[str] = None
+    pipeline_name: Optional[str] = None
 
 
 class DeclinedEntry(ty.NamedTuple):
@@ -104,15 +104,17 @@ class MonaiModels:
         models: Dict[str, dict] = data.get("models", {})
         entries: List[WhitelistEntry] = []
         for name, cfg in models.items():
-            pipeline = cfg.get("pipeline")
-            if pipeline is not None:
-                pipeline = str(pipeline)
-                if not PIPELINE_NAME_RE.match(pipeline) or pipeline.startswith(
+            pipeline_name = cfg.get("pipeline_name")
+            if pipeline_name is not None:
+                pipeline_name = str(pipeline_name)
+                if not PIPELINE_NAME_RE.match(
+                    pipeline_name
+                ) or pipeline_name.startswith(
                     PIPELINE_PREFIX
                 ):
                     raise ValueError(
-                        f"{name}: pipeline {pipeline!r} must be lowercase words "
-                        f"joined by hyphens, without the {PIPELINE_PREFIX!r} "
+                        f"{name}: pipeline_name {pipeline_name!r} must be lowercase "
+                        f"words joined by hyphens, without the {PIPELINE_PREFIX!r} "
                         "prefix (it is added)"
                     )
             entries.append(
@@ -128,7 +130,7 @@ class MonaiModels:
                         for k, v in (cfg.get("package_overrides") or {}).items()
                     },
                     license=cfg.get("license"),
-                    pipeline=pipeline,
+                    pipeline_name=pipeline_name,
                 )
             )
         return entries
@@ -216,22 +218,22 @@ class MonaiModels:
         return sorted(e.name for e in self.whitelist() if e.name not in available)
 
     @staticmethod
-    def pipeline_name(entry: WhitelistEntry) -> str:
+    def spec_stem(entry: WhitelistEntry) -> str:
         """The spec's file stem, which is also its command name.
 
         The spec has no ``name`` field, so pipeline2app takes the pipeline ID from
         the file path, e.g. ``human.whole-body.ct.monai-segmentation`` (#546). By
         default the Zoo name is converted to lowercase and hyphens
         (``spleen_ct_segmentation`` gives ``monai-spleen-ct-segmentation``).
-        Set ``pipeline`` in the whitelist when that repeats the directories.
+        Set ``pipeline_name`` in the whitelist when that repeats the directories.
         """
-        if entry.pipeline:
-            return PIPELINE_PREFIX + entry.pipeline
+        if entry.pipeline_name:
+            return PIPELINE_PREFIX + entry.pipeline_name
         words = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", entry.name)
         return PIPELINE_PREFIX + re.sub(r"[^a-z0-9]+", "-", words.lower()).strip("-")
 
     def spec_path(self, entry: WhitelistEntry) -> Path:
-        """``<species>/<anatomy>/<technique>[/<datatype>]/monai-<pipeline>.yaml``,
+        """``<species>/<anatomy>/<technique>[/<datatype>]/monai-<pipeline_name>.yaml``,
         following the naming convention in docs/pipeline-naming.md"""
         path = (
             self.root
@@ -243,13 +245,13 @@ class MonaiModels:
         )
         if entry.datatype:
             path /= entry.datatype
-        return path / f"{self.pipeline_name(entry)}.yaml"
+        return path / f"{self.spec_stem(entry)}.yaml"
 
     def check_unique_paths(self, entries: List[WhitelistEntry]) -> None:
         """Fail if two models would be written to the same spec file.
 
         Names no longer come straight from the Zoo, so two models can map to the
-        same ``monai-<pipeline>.yaml`` under the same directories, and one would
+        same ``monai-<pipeline_name>.yaml`` under the same directories, and one would
         silently overwrite the other.
         """
         seen: Dict[Path, str] = {}
@@ -258,7 +260,7 @@ class MonaiModels:
             if path in seen:
                 raise ValueError(
                     f"{seen[path]} and {entry.name} would both be written to "
-                    f"{path.relative_to(self.root)}; set a different `pipeline` "
+                    f"{path.relative_to(self.root)}; set a different `pipeline_name` "
                     "for one of them in the whitelist"
                 )
             seen[path] = entry.name
@@ -310,7 +312,7 @@ class MonaiModels:
 
         The model is read from the spec's bundle path rather than its file name,
         because the file is named after the pipeline. The same match also
-        catches a rename, such as setting ``pipeline`` in the whitelist.
+        catches a rename, such as setting ``pipeline_name`` in the whitelist.
         """
         wanted = {self.spec_path(e) for e in entries}
         names = {e.name for e in entries}
@@ -507,7 +509,7 @@ class MonaiModels:
                     "path": self.runtime_bundle_path(entry),
                 },
             },
-            "commands": {self.pipeline_name(entry): command},
+            "commands": {self.spec_stem(entry): command},
         }
         if entry.license is not None:
             spec["license"] = entry.license
@@ -641,7 +643,7 @@ class MonaiModels:
                 lines.append("    anatomy:    # abdomen | neuro | whole-body | ...")
                 lines.append("    technique:  # ct | mri | pet | ...")
                 lines.append(
-                    "    pipeline:   # optional: file becomes monai-<pipeline>.yaml"
+                    "    pipeline_name:  # optional, gives monai-<pipeline_name>.yaml"
                 )
                 lines.append("    datatype:   # MRI only: anat | func | dwi | perf")
             lines.append("```\n")
