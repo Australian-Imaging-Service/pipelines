@@ -44,7 +44,8 @@ def test_whitelist_parses_entries(tmp_path: Path, whitelist_file: Path):
 
 
 def test_spec_path_follows_naming_convention(tmp_path: Path, whitelist_file: Path):
-    """<species>/<anatomy>/<technique>/<model>.yaml, with no MONAI-specific level"""
+    """<species>/<anatomy>/<technique>/monai-<pipeline_name>.yaml, with no
+    MONAI-specific level"""
     mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
     entry = mm.whitelist()[0]
     expected = (
@@ -54,9 +55,111 @@ def test_spec_path_follows_naming_convention(tmp_path: Path, whitelist_file: Pat
         / "human"
         / "abdomen"
         / "ct"
-        / "spleen_ct_segmentation.yaml"
+        / "monai-spleen-ct-segmentation.yaml"
     )
     assert mm.spec_path(entry) == expected
+
+
+def test_spec_stem_defaults_to_the_zoo_name_in_lowercase_and_hyphens(
+    tmp_path: Path, whitelist_file: Path
+):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    entry = mm.whitelist()[0]
+    assert mm.spec_stem(entry) == "monai-spleen-ct-segmentation"
+    # camelCase in a Zoo name is split too
+    assert (
+        mm.spec_stem(entry._replace(name="wholeBody_ct_segmentation"))
+        == "monai-whole-body-ct-segmentation"
+    )
+
+
+def test_whitelist_pipeline_name_overrides_the_file_and_command_name(
+    tmp_path: Path, monkeypatch
+):
+    """#546: the Zoo name often repeats the directories, e.g.
+    human/whole-body/ct/monai-whole-body-ct-segmentation.yaml"""
+    import scripts.monai_specs as ms
+
+    monkeypatch.setattr(
+        ms,
+        "spec_fragment",
+        lambda bundle: {"sources": {}, "sinks": {}, "parameters": {}},
+    )
+    wl = _write_whitelist(tmp_path / "wl.yaml", pipeline_name="segmentation")
+    mm = MonaiModels(root=tmp_path, whitelist_path=wl)
+    entry = mm.whitelist()[0]._replace(version="0.5.3")
+    assert entry.pipeline_name == "segmentation"
+    assert mm.spec_path(entry).name == "monai-segmentation.yaml"
+
+    spec = mm.generate_spec(entry, bundle_dir=tmp_path / "b")
+    assert list(spec["commands"]) == ["monai-segmentation"]
+    # the Zoo name is kept wherever it identifies the model rather than the
+    # pipeline: the bundle, the stored outputs and the description
+    cmd = spec["commands"]["monai-segmentation"]
+    assert cmd["task"]["bundle"] == "/monai-bundles/spleen_ct_segmentation"
+    assert "`spleen_ct_segmentation`" in spec["docs"]["description"]
+
+
+@pytest.mark.parametrize(
+    "pipeline_name", ["Segmentation", "ct_segmentation", "monai-segmentation", "-x"]
+)
+def test_whitelist_rejects_a_malformed_pipeline_name(
+    tmp_path: Path, pipeline_name: str
+):
+    wl = _write_whitelist(tmp_path / "wl.yaml", pipeline_name=pipeline_name)
+    with pytest.raises(ValueError, match="pipeline_name"):
+        MonaiModels(root=tmp_path, whitelist_path=wl).whitelist()
+
+
+def test_check_unique_paths_rejects_two_models_with_one_file(
+    tmp_path: Path, whitelist_file: Path
+):
+    mm = MonaiModels(root=tmp_path, whitelist_path=whitelist_file)
+    a = mm.whitelist()[0]._replace(pipeline_name="segmentation")
+    b = a._replace(name="other_ct_segmentation")
+    mm.check_unique_paths([a])
+    with pytest.raises(ValueError, match="other_ct_segmentation"):
+        mm.check_unique_paths([a, b])
+    # the same pipeline name under a different anatomy is a different file
+    mm.check_unique_paths([a, b._replace(anatomy="neuro")])
+
+
+def test_sync_renames_the_spec_when_pipeline_name_is_set(tmp_path, monkeypatch):
+    """Setting ``pipeline_name`` moves the spec to a new file. The old one must go,
+    or both would build."""
+    _stub_zoo(monkeypatch)
+    bundle = tmp_path / "bundle"
+    (bundle / "configs").mkdir(parents=True)
+    (bundle / "configs" / "metadata.json").write_text("{}")
+
+    wl = _write_whitelist(tmp_path / "wl.yaml")
+    mm = MonaiModels(root=tmp_path, whitelist_path=wl)
+    (old_path,), _ = mm.sync(download_bundle=lambda entry: bundle)
+    assert old_path.name == "monai-spleen-ct-segmentation.yaml"
+
+    _write_whitelist(wl, pipeline_name="segmentation")
+    (new_path,), removed = mm.sync(download_bundle=lambda entry: bundle)
+    assert new_path.name == "monai-segmentation.yaml"
+    assert removed == [old_path]
+    assert mm.monai_specs() == [new_path]
+
+
+def test_model_name_reads_the_bundle_path():
+    import scripts.monai_specs as ms
+
+    spec = {
+        "commands": {
+            "monai-segmentation": {
+                "task": {
+                    "type": "monai",
+                    "bundle": "/monai-bundles/wholeBody_ct_segmentation",
+                }
+            }
+        }
+    }
+    assert ms.model_name(spec) == "wholeBody_ct_segmentation"
+    assert ms.model_name({"commands": {"x": {"task": "pkg.mod:Task"}}}) is None
+    assert ms.model_name({}) is None
 
 
 def test_spec_path_includes_datatype(tmp_path: Path, whitelist_file: Path):
@@ -67,7 +170,7 @@ def test_spec_path_includes_datatype(tmp_path: Path, whitelist_file: Path):
     )
     assert mm.spec_path(entry).relative_to(
         tmp_path / "specs" / "australian-imaging-service"
-    ) == Path("human/neuro/mri/anat/spleen_ct_segmentation.yaml")
+    ) == Path("human/neuro/mri/anat/monai-spleen-ct-segmentation.yaml")
 
 
 def test_monai_specs_identified_by_base_image(tmp_path: Path, whitelist_file: Path):
@@ -176,9 +279,11 @@ def test_orphaned_specs_finds_a_model_that_moved(tmp_path, whitelist_file):
     old_path = mm.write_spec(
         entry,
         {
-            "name": entry.name,
             "version": "0.5.3",
             "base_image": {"name": "projectmonai/monai"},
+            "commands": {
+                "x": {"task": {"type": "monai", "bundle": mm.runtime_bundle_path(entry)}}
+            },
         },
     )
     assert mm.orphaned_specs([entry]) == []
@@ -222,14 +327,16 @@ def test_generate_spec_shape(tmp_path, whitelist_file, monkeypatch):
 
     assert spec["title"] == "MONAI Spleen CT Segmentation"
     assert spec["version"] == "0.5.3"
+    # the pipeline ID comes from the file path, not an explicit name (#546)
+    assert "name" not in spec
     assert "license" not in spec
     licensed = mm.generate_spec(entry._replace(license="mit"), bundle_dir=tmp_path / "bundle")
     assert licensed["license"] == "mit"
     # commands is a mapping keyed by command name, matching the convention in
     # the hand-written specs and the `yq '.commands | keys'` step in release.yml
     assert isinstance(spec["commands"], dict)
-    assert list(spec["commands"]) == ["spleen_ct_segmentation"]
-    cmd = spec["commands"]["spleen_ct_segmentation"]
+    assert list(spec["commands"]) == ["monai-spleen-ct-segmentation"]
+    cmd = spec["commands"]["monai-spleen-ct-segmentation"]
     # the task is declared inline rather than referencing a generated module,
     # and points straight at the in-image bundle path
     assert cmd["task"] == {
@@ -265,7 +372,7 @@ def test_generate_spec_points_bundle_at_runtime_resource(
     entry = mm.whitelist()[0]._replace(version="0.5.3")
     spec = mm.generate_spec(entry, bundle_dir=tmp_path / "b")
 
-    cmd = spec["commands"]["spleen_ct_segmentation"]
+    cmd = spec["commands"]["monai-spleen-ct-segmentation"]
     runtime_path = mm.runtime_bundle_path(entry)
     assert cmd["task"]["bundle"] == runtime_path
 
@@ -340,7 +447,7 @@ def test_generated_spec_commands_match_release_workflow_contract(
     reloaded = yaml.safe_load(path.read_text())
     assert isinstance(reloaded["commands"], dict)
     # `yq -r '.commands | keys | join(" ")'` yields the command names
-    assert list(reloaded["commands"].keys()) == ["spleen_ct_segmentation"]
+    assert list(reloaded["commands"].keys()) == ["monai-spleen-ct-segmentation"]
 
 
 def test_write_spec_creates_yaml(tmp_path, whitelist_file):
@@ -644,7 +751,10 @@ def test_spec_fields_come_from_bundle_and_defaults_not_an_overlay(
     spec = mm.generate_spec(entry, bundle_dir=bundle)
 
     # derived from the bundle
-    assert spec["docs"]["description"] == "Segments 104 structures from CT."
+    assert spec["docs"]["description"] == (
+        "Segments 104 structures from CT.\n\n"
+        "MONAI Model Zoo bundle `spleen_ct_segmentation`, version 0.5.3."
+    )
     # title comes from the bundle's own `name`, not the whitelist key.
     # This bundle's name is unspaced CamelCase, so it is split; a name that
     # is already spaced (as most real bundles are) is used verbatim.
@@ -654,7 +764,7 @@ def test_spec_fields_come_from_bundle_and_defaults_not_an_overlay(
     assert spec["base_image"]["tag"] == ms.MONAI_BASE_IMAGE_TAG
     assert spec["authors"][0]["name"] == "MONAI Consortium"
     assert spec["docs"]["info_url"] == "https://monai.io/model-zoo.html"
-    assert spec["commands"][entry.name]["operates_on"] == "medimage/session"
+    assert spec["commands"][mm.spec_stem(entry)]["operates_on"] == "medimage/session"
     assert spec["packages"]["pip"]["pydra-compose-monai"] == ms.PYDRA_COMPOSE_MONAI_REQ
 
 
@@ -822,7 +932,7 @@ def test_generate_spec_converts_dicom_to_nifti_sources(
     entry = mm.whitelist()[0]._replace(version="0.5.3")
     spec = mm.generate_spec(entry, bundle_dir=bundle)
 
-    source = spec["commands"]["spleen_ct_segmentation"]["sources"]["image"]
+    source = spec["commands"]["monai-spleen-ct-segmentation"]["sources"]["image"]
     assert source["datatype"] == "medimage/nifti-gz+convertible-to"
     assert spec["packages"]["neurodocker"] == {"dcm2niix": ms.DCM2NIIX_VERSION}
     assert "pydra-tasks-dcm2niix" in spec["packages"]["pip"]
@@ -832,7 +942,7 @@ def test_generate_spec_converts_dicom_to_nifti_sources(
     fragment["sources"]["image"]["datatype"] = "medimage/nifti-gz+convertible-to"
     monkeypatch.setattr(ms, "spec_fragment", lambda bundle: fragment)
     again = mm.generate_spec(entry, bundle_dir=bundle)
-    source = again["commands"]["spleen_ct_segmentation"]["sources"]["image"]
+    source = again["commands"]["monai-spleen-ct-segmentation"]["sources"]["image"]
     assert source["datatype"] == "medimage/nifti-gz+convertible-to"
 
 

@@ -4,7 +4,7 @@ import json
 import os
 import re
 import typing as ty
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, Dict, List, Optional
 
 import yaml
@@ -45,6 +45,12 @@ PYDRA_COMPOSE_MONAI_REQ = ">=0.2.0"
 CONVERTIBLE_TO = "+convertible-to"
 DCM2NIIX_VERSION = "v1.0.20250506"
 
+#: Generated spec file names start with this, so MONAI pipelines stand out in the
+#: tree. The rest comes from the whitelist's ``pipeline_name`` field or the Zoo name.
+PIPELINE_PREFIX = "monai-"
+#: Lowercase words joined by hyphens, as docs/pipeline-naming.md asks for.
+PIPELINE_NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
 
 class WhitelistEntry(ty.NamedTuple):
     name: str
@@ -59,6 +65,9 @@ class WhitelistEntry(ty.NamedTuple):
     #: `required_packages_version`, for pins that don't work in the image.
     package_overrides: Dict[str, str] = {}
     license: Optional[str] = None
+    #: Overrides the part of the file name after ``monai-``, for when the Zoo
+    #: name repeats what the spec's directories already say.
+    pipeline_name: Optional[str] = None
 
 
 class DeclinedEntry(ty.NamedTuple):
@@ -95,6 +104,19 @@ class MonaiModels:
         models: Dict[str, dict] = data.get("models", {})
         entries: List[WhitelistEntry] = []
         for name, cfg in models.items():
+            pipeline_name = cfg.get("pipeline_name")
+            if pipeline_name is not None:
+                pipeline_name = str(pipeline_name)
+                if not PIPELINE_NAME_RE.match(
+                    pipeline_name
+                ) or pipeline_name.startswith(
+                    PIPELINE_PREFIX
+                ):
+                    raise ValueError(
+                        f"{name}: pipeline_name {pipeline_name!r} must be lowercase "
+                        f"words joined by hyphens, without the {PIPELINE_PREFIX!r} "
+                        "prefix (it is added)"
+                    )
             entries.append(
                 WhitelistEntry(
                     name=name,
@@ -108,6 +130,7 @@ class MonaiModels:
                         for k, v in (cfg.get("package_overrides") or {}).items()
                     },
                     license=cfg.get("license"),
+                    pipeline_name=pipeline_name,
                 )
             )
         return entries
@@ -194,9 +217,24 @@ class MonaiModels:
         """
         return sorted(e.name for e in self.whitelist() if e.name not in available)
 
+    @staticmethod
+    def spec_stem(entry: WhitelistEntry) -> str:
+        """The spec's file stem, which is also its command name.
+
+        The spec has no ``name`` field, so pipeline2app takes the pipeline ID from
+        the file path, e.g. ``human.whole-body.ct.monai-segmentation`` (#546). By
+        default the Zoo name is converted to lowercase and hyphens
+        (``spleen_ct_segmentation`` gives ``monai-spleen-ct-segmentation``).
+        Set ``pipeline_name`` in the whitelist when that repeats the directories.
+        """
+        if entry.pipeline_name:
+            return PIPELINE_PREFIX + entry.pipeline_name
+        words = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", entry.name)
+        return PIPELINE_PREFIX + re.sub(r"[^a-z0-9]+", "-", words.lower()).strip("-")
+
     def spec_path(self, entry: WhitelistEntry) -> Path:
-        """``<species>/<anatomy>/<technique>[/<datatype>]/<model>.yaml``, following the
-        naming convention in docs/pipeline-naming.md"""
+        """``<species>/<anatomy>/<technique>[/<datatype>]/monai-<pipeline_name>.yaml``,
+        following the naming convention in docs/pipeline-naming.md"""
         path = (
             self.root
             / "specs"
@@ -207,7 +245,25 @@ class MonaiModels:
         )
         if entry.datatype:
             path /= entry.datatype
-        return path / f"{entry.name}.yaml"
+        return path / f"{self.spec_stem(entry)}.yaml"
+
+    def check_unique_paths(self, entries: List[WhitelistEntry]) -> None:
+        """Fail if two models would be written to the same spec file.
+
+        Names no longer come straight from the Zoo, so two models can map to the
+        same ``monai-<pipeline_name>.yaml`` under the same directories, and one would
+        silently overwrite the other.
+        """
+        seen: Dict[Path, str] = {}
+        for entry in entries:
+            path = self.spec_path(entry)
+            if path in seen:
+                raise ValueError(
+                    f"{seen[path]} and {entry.name} would both be written to "
+                    f"{path.relative_to(self.root)}; set a different `pipeline_name` "
+                    "for one of them in the whitelist"
+                )
+            seen[path] = entry.name
 
     def existing_version(self, entry: WhitelistEntry) -> Optional[str]:
         path = self.spec_path(entry)
@@ -253,13 +309,18 @@ class MonaiModels:
         Only models in ``entries`` are considered. A spec whose model has been
         removed from the whitelist entirely is a withdrawal, reported by
         ``withdrawn()`` for a human to act on, not something to delete here.
+
+        The model is read from the spec's bundle path rather than its file name,
+        because the file is named after the pipeline. The same match also
+        catches a rename, such as setting ``pipeline_name`` in the whitelist.
         """
         wanted = {self.spec_path(e) for e in entries}
         names = {e.name for e in entries}
         return [
             path
             for path in self.monai_specs()
-            if path.stem in names and path not in wanted
+            if path not in wanted
+            and model_name(yaml.safe_load(path.read_text()) or {}) in names
         ]
 
     def resource_name(self, entry: WhitelistEntry) -> str:
@@ -390,6 +451,8 @@ class MonaiModels:
         sinks = {}
         for out_name, sink in fragment["sinks"].items():
             sink = dict(sink)
+            # Still named after the Zoo model, so stored outputs say which model
+            # produced them.
             sink["path"] = f"monai/{entry.name}/{out_name}"
             sinks[out_name] = sink
 
@@ -404,21 +467,28 @@ class MonaiModels:
             "parameters": fragment["parameters"],
         }
 
+        # The pipeline ID no longer carries the Zoo name, so the description
+        # says which model this is.
+        zoo_ref = f"MONAI Model Zoo bundle `{entry.name}`, version {entry.version}."
+        description = str(metadata.get("description") or "").strip()
+        description = f"{description}\n\n{zoo_ref}" if description else zoo_ref
+
         # ``commands`` is a mapping keyed by command name, matching the
         # hand-written specs. pipeline2app accepts either form (its
         # ObjectListConverter takes the key as the command name), but the
         # release workflow reads command names via ``yq '.commands | keys'``,
-        # which only works on a mapping.
+        # which only works on a mapping. Like the hand-written specs, the command
+        # is named after the file. XNAT shows it as ``<pipeline ID>.<command>``,
+        # so a Zoo name here would repeat the anatomy and technique.
+        #
+        # No ``name``: pipeline2app derives the pipeline ID and image name from
+        # the file path, as for every other spec (#546).
         spec = {
             "title": self.title_for(entry, metadata),
             "authors": MONAI_AUTHORS,
             "docs": {
                 "info_url": MONAI_INFO_URL,
-                "description": str(
-                    metadata.get("description")
-                    or f"MONAI Model Zoo bundle '{entry.name}', wrapped as a Pydra "
-                    "task and packaged for the Australian Imaging Service."
-                ),
+                "description": description,
             },
             "base_image": {
                 "name": MONAI_BASE_IMAGE,
@@ -426,7 +496,6 @@ class MonaiModels:
                 "package_manager": "apt",
             },
             "packages": packages,
-            "name": entry.name,
             "version": entry.version,
             # The full bundle (weights included) is delivered at build time and
             # unpacked to the path the command's task points at. ``url`` is a
@@ -440,7 +509,7 @@ class MonaiModels:
                     "path": self.runtime_bundle_path(entry),
                 },
             },
-            "commands": {entry.name: command},
+            "commands": {self.spec_stem(entry): command},
         }
         if entry.license is not None:
             spec["license"] = entry.license
@@ -479,6 +548,7 @@ class MonaiModels:
         """
         available = self.fetch_available()
         whitelisted = self.filter_whitelist(available)
+        self.check_unique_paths(whitelisted)
 
         written: List[Path] = []
         for entry in whitelisted:
@@ -572,6 +642,9 @@ class MonaiModels:
                 lines.append("    species:    # human | mouse | ...")
                 lines.append("    anatomy:    # abdomen | neuro | whole-body | ...")
                 lines.append("    technique:  # ct | mri | pet | ...")
+                lines.append(
+                    "    pipeline_name:  # optional, gives monai-<pipeline_name>.yaml"
+                )
                 lines.append("    datatype:   # MRI only: anat | func | dwi | perf")
             lines.append("```\n")
 
@@ -635,7 +708,12 @@ class MonaiModels:
             resources = spec.get("resources") or {}
             if not resources:
                 continue
-            name = spec["name"]
+            name = model_name(spec)
+            if name is None:
+                raise ValueError(
+                    f"{spec_path}: no command has a `type: monai` task, so the "
+                    "bundle to fetch is unknown"
+                )
             version = spec.get("version")
             for resource_name in resources:
                 target = resources_dir / resource_name
@@ -656,6 +734,19 @@ class _IgnoreTagsLoader(yaml.SafeLoader):
 
 
 _IgnoreTagsLoader.add_multi_constructor("!", lambda loader, suffix, node: None)
+
+
+def model_name(spec: dict) -> Optional[str]:
+    """The Zoo model a generated spec runs, read from its task's bundle path.
+
+    The file name and pipeline ID no longer contain the Zoo name (#546), but
+    the in-image bundle path ``/monai-bundles/<model>`` always does.
+    """
+    for command in (spec.get("commands") or {}).values():
+        task = (command or {}).get("task")
+        if isinstance(task, dict) and task.get("type") == "monai" and task.get("bundle"):
+            return PurePosixPath(task["bundle"]).name
+    return None
 
 
 def is_monai_spec(path: Path) -> bool:
