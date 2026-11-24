@@ -8,6 +8,10 @@
 # The placement fields are human classification -- they are not present in bundle
 # metadata, and they determine where the generated spec lands in the tree.
 # Set `license` explicitly for each model before its generated spec is released.
+# The spec is written to monai-<pipeline>.yaml, and that file name ends its pipeline
+# ID. `pipeline` defaults to the Zoo name in lowercase and hyphens. Set it when that
+# would repeat the directories, e.g. `segmentation` rather than
+# `whole-body-ct-segmentation` under human/whole-body/ct/.
 models:
   # Segments 104 structures from a single-channel CT, so it spans anatomy
   # rather than sitting in one -- hence `whole-body` rather than picking a
@@ -17,6 +21,7 @@ models:
     species: human
     anatomy: whole-body
     technique: ct
+    pipeline: segmentation
     # From the bundle's LICENSE file; metadata.json does not declare one. The
     # weights are trained on TotalSegmentator data, which is CC BY 4.0.
     license: apache-2.0

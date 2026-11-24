@@ -24,7 +24,7 @@ human.neuro.mri.anat.smriprep
 human.neuro.mri.func.fmriprep
 human.neuro.mri.dwi.preprocess
 human.neuro.pet.<pipeline>
-human.whole-body.ct.wholeBody_ct_segmentation
+human.whole-body.ct.monai-segmentation
 mouse.neuro.mri.anat.<pipeline>
 human.any-anatomy.any-technique.phi-finder
 ```
@@ -35,8 +35,12 @@ have a single datatype of the same name. So the `datatype` level only appears un
 `mri`. For other anatomy, and for techniques BIDS doesn't cover (ultrasound, total
 body photography, dermoscopy), use the technique name.
 
-Use lowercase and hyphens. MONAI specs keep the model's name from the Model Zoo as
-their pipeline name.
+Use lowercase and hyphens. Generated MONAI specs are named `monai-<pipeline>`, so they
+stand out from the hand-written ones. By default `<pipeline>` is the model's Model Zoo
+name in lowercase and hyphens. When that repeats the levels above it, a shorter
+name is set in `scripts/monai_whitelist.yaml`: `wholeBody_ct_segmentation` becomes
+`human.whole-body.ct.monai-segmentation`. The Zoo name is given in the pipeline's
+description.
 
 ## Where a pipeline goes
 
@@ -109,6 +113,7 @@ are installed.
 | `mri.human.neuro.dwi.preprocess` | `human.neuro.mri.dwi.preprocess` |
 | `mri.human.neuro.t1w.preprocess` | `human.neuro.mri.anat.t1w-preprocess` |
 | `quality-control.phi-finder` | `human.any-anatomy.any-technique.phi-finder` |
+| `wholebody_ct_segmentation` | `human.whole-body.ct.monai-segmentation` |
 
 `human.neuro.mri.anat.t1w-preprocess` is also upgraded from FastSurfer 2.2.0 to 2.6.1,
 so its segmentations and surfaces differ from those of
@@ -130,3 +135,9 @@ In `scripts/monai_whitelist.yaml`, the `modality` and `region` fields are now
 `technique` and `anatomy`. There's also an optional `datatype` field for MRI
 models. Generated MONAI specs no longer sit in a `monai/` folder. They're recognised
 by their `projectmonai/monai` base image.
+
+Generated MONAI specs no longer set `name`, so their ID comes from the file path like
+every other spec. In 26.11.0 the whole-body CT model was published as
+`wholebody_ct_segmentation`, outside the naming scheme. Its file is now
+`monai-segmentation.yaml`, set by a new optional `pipeline` field in the whitelist,
+and its XNAT command is `monai-segmentation`.
