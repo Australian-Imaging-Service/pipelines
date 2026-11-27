@@ -1,4 +1,7 @@
-# AllParcellations Pipeline — Flow Diagram
+---
+title: "T1w parcellation workflow"
+weight: 10
+---
 
 ```mermaid
 flowchart TD

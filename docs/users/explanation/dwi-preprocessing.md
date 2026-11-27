@@ -1,4 +1,7 @@
-# DWI Preprocessing Pipeline
+---
+title: "DWI preprocessing workflow"
+weight: 20
+---
 
 ```mermaid
 flowchart TD

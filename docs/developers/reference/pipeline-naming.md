@@ -1,4 +1,7 @@
-# Pipeline naming
+---
+title: "Pipeline naming"
+weight: 10
+---
 
 Pipeline specs are filed under `specs/australian-imaging-service/` by the images they
 operate on, not by the tool that implements them. A spec's path, with `/` replaced
@@ -79,7 +82,7 @@ support.
 ## Selecting pipelines for a site
 
 Sites choose pipelines in their reconciler config with wildcard patterns on the ID,
-where `*` also matches `.` (see [Releasing pipelines](releasing-pipelines.md)):
+where `*` also matches `.` (see [Deploying the reconciler](../../ict/how-to/deploying-the-reconciler.md)):
 
 ```yaml
 include:

@@ -1,4 +1,12 @@
+# Default mounts when this repository is imported as a Hugo module. The AIS website
+# sets its own mounts in config/_default/hugo.yaml, which take precedence.
 [module]
 [[module.mounts]]
-source = ""
-target = "content/user_docs"
+source = "users"
+target = "content/docs/researchers/pipelines"
+[[module.mounts]]
+source = "developers"
+target = "content/docs/Development/pipelines"
+[[module.mounts]]
+source = "ict"
+target = "content/docs/Node Administration/pipelines"

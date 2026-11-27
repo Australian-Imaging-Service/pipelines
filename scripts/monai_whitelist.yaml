@@ -4,7 +4,7 @@
 # editing when the Zoo changes.
 # Approved: generate and publish a spec.
 # Each entry: version pin (null = latest) and placement in the specs/ tree, which
-# follows docs/pipeline-naming.md: <species>/<anatomy>/<technique>[/<datatype>].
+# follows docs/developers/reference/pipeline-naming.md: <species>/<anatomy>/<technique>[/<datatype>].
 # The placement fields are human classification -- they are not present in bundle
 # metadata, and they determine where the generated spec lands in the tree.
 # Set `license` explicitly for each model before its generated spec is released.

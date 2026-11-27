@@ -343,7 +343,7 @@ jobs:
       # build matrix, but degrades to generic input/output/parameter info for
       # any task whose package isn't installed here on the runner.
       - name: Generate baseline pipeline docs
-        run: pydra2app make-docs ./specs/australian-imaging-service docs/pipelines --flatten --default-axes medimage
+        run: pydra2app make-docs ./specs/australian-imaging-service docs/users/reference/pipelines --flatten --default-axes medimage
       # Overlays docs generated from inside each spec's just-built image (see
       # 'Generate pipeline docs from built image' in build-and-deploy) on top of
       # the baseline -- those have correctly introspected inputs/outputs/
@@ -359,9 +359,9 @@ jobs:
           merge-multiple: true
       - name: Overlay docs generated from built images
         if: needs.discover-specs.outputs.has-builds == 'true'
-        run: cp built-image-docs/*.md docs/pipelines/
-      - name: Remove /docs/pipelines/ from .gitignore
-        run: sed -i 's%^/docs/pipelines/\*$%%' .gitignore
+        run: cp built-image-docs/*.md docs/users/reference/pipelines/
+      - name: Remove /docs/users/reference/pipelines/ from .gitignore
+        run: sed -i 's%^/docs/users/reference/pipelines/\*$%%' .gitignore
       - name: Deploy to docs branch
         id: deploy
         uses: peaceiris/actions-gh-pages@v3

@@ -48,7 +48,7 @@ DCM2NIIX_VERSION = "v1.0.20250506"
 #: Generated spec file names start with this, so MONAI pipelines stand out in the
 #: tree. The rest comes from the whitelist's ``pipeline_name`` field or the Zoo name.
 PIPELINE_PREFIX = "monai-"
-#: Lowercase words joined by hyphens, as docs/pipeline-naming.md asks for.
+#: Lowercase words joined by hyphens, as docs/developers/reference/pipeline-naming.md asks for.
 PIPELINE_NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
@@ -109,9 +109,7 @@ class MonaiModels:
                 pipeline_name = str(pipeline_name)
                 if not PIPELINE_NAME_RE.match(
                     pipeline_name
-                ) or pipeline_name.startswith(
-                    PIPELINE_PREFIX
-                ):
+                ) or pipeline_name.startswith(PIPELINE_PREFIX):
                     raise ValueError(
                         f"{name}: pipeline_name {pipeline_name!r} must be lowercase "
                         f"words joined by hyphens, without the {PIPELINE_PREFIX!r} "
@@ -234,7 +232,7 @@ class MonaiModels:
 
     def spec_path(self, entry: WhitelistEntry) -> Path:
         """``<species>/<anatomy>/<technique>[/<datatype>]/monai-<pipeline_name>.yaml``,
-        following the naming convention in docs/pipeline-naming.md"""
+        following the naming convention in docs/developers/reference/pipeline-naming.md"""
         path = (
             self.root
             / "specs"
@@ -744,7 +742,11 @@ def model_name(spec: dict) -> Optional[str]:
     """
     for command in (spec.get("commands") or {}).values():
         task = (command or {}).get("task")
-        if isinstance(task, dict) and task.get("type") == "monai" and task.get("bundle"):
+        if (
+            isinstance(task, dict)
+            and task.get("type") == "monai"
+            and task.get("bundle")
+        ):
             return PurePosixPath(task["bundle"]).name
     return None
 

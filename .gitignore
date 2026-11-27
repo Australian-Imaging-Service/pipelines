@@ -7,8 +7,8 @@ __pycache__
 .DS_Store
 /licenses/*
 # Automatically generated
-/docs/pipelines/*
-!/docs/pipelines/_index.md
+/docs/users/reference/pipelines/*
+!/docs/users/reference/pipelines/_index.md
 test-data
 *.build*
 *.venv
@@ -17,6 +17,6 @@ _version.py
 # MONAI model weights are never committed: they are large, re-downloadable and
 # already versioned in the Model Zoo. Only the configs-only bundle is vendored;
 # weights are supplied at build time via --resources-dir. This is a backstop in
-# case a local sync ever writes them (see notes/monai-weights-plan.md).
+# case a local sync ever writes them (see design/monai-weights.md).
 /src/**/*_bundle/models/
 /resources/*-bundle/

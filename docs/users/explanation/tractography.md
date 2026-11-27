@@ -1,4 +1,7 @@
-# Tractography & Connectomics Pipeline
+---
+title: "Tractography and connectomics workflow"
+weight: 30
+---
 
 ```mermaid
 flowchart TD

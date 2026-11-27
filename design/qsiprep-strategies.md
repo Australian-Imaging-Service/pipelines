@@ -14,12 +14,12 @@
 2. QC metrics
     a. raw and processed model-free metrics
     b. T1w vs dMRI brain mask comparison
-3. Uses either AveragePEPairs or MergeDWIs to concatenate DWI datasets (after distortion correction) 
+3. Uses either AveragePEPairs or MergeDWIs to concatenate DWI datasets (after distortion correction)
 
 
 ### Intra-modal template creation
 
-1. Uses ANTs `antsMultivariateTemplateConstruction2.sh` to 
+1. Uses ANTs `antsMultivariateTemplateConstruction2.sh` to
 2. Anat to b0 registration (init_b0_to_anat_registration_wf) uses `ANTSRegistrationRPT`
 
 
@@ -27,7 +27,7 @@
 
 1. Field-map logic, handle 4 cases in BIDS standard
 2. Estimate runtime requirements, e.g. memory, file-size, etc...
-3. 
+3.
 
 Potentially missing expected brain-mask estimation step
 
@@ -37,7 +37,7 @@ Potentially missing expected brain-mask estimation step
     a. combining before may be effected by different susceptibility distortions between different phase encodings
 2. Model-free QC
 3. DWI denoising WF (handle special case of 2 reverse PE DWI)
-4. 
+4.
 
 
 #### DWI denoising (init_dwi_denoising_wf)
@@ -84,5 +84,3 @@ False           False       False         HMC only
     c. init_phdiff_wf
     d. init_sdc_unwrap
     c. init_syn_sdc_wf
-
-
