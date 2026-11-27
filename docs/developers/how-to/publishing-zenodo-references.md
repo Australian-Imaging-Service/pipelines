@@ -31,3 +31,20 @@ Zenodo publication follows GitHub publication, so it is not atomic with the
 release: a Zenodo failure can leave a published GitHub release without all its
 references. Correct the failure and rerun the release workflow. An unfinished
 or conflicting Zenodo draft must be inspected in Sandbox before retrying.
+
+<!-- Documentation points for the intended production workflow:
+- Explain account ownership, credential storage, authorisation and rotation.
+- Cover required title, version, authors, description and explicit licence;
+  distinguish the published material's licence from runtime licences.
+- Explain MONAI-generated spec licences and where to configure them.
+- Cover version and concept records, unchanged versions, missing historical
+  references and version bumps for changed specs.
+- Explain the deposited spec and release metadata, source commit and image digest;
+  the record does not contain the full source tree or image.
+- Cover validation, metadata and licence errors, duplicate records, drafts,
+  publication logs, non-atomic GitHub/Zenodo publication and retries.
+- Explain planned authorship classification and attribution of upstream software.
+- Link to https://github.com/ArcanaFramework/pydra2app/blob/main/docs/source/building.rst
+  for metadata syntax.
+Production publication and authorship classification are not yet implemented.
+-->

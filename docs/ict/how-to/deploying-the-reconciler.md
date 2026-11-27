@@ -56,3 +56,15 @@ is reconciled in `approval` mode.
   it in XNAT.
 
 In both modes, project owners still enable commands for their own projects.
+
+<!-- Documentation points:
+- Explain the reconciler's purpose, prerequisites and node responsibilities.
+- Cover image tags, credentials, secure storage, non-root execution and scheduling.
+- Document the site's Kubernetes setup, monitoring and support contacts once decided.
+- Explain the catalogue choice separately from the reconciler image version.
+- Cover selection patterns, approval and auto enablement, including project enablement.
+- Explain updates, preserved enablement, exclusions and handling renamed commands.
+- Cover result counts, nonzero exits, retries, invalid config, unmatched patterns,
+  authentication, access, checksum errors and duplicate command names.
+- Refer to pydra2app-xnat for command behavior and the pipeline naming guide for IDs.
+-->
